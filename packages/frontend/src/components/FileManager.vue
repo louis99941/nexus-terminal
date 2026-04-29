@@ -49,6 +49,7 @@ import type { FileListItem } from '../types/sftp.types';
 import type { WebSocketMessage, MessagePayload } from '../types/websocket.types';
 import { usePathHistoryStore } from '../stores/pathHistory.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
+import { useWorkspaceEventSubscriber, useWorkspaceEventOff } from '../composables/workspaceEvents';
 
 type SftpManagerInstance = ReturnType<typeof createSftpActionsManager>;
 type SftpRealpathPayload = {
@@ -112,6 +113,21 @@ const initializeSftpManager = (sessionId: string, instanceId: string) => {
 
 // 初始加载管理器
 initializeSftpManager(props.sessionId, props.instanceId);
+
+// --- 监听 session:remapped 事件，处理 session ID 重映射 ---
+const subscribeToWorkspaceEvents = useWorkspaceEventSubscriber();
+const unsubscribeFromWorkspaceEvents = useWorkspaceEventOff();
+
+const _onSessionRemapped = (payload: { oldSessionId: string; newSessionId: string }) => {
+  if (payload.oldSessionId === props.sessionId) {
+    console.info(
+      `[FileManager ${props.sessionId}-${props.instanceId}] 收到 session:remapped 事件，旧ID: ${payload.oldSessionId} → 新ID: ${payload.newSessionId}，重新初始化 SFTP 管理器。`
+    );
+    initializeSftpManager(payload.newSessionId, props.instanceId);
+  }
+};
+
+subscribeToWorkspaceEvents('session:remapped', _onSessionRemapped);
 
 // --- 文件上传模块 ---
 // 修改：依赖 currentSftpManager 的状态
@@ -792,6 +808,8 @@ onBeforeUnmount(() => {
   unregisterPathFocusAction = null;
   cleanupSilentExecRequest();
   isSyncingPathFromTerminal.value = false;
+  // 注销 session:remapped 事件监听
+  unsubscribeFromWorkspaceEvents('session:remapped', _onSessionRemapped);
   sessionStore.removeSftpManager(props.sessionId, props.instanceId);
 });
 
