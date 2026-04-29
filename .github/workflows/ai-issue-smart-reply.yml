@@ -3,6 +3,19 @@ name: 🤖 AI Issue Smart Reply
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      target_type:
+        description: '目标类型'
+        required: true
+        type: choice
+        options:
+          - issue
+          - pr
+      issue_number:
+        description: 'Issue 或 PR 编号（如 42）'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -10,7 +23,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ai-issue-${{ github.event.issue.number }}
+  group: ai-issue-${{ github.event.issue.number || github.event.inputs.issue_number }}
   cancel-in-progress: false
 
 jobs:
@@ -47,20 +60,61 @@ jobs:
 
       - name: Prepare issue payload
         id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .ai_runtime
 
-          cat > .ai_runtime/issue.json <<'JSON'
-          {
-            "number": ${{ github.event.issue.number }},
-            "title": ${{ toJson(github.event.issue.title) }},
-            "body": ${{ toJson(github.event.issue.body || '') }},
-            "author": ${{ toJson(github.event.issue.user.login) }},
-            "url": ${{ toJson(github.event.issue.html_url) }}
-          }
-          JSON
+          INPUT_NUM="${{ github.event.issue.number || github.event.inputs.issue_number }}"
+          TARGET_TYPE="${{ github.event.inputs.target_type || 'issue' }}"
+
+          if [ -n "${{ github.event.issue.number || '' }}" ]; then
+            # 自动触发：直接使用事件数据
+            cat > .ai_runtime/issue.json <<JSON
+            {
+              "number": ${INPUT_NUM},
+              "title": $(echo '${{ github.event.issue.title }}' | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))"),
+              "body": $(echo '${{ github.event.issue.body || '' }}' | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))"),
+              "author": $(echo '${{ github.event.issue.user.login }}' | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))"),
+              "url": $(echo '${{ github.event.issue.html_url }}' | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))")
+            }
+            JSON
+          else
+            # 手动触发：根据选择的类型获取数据
+            echo "手动触发模式，获取 ${TARGET_TYPE} #${INPUT_NUM} 的数据..."
+
+            if [ "${TARGET_TYPE}" = "pr" ]; then
+              gh pr view "${INPUT_NUM}" --json number,title,body,author,url | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          print(json.dumps({
+            'number': d['number'],
+            'title': d.get('title', ''),
+            'body': d.get('body', '') or '',
+            'author': d.get('author', {}).get('login', '') if isinstance(d.get('author'), dict) else str(d.get('author', '')),
+            'url': d.get('url', '')
+          }, ensure_ascii=False))
+          " > .ai_runtime/issue.json
+              echo "成功获取 PR #${INPUT_NUM}"
+            else
+              gh issue view "${INPUT_NUM}" --json number,title,body,author,url | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          print(json.dumps({
+            'number': d['number'],
+            'title': d.get('title', ''),
+            'body': d.get('body', '') or '',
+            'author': d.get('author', {}).get('login', '') if isinstance(d.get('author'), dict) else str(d.get('author', '')),
+            'url': d.get('url', '')
+          }, ensure_ascii=False))
+          " > .ai_runtime/issue.json
+              echo "成功获取 Issue #${INPUT_NUM}"
+            fi
+          fi
+
+          echo "payload=$(cat .ai_runtime/issue.json | jq -c .)" >> "$GITHUB_OUTPUT"
 
       - name: Stage 1 - classify and rewrite query
         id: rewrite
@@ -111,15 +165,14 @@ jobs:
           search_queries 控制在 3-6 条，keywords 控制在 5-12 条。
           EOF
 
-          cat > .ai_runtime/rewrite_input_prompt.txt <<'EOF'
-          请分析这个 Issue，并输出适合仓库知识库/代码库检索的查询。
-
-          标题：
-          ${{ github.event.issue.title }}
-
-          正文：
-          ${{ github.event.issue.body }}
-          EOF
+          python3 -c "
+          import json, pathlib
+          issue = json.loads(pathlib.Path('.ai_runtime/issue.json').read_text(encoding='utf-8'))
+          pathlib.Path('.ai_runtime/rewrite_input_prompt.txt').write_text(
+              '请分析这个 Issue，并输出适合仓库知识库/代码库检索的查询。\n\n标题：\n' + issue.get('title','') + '\n\n正文：\n' + issue.get('body',''),
+              encoding='utf-8'
+          )
+          "
 
           python3 - <<'PY'
           import json, os, pathlib, urllib.request, urllib.error
@@ -187,9 +240,9 @@ jobs:
               raise RuntimeError(f'LLM rewrite call failed: {last_err}')
 
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
-              f.write('issue_rewrite<<EOF\n')
+              f.write('issue_rewrite<<REWRITE_EOF\n')
               f.write(content)
-              f.write('\nEOF\n')
+              f.write('\nREWRITE_EOF\n')
               f.write(f'mode_used={mode_used}\n')
           PY
 
@@ -307,9 +360,9 @@ jobs:
           fi
 
           {
-            echo "context<<EOF"
+            echo "context<<CTX_EOF"
             cat .ai_runtime/index_context.txt
-            echo "EOF"
+            echo "CTX_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Fallback repository scan
@@ -327,9 +380,9 @@ jobs:
             > .ai_runtime/fallback_context.txt
 
           {
-            echo "context<<EOF"
+            echo "context<<CTX_EOF"
             cat .ai_runtime/fallback_context.txt
-            echo "EOF"
+            echo "CTX_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare final retrieved context
@@ -347,9 +400,9 @@ jobs:
           fi
 
           {
-            echo "context<<EOF"
+            echo "context<<CTX_EOF"
             cat .ai_runtime/final_context.txt
-            echo "EOF"
+            echo "CTX_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Fetch duplicate candidates
@@ -401,9 +454,9 @@ jobs:
           PY
 
           {
-            echo "candidates<<EOF"
+            echo "candidates<<DUPES_EOF"
             cat .ai_runtime/dupes.txt
-            echo "EOF"
+            echo "DUPES_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare duplicate candidates fallback
@@ -414,9 +467,9 @@ jobs:
           set -euo pipefail
           echo "No duplicate candidates collected." > .ai_runtime/dupes.txt
           {
-            echo "candidates<<EOF"
+            echo "candidates<<DUPES_EOF"
             cat .ai_runtime/dupes.txt
-            echo "EOF"
+            echo "DUPES_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Fetch recent PR candidates
@@ -457,9 +510,9 @@ jobs:
           PY
 
           {
-            echo "candidates<<EOF"
+            echo "candidates<<PRS_EOF"
             cat .ai_runtime/prs.txt
-            echo "EOF"
+            echo "PRS_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare PR candidates fallback
@@ -470,9 +523,9 @@ jobs:
           set -euo pipefail
           echo "No PR candidates collected." > .ai_runtime/prs.txt
           {
-            echo "candidates<<EOF"
+            echo "candidates<<PRS_EOF"
             cat .ai_runtime/prs.txt
-            echo "EOF"
+            echo "PRS_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Fetch recent commit candidates
@@ -517,9 +570,9 @@ jobs:
           PY
 
           {
-            echo "candidates<<EOF"
+            echo "candidates<<COMMITS_EOF"
             cat .ai_runtime/commits.txt
-            echo "EOF"
+            echo "COMMITS_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare commit candidates fallback
@@ -530,9 +583,9 @@ jobs:
           set -euo pipefail
           echo "No commit candidates collected." > .ai_runtime/commits.txt
           {
-            echo "candidates<<EOF"
+            echo "candidates<<COMMITS_EOF"
             cat .ai_runtime/commits.txt
-            echo "EOF"
+            echo "COMMITS_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare final duplicate candidates
@@ -546,9 +599,9 @@ jobs:
             echo "No duplicate candidates collected." > .ai_runtime/final_dupes.txt
           fi
           {
-            echo "candidates<<EOF"
+            echo "candidates<<FINAL_DUPES_EOF"
             cat .ai_runtime/final_dupes.txt
-            echo "EOF"
+            echo "FINAL_DUPES_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare final PR candidates
@@ -562,9 +615,9 @@ jobs:
             echo "No PR candidates collected." > .ai_runtime/final_prs.txt
           fi
           {
-            echo "candidates<<EOF"
+            echo "candidates<<FINAL_PRS_EOF"
             cat .ai_runtime/final_prs.txt
-            echo "EOF"
+            echo "FINAL_PRS_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare final commit candidates
@@ -578,9 +631,9 @@ jobs:
             echo "No commit candidates collected." > .ai_runtime/final_commits.txt
           fi
           {
-            echo "candidates<<EOF"
+            echo "candidates<<FINAL_COMMITS_EOF"
             cat .ai_runtime/final_commits.txt
-            echo "EOF"
+            echo "FINAL_COMMITS_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Stage 2 - maintainer-grade triage
@@ -641,29 +694,37 @@ jobs:
           输出必须是严格 JSON。
           EOF
 
-          cat > .ai_runtime/triage_input_prompt.txt <<'EOF'
-          [Issue]
+          python3 - <<'PY'
+          import json, pathlib
+          issue = json.loads(pathlib.Path('.ai_runtime/issue.json').read_text(encoding='utf-8'))
+          rewrite_json = pathlib.Path('.ai_runtime/rewrite.json').read_text(encoding='utf-8')
+          context = pathlib.Path('.ai_runtime/final_context.txt').read_text(encoding='utf-8') if pathlib.Path('.ai_runtime/final_context.txt').exists() else ''
+          dupes = pathlib.Path('.ai_runtime/final_dupes.txt').read_text(encoding='utf-8') if pathlib.Path('.ai_runtime/final_dupes.txt').exists() else ''
+          prs = pathlib.Path('.ai_runtime/final_prs.txt').read_text(encoding='utf-8') if pathlib.Path('.ai_runtime/final_prs.txt').exists() else ''
+          commits = pathlib.Path('.ai_runtime/final_commits.txt').read_text(encoding='utf-8') if pathlib.Path('.ai_runtime/final_commits.txt').exists() else ''
+          prompt = f"""[Issue]
           标题：
-          ${{ github.event.issue.title }}
+          {issue.get('title','')}
 
           正文：
-          ${{ github.event.issue.body }}
+          {issue.get('body','')}
 
           [Stage 1 Rewrite]
-          ${{ steps.rewrite_norm.outputs.json }}
+          {rewrite_json}
 
           [Retrieved Context]
-          ${{ steps.final_context.outputs.context }}
+          {context}
 
           [Duplicate Candidates]
-          ${{ steps.final_dupes.outputs.candidates }}
+          {dupes}
 
           [PR Candidates]
-          ${{ steps.final_prs.outputs.candidates }}
+          {prs}
 
           [Commit Candidates]
-          ${{ steps.final_commits.outputs.candidates }}
-          EOF
+          {commits}"""
+          pathlib.Path('.ai_runtime/triage_input_prompt.txt').write_text(prompt, encoding='utf-8')
+          PY
 
           python3 - <<'PY'
           import json, os, pathlib, urllib.request, urllib.error
@@ -731,9 +792,9 @@ jobs:
               raise RuntimeError(f'LLM triage call failed: {last_err}')
 
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
-              f.write('issue_response<<EOF\n')
+              f.write('issue_response<<TRIAGE_EOF\n')
               f.write(content)
-              f.write('\nEOF\n')
+              f.write('\nTRIAGE_EOF\n')
               f.write(f'mode_used={mode_used}\n')
           PY
 
@@ -959,7 +1020,7 @@ jobs:
           {
             echo "## AI Issue Smart Reply"
             echo ""
-            echo "- Issue: #${{ github.event.issue.number }}"
+            echo "- Issue: #$(jq -r '.number' .ai_runtime/issue.json 2>/dev/null || echo 'unknown')"
             echo "- Index enabled: ${AI_USE_EMBED_INDEX}"
             echo "- Auto label: ${AI_AUTO_LABEL}"
             echo "- Duplicate check: ${AI_ENABLE_DUPLICATE_CHECK}"
