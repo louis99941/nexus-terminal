@@ -235,12 +235,12 @@ jobs:
           if not content:
               raise RuntimeError(f'LLM rewrite call failed: {last_err}')
 
+          pathlib.Path('.ai_runtime/issue_rewrite.txt').write_text(content, encoding='utf-8')
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
-              f.write('issue_rewrite<<REWRITE_EOF\n')
-              f.write(content)
-              f.write('\nREWRITE_EOF\n')
               f.write(f'mode_used={mode_used}\n')
           PY
+
+          python3 .github/scripts/write_output.py issue_rewrite .ai_runtime/issue_rewrite.txt
 
       - name: Normalize rewrite result
         id: rewrite_norm
@@ -355,11 +355,7 @@ jobs:
             echo "index_missing=false" >> "$GITHUB_OUTPUT"
           fi
 
-          {
-            echo "context<<CTX_EOF"
-            cat .ai_runtime/index_context.txt
-            echo "CTX_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py context .ai_runtime/index_context.txt
 
       - name: Fallback repository scan
         if: env.AI_USE_EMBED_INDEX != 'true' || steps.retrieve_index.outputs.index_missing == 'true'
@@ -375,11 +371,7 @@ jobs:
             --max-chars "${AI_MAX_CONTEXT_CHARS}" \
             > .ai_runtime/fallback_context.txt
 
-          {
-            echo "context<<CTX_EOF"
-            cat .ai_runtime/fallback_context.txt
-            echo "CTX_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py context .ai_runtime/fallback_context.txt
 
       - name: Prepare final retrieved context
         id: final_context
@@ -395,11 +387,7 @@ jobs:
             : > .ai_runtime/final_context.txt
           fi
 
-          {
-            echo "context<<CTX_EOF"
-            cat .ai_runtime/final_context.txt
-            echo "CTX_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py context .ai_runtime/final_context.txt
 
       - name: Fetch duplicate candidates
         if: env.AI_ENABLE_DUPLICATE_CHECK == 'true'
@@ -449,11 +437,7 @@ jobs:
           )
           PY
 
-          {
-            echo "candidates<<DUPES_EOF"
-            cat .ai_runtime/dupes.txt
-            echo "DUPES_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/dupes.txt
 
       - name: Prepare duplicate candidates fallback
         if: env.AI_ENABLE_DUPLICATE_CHECK != 'true'
@@ -462,11 +446,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "No duplicate candidates collected." > .ai_runtime/dupes.txt
-          {
-            echo "candidates<<DUPES_EOF"
-            cat .ai_runtime/dupes.txt
-            echo "DUPES_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/dupes.txt
 
       - name: Fetch recent PR candidates
         if: env.AI_ENABLE_PR_SEARCH == 'true'
@@ -505,11 +485,7 @@ jobs:
           pathlib.Path(".ai_runtime/prs.txt").write_text("\n".join(lines), encoding="utf-8")
           PY
 
-          {
-            echo "candidates<<PRS_EOF"
-            cat .ai_runtime/prs.txt
-            echo "PRS_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/prs.txt
 
       - name: Prepare PR candidates fallback
         if: env.AI_ENABLE_PR_SEARCH != 'true'
@@ -518,11 +494,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "No PR candidates collected." > .ai_runtime/prs.txt
-          {
-            echo "candidates<<PRS_EOF"
-            cat .ai_runtime/prs.txt
-            echo "PRS_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/prs.txt
 
       - name: Fetch recent commit candidates
         if: env.AI_ENABLE_COMMIT_SEARCH == 'true'
@@ -565,11 +537,7 @@ jobs:
           )
           PY
 
-          {
-            echo "candidates<<COMMITS_EOF"
-            cat .ai_runtime/commits.txt
-            echo "COMMITS_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/commits.txt
 
       - name: Prepare commit candidates fallback
         if: env.AI_ENABLE_COMMIT_SEARCH != 'true'
@@ -578,11 +546,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "No commit candidates collected." > .ai_runtime/commits.txt
-          {
-            echo "candidates<<COMMITS_EOF"
-            cat .ai_runtime/commits.txt
-            echo "COMMITS_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/commits.txt
 
       - name: Prepare final duplicate candidates
         id: final_dupes
@@ -594,11 +558,7 @@ jobs:
           else
             echo "No duplicate candidates collected." > .ai_runtime/final_dupes.txt
           fi
-          {
-            echo "candidates<<FINAL_DUPES_EOF"
-            cat .ai_runtime/final_dupes.txt
-            echo "FINAL_DUPES_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/final_dupes.txt
 
       - name: Prepare final PR candidates
         id: final_prs
@@ -610,11 +570,7 @@ jobs:
           else
             echo "No PR candidates collected." > .ai_runtime/final_prs.txt
           fi
-          {
-            echo "candidates<<FINAL_PRS_EOF"
-            cat .ai_runtime/final_prs.txt
-            echo "FINAL_PRS_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/final_prs.txt
 
       - name: Prepare final commit candidates
         id: final_commits
@@ -626,11 +582,7 @@ jobs:
           else
             echo "No commit candidates collected." > .ai_runtime/final_commits.txt
           fi
-          {
-            echo "candidates<<FINAL_COMMITS_EOF"
-            cat .ai_runtime/final_commits.txt
-            echo "FINAL_COMMITS_EOF"
-          } >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/write_output.py candidates .ai_runtime/final_commits.txt
 
       - name: Stage 2 - maintainer-grade triage
         id: triage
@@ -787,12 +739,12 @@ jobs:
           if not content:
               raise RuntimeError(f'LLM triage call failed: {last_err}')
 
+          pathlib.Path('.ai_runtime/issue_response.txt').write_text(content, encoding='utf-8')
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
-              f.write('issue_response<<TRIAGE_EOF\n')
-              f.write(content)
-              f.write('\nTRIAGE_EOF\n')
               f.write(f'mode_used={mode_used}\n')
           PY
+
+          python3 .github/scripts/write_output.py issue_response .ai_runtime/issue_response.txt
 
       - name: Normalize triage result
         id: triage_norm
