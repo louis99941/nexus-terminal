@@ -113,6 +113,20 @@ const initializeSftpManager = (sessionId: string, instanceId: string) => {
 // 初始加载管理器
 initializeSftpManager(props.sessionId, props.instanceId);
 
+// --- 监听 isSftpReady 状态，就绪后自动加载目录 ---
+watch(
+  () => props.wsDeps.isSftpReady.value,
+  (ready) => {
+    if (ready && currentSftpManager.value) {
+      console.info(
+        `[FileManager ${props.sessionId}-${props.instanceId}] SFTP 已就绪，自动加载根目录`
+      );
+      currentSftpManager.value.loadDirectory(currentSftpManager.value.currentPath.value || '/');
+    }
+  },
+  { immediate: true }
+);
+
 // --- 文件上传模块 ---
 // 修改：依赖 currentSftpManager 的状态
 const { uploads, startFileUpload, cancelUpload } = useFileUploader(
@@ -518,11 +532,12 @@ const {
 // --- 文件上传逻辑 (handleFileSelected 保持在此处，由 triggerFileUpload 调用) ---
 const handleFileSelected = (event: Event) => {
   const input = event.target as HTMLInputElement;
-  // 恢复使用 props.wsDeps.isConnected
   if (!input.files || !props.wsDeps.isConnected.value) return;
-  // --- 修正：使用匿名函数包装 startFileUpload 调用 ---
-  Array.from(input.files).forEach((file) => startFileUpload(file)); // 只传递 file 参数
-  // --- 结束修正 ---
+  // 支持文件夹上传：提取 webkitRelativePath 作为相对路径
+  Array.from(input.files).forEach((file) => {
+    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+    startFileUpload(file, relativePath || undefined);
+  });
   input.value = '';
 };
 
@@ -871,7 +886,14 @@ const handleNavigateToPathFromFavorites = (path: string) => {
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-foreground text-sm font-sans">
     <!-- 隐藏的文件选择输入框，由 triggerFileUpload 触发 -->
-    <input ref="fileInputRef" type="file" multiple class="hidden" @change="handleFileSelected" />
+    <input
+      ref="fileInputRef"
+      type="file"
+      multiple
+      webkitdirectory
+      class="hidden"
+      @change="handleFileSelected"
+    />
     <FileManagerToolbar
       ref="toolbarRef"
       :current-path="currentSftpManager?.currentPath?.value ?? '/'"
