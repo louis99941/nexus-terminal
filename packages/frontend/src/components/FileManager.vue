@@ -748,10 +748,16 @@ watch(
     if (newSessionId && newSessionId !== oldSessionId) {
       cancelPathEdit(); // 关闭路径编辑、历史下拉、并重置 editablePath
       pathHistoryStore.setSearchTerm(''); // 清空搜索词
-      // 1. 重新初始化 SFTP 管理器
+      // 1. 先清理旧 session 的 SFTP 管理器，避免残留监听器
+      if (oldSessionId) {
+        sessionStore.removeSftpManager(oldSessionId, props.instanceId);
+      }
+      // 2. 同步 effectiveSessionId
+      effectiveSessionId.value = newSessionId;
+      // 3. 重新初始化 SFTP 管理器
       initializeSftpManager(newSessionId, props.instanceId);
 
-      // 2. 重置 UI 状态
+      // 4. 重置 UI 状态
       clearSelection();
       searchQuery.value = '';
       isSearchActive.value = false;
