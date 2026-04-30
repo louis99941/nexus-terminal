@@ -3,7 +3,7 @@
  * 从 FileManager.vue 提取，负责文件的复制、剪切和粘贴操作
  */
 
-import { ref, type Ref, type ComputedRef } from 'vue';
+import { ref, computed, type Ref, type ComputedRef } from 'vue';
 import type { SftpManagerInstance } from '../../composables/useSftpActions';
 import type { ClipboardState } from './useFileManagerContextMenu';
 
@@ -12,8 +12,8 @@ export interface UseFileManagerClipboardOptions {
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
   /** 选中项集合 */
   selectedItems: Ref<Set<string>>;
-  /** 会话 ID */
-  sessionId: string;
+  /** 会话 ID（响应式，session:remapped 后自动更新） */
+  sessionId: ComputedRef<string>;
   /** 实例 ID */
   instanceId: string;
 }
@@ -21,7 +21,7 @@ export interface UseFileManagerClipboardOptions {
 export function useFileManagerClipboard(options: UseFileManagerClipboardOptions) {
   const { currentSftpManager, selectedItems, sessionId, instanceId } = options;
 
-  const logPrefix = `[FileManager ${sessionId}-${instanceId}]`;
+  const logPrefix = computed(() => `[FileManager ${sessionId.value}-${instanceId}]`);
 
   // --- 剪贴板状态 ---
   const clipboardState = ref<ClipboardState>({ hasContent: false });
@@ -37,7 +37,7 @@ export function useFileManagerClipboard(options: UseFileManagerClipboardOptions)
     );
     clipboardState.value = { hasContent: true, operation: 'copy' };
     clipboardSourceBaseDir.value = manager.currentPath.value;
-    console.info(`${logPrefix} Copied to clipboard:`, clipboardSourcePaths.value);
+    console.info(`${logPrefix.value} Copied to clipboard:`, clipboardSourcePaths.value);
   };
 
   /** 剪切选中项到剪贴板 */
@@ -49,7 +49,7 @@ export function useFileManagerClipboard(options: UseFileManagerClipboardOptions)
     );
     clipboardState.value = { hasContent: true, operation: 'cut' };
     clipboardSourceBaseDir.value = manager.currentPath.value;
-    console.info(`${logPrefix} Cut to clipboard:`, clipboardSourcePaths.value);
+    console.info(`${logPrefix.value} Cut to clipboard:`, clipboardSourcePaths.value);
   };
 
   /** 粘贴剪贴板内容到当前目录 */
@@ -64,14 +64,14 @@ export function useFileManagerClipboard(options: UseFileManagerClipboardOptions)
     const sourceBaseDir = clipboardSourceBaseDir.value;
 
     console.info(
-      `${logPrefix} Pasting items. Operation: ${operation}, Sources: ${sources.join(', ')}, Destination: ${destinationDir}`
+      `${logPrefix.value} Pasting items. Operation: ${operation}, Sources: ${sources.join(', ')}, Destination: ${destinationDir}`
     );
 
     if (operation === 'copy') {
       manager.copyItems(sources, destinationDir);
     } else if (operation === 'cut') {
       if (sourceBaseDir === destinationDir) {
-        console.warn(`${logPrefix} Cannot cut and paste in the same directory.`);
+        console.warn(`${logPrefix.value} Cannot cut and paste in the same directory.`);
         return;
       }
       manager.moveItems(sources, destinationDir);

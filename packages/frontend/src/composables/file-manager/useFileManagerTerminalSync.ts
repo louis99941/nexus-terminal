@@ -3,7 +3,7 @@
  * 从 FileManager.vue 提取，负责终端路径同步命令与静默执行
  */
 
-import { ref, type ComputedRef } from 'vue';
+import { ref, computed, type ComputedRef } from 'vue';
 import type { useI18n } from 'vue-i18n';
 import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
 import type { WebSocketMessage, MessagePayload } from '../../types/websocket.types';
@@ -27,8 +27,8 @@ export interface UseFileManagerTerminalSyncOptions {
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
   /** WebSocket 依赖项 */
   wsDeps: WebSocketDependencies;
-  /** 会话 ID */
-  sessionId: string;
+  /** 会话 ID（响应式，session:remapped 后自动更新） */
+  sessionId: ComputedRef<string>;
   /** 实例 ID */
   instanceId: string;
   /** 国际化翻译函数 */
@@ -50,7 +50,7 @@ export function useFileManagerTerminalSync(options: UseFileManagerTerminalSyncOp
     sessionStore,
   } = options;
 
-  const logPrefix = `[FileManager ${sessionId}-${instanceId}]`;
+  const logPrefix = computed(() => `[FileManager ${sessionId.value}-${instanceId}]`);
 
   const isSyncingPathFromTerminal = ref(false);
   let unregisterSilentExecResult: (() => void) | null = null;
@@ -82,34 +82,36 @@ export function useFileManagerTerminalSync(options: UseFileManagerTerminalSyncOp
   const sendCdCommandToTerminal = () => {
     const manager = currentSftpManager.value;
     if (!manager || !wsDeps.isConnected.value) {
-      console.warn(`${logPrefix} Cannot send CD command: SFTP manager not ready or not connected.`);
+      console.warn(
+        `${logPrefix.value} Cannot send CD command: SFTP manager not ready or not connected.`
+      );
       return;
     }
     const currentPath = manager.currentPath.value;
     if (!currentPath) {
-      console.warn(`${logPrefix} Cannot send CD command: Current path is empty.`);
+      console.warn(`${logPrefix.value} Cannot send CD command: Current path is empty.`);
       return;
     }
 
     const escapedPath = `"${currentPath}"`;
     const command = `cd ${escapedPath}\n`;
 
-    console.info(`${logPrefix} Sending command to terminal: ${command.trim()}`);
+    console.info(`${logPrefix.value} Sending command to terminal: ${command.trim()}`);
     try {
       const activeSession = sessionStore.activeSession;
       if (!activeSession) {
-        console.error(`${logPrefix} Failed to send command: No active session found.`);
+        console.error(`${logPrefix.value} Failed to send command: No active session found.`);
         return;
       }
       if (!activeSession.terminalManager) {
         console.error(
-          `${logPrefix} Failed to send command: Terminal manager not found for active session.`
+          `${logPrefix.value} Failed to send command: Terminal manager not found for active session.`
         );
         return;
       }
       activeSession.terminalManager.sendData(command);
     } catch (error) {
-      console.error(`${logPrefix} Failed to send command to terminal:`, error);
+      console.error(`${logPrefix.value} Failed to send command to terminal:`, error);
     }
   };
 

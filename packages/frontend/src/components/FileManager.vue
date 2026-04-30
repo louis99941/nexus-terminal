@@ -236,7 +236,7 @@ const {
 } = useFileManagerTerminalSync({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
-  sessionId: effectiveSessionId.value,
+  sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
   t,
   uiNotificationsStore,
@@ -296,7 +296,7 @@ const {
 } = useFileManagerItemActions({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
-  sessionId: effectiveSessionId.value,
+  sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
   isMobile: computed(() => props.isMobile),
   showPopupFileEditorBoolean,
@@ -373,7 +373,7 @@ const {
 } = useFileManagerActionModal({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
-  sessionId: effectiveSessionId.value,
+  sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
   selectedItems,
   fileManagerShowDeleteConfirmationBoolean,
@@ -391,7 +391,7 @@ const {
 } = useFileManagerClipboard({
   currentSftpManager: computed(() => currentSftpManager.value),
   selectedItems,
-  sessionId: effectiveSessionId.value,
+  sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
 });
 
@@ -405,7 +405,7 @@ const { triggerDownload, triggerDownloadDirectory } = useFileManagerDownload({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
   dbConnectionId: props.dbConnectionId,
-  sessionId: effectiveSessionId.value,
+  sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
   showError: uiNotificationsStore.showError,
   recoverManager: () => {

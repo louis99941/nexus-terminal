@@ -1,4 +1,4 @@
-import { ref, computed, readonly, watch, nextTick } from 'vue';
+import { ref, computed, readonly, watch, nextTick, onUnmounted } from 'vue';
 import { defineStore } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import * as iconv from '@vscode/iconv-lite-umd';
@@ -6,6 +6,7 @@ import { Buffer } from 'buffer/';
 import { useSessionStore } from './session.store';
 import type { SaveStatus, SftpReadFileSuccessPayload } from '../types/sftp.types';
 import { extractErrorMessage } from '../utils/errorExtractor';
+import { workspaceEmitter } from '../composables/workspaceEvents';
 
 // --- 类型定义 ---
 // 文件信息，用于打开文件操作
@@ -140,6 +141,49 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
   // const editorVisibleState = ref<'visible' | 'minimized' | 'closed'>('closed'); // 移除，面板可见性由布局控制
   const popupTrigger = ref(0); // 用于触发弹窗显示的信号
   const popupFileInfo = ref<{ filePath: string; sessionId: string } | null>(null); // 存储弹窗文件信息
+
+  // --- session:remapped 事件处理 ---
+  // 跟踪已被 remap 的旧 session ID，防止 watcher 误删 tab
+  const _remappedSessionIds = new Set<string>();
+
+  const _onSessionRemapped = (payload: { oldSessionId: string; newSessionId: string }) => {
+    const { oldSessionId, newSessionId } = payload;
+    console.info(
+      `[文件编辑器 Store] session:remapped ${oldSessionId} → ${newSessionId}，更新标签页 sessionId。`
+    );
+
+    // 标记旧 ID 为已 remap，防止 watcher 误删
+    // watcher 在同一微任务队列中处理，无需定时器
+    _remappedSessionIds.add(oldSessionId);
+
+    // 更新所有使用旧 sessionId 的标签页
+    const updatedTabs = new Map(tabs.value);
+    let updated = false;
+    updatedTabs.forEach((tab, tabId) => {
+      if (tab.sessionId === oldSessionId) {
+        const newTabId = tabId.replace(`${oldSessionId}:`, `${newSessionId}:`);
+        const updatedTab: FileTab = { ...tab, sessionId: newSessionId, id: newTabId };
+        updatedTabs.delete(tabId);
+        updatedTabs.set(newTabId, updatedTab);
+        updated = true;
+        console.info(`[文件编辑器 Store] 标签页 ${tabId} → ${newTabId} (文件: ${tab.filename})`);
+
+        // 更新 activeTabId
+        if (activeTabId.value === tabId) {
+          activeTabId.value = newTabId;
+        }
+      }
+    });
+
+    if (updated) {
+      tabs.value = updatedTabs;
+    }
+  };
+
+  workspaceEmitter.on('session:remapped', _onSessionRemapped);
+  onUnmounted(() => {
+    workspaceEmitter.off('session:remapped', _onSessionRemapped);
+  });
 
   // --- 计算属性 ---
   const orderedTabs = computed(() => Array.from(tabs.value.values())); // 获取标签页数组，用于渲染
@@ -681,12 +725,13 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
   // const updateContent = (newContent: string) => { ... };
 
   // 监听会话关闭事件，移除相关标签页
+  // 排除刚 remap 的旧 session ID（由 _onSessionRemapped 处理）
   watch(
     () => sessionStore.sessions,
     (newSessions, oldSessions) => {
       const closedSessionIds = new Set<string>();
       oldSessions.forEach((_, sessionId) => {
-        if (!newSessions.has(sessionId)) {
+        if (!newSessions.has(sessionId) && !_remappedSessionIds.has(sessionId)) {
           closedSessionIds.add(sessionId);
         }
       });
@@ -720,6 +765,8 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
           activeTabId.value = Array.from(tabs.value.keys())[0];
         }
       }
+      // 清理 remap 追踪标记（watcher 已处理完毕）
+      _remappedSessionIds.clear();
     },
     { deep: false }
   ); // 只监听 Map 本身的增删

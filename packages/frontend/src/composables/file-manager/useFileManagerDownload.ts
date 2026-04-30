@@ -3,7 +3,7 @@
  * 从 FileManager.vue 提取，负责文件和目录的下载触发
  */
 
-import type { ComputedRef } from 'vue';
+import { computed, type ComputedRef } from 'vue';
 import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
 import type { FileListItem } from '../../types/sftp.types';
 
@@ -14,8 +14,8 @@ export interface UseFileManagerDownloadOptions {
   wsDeps: WebSocketDependencies;
   /** 数据库连接 ID */
   dbConnectionId: string;
-  /** 会话 ID */
-  sessionId: string;
+  /** 会话 ID（响应式，session:remapped 后自动更新） */
+  sessionId: ComputedRef<string>;
   /** 实例 ID */
   instanceId: string;
   /** 显示错误通知的函数 */
@@ -35,7 +35,7 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
     recoverManager,
   } = options;
 
-  const logPrefix = `[FileManager ${sessionId}-${instanceId}]`;
+  const logPrefix = computed(() => `[FileManager ${sessionId.value}-${instanceId}]`);
 
   /** 触发文件下载（支持多文件） */
   const triggerDownload = (items: FileListItem[]) => {
@@ -43,18 +43,20 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
       return;
     }
     if (!dbConnectionId) {
-      console.error(`${logPrefix} Cannot download: Missing connection ID.`);
+      console.error(`${logPrefix.value} Cannot download: Missing connection ID.`);
       return;
     }
     let manager = currentSftpManager.value;
     if (!manager) {
-      console.warn(`${logPrefix} SFTP manager not available for download, attempting recovery...`);
+      console.warn(
+        `${logPrefix.value} SFTP manager not available for download, attempting recovery...`
+      );
       if (recoverManager?.()) {
         manager = currentSftpManager.value;
       }
       if (!manager) {
         console.error(
-          `${logPrefix} Cannot download: SFTP manager is not available after recovery.`
+          `${logPrefix.value} Cannot download: SFTP manager is not available after recovery.`
         );
         showError('SFTP manager is not available.');
         return;
@@ -63,13 +65,13 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
 
     items.forEach((item) => {
       if (!item.attrs.isFile) {
-        console.warn(`${logPrefix} Skipping download for non-file item: ${item.filename}`);
+        console.warn(`${logPrefix.value} Skipping download for non-file item: ${item.filename}`);
         return;
       }
 
       const downloadPath = manager.joinPath(manager.currentPath.value, item.filename);
       const downloadUrl = `/api/v1/sftp/download?connectionId=${dbConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
-      console.info(`${logPrefix} Triggering download for ${item.filename}: ${downloadUrl}`);
+      console.info(`${logPrefix.value} Triggering download for ${item.filename}: ${downloadUrl}`);
 
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -91,20 +93,20 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
       return;
     }
     if (!dbConnectionId) {
-      console.error(`${logPrefix} Cannot download directory: Missing connection ID.`);
+      console.error(`${logPrefix.value} Cannot download directory: Missing connection ID.`);
       return;
     }
     let manager = currentSftpManager.value;
     if (!manager) {
       console.warn(
-        `${logPrefix} SFTP manager not available for directory download, attempting recovery...`
+        `${logPrefix.value} SFTP manager not available for directory download, attempting recovery...`
       );
       if (recoverManager?.()) {
         manager = currentSftpManager.value;
       }
       if (!manager) {
         console.error(
-          `${logPrefix} Cannot download directory: SFTP manager is not available after recovery.`
+          `${logPrefix.value} Cannot download directory: SFTP manager is not available after recovery.`
         );
         showError('SFTP manager is not available.');
         return;
@@ -113,7 +115,7 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
 
     if (!item.attrs.isDirectory) {
       console.warn(
-        `${logPrefix} Skipping directory download for non-directory item: ${item.filename}`
+        `${logPrefix.value} Skipping directory download for non-directory item: ${item.filename}`
       );
       return;
     }
@@ -121,7 +123,9 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
     const directoryPath = manager.joinPath(manager.currentPath.value, item.filename);
     const downloadUrl = `/api/v1/sftp/download-directory?connectionId=${dbConnectionId}&remotePath=${encodeURIComponent(directoryPath)}`;
 
-    console.info(`${logPrefix} Attempting directory download for ${item.filename}: ${downloadUrl}`);
+    console.info(
+      `${logPrefix.value} Attempting directory download for ${item.filename}: ${downloadUrl}`
+    );
 
     fetch(downloadUrl)
       .then(async (response) => {
@@ -144,10 +148,10 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(link.href);
-          console.info(`${logPrefix} Directory download triggered for: ${filename}`);
+          console.info(`${logPrefix.value} Directory download triggered for: ${filename}`);
         } else {
           console.error(
-            `${logPrefix} Directory download failed: ${response.status} ${response.statusText}`
+            `${logPrefix.value} Directory download failed: ${response.status} ${response.statusText}`
           );
           let errorMsg = `Server responded with status ${response.status}`;
           try {
@@ -165,7 +169,7 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
         }
       })
       .catch((error) => {
-        console.error(`${logPrefix} Network error during directory download:`, error);
+        console.error(`${logPrefix.value} Network error during directory download:`, error);
         showError(error instanceof Error ? error.message : String(error));
       });
   };

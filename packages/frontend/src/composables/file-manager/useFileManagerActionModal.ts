@@ -3,7 +3,7 @@
  * 从 FileManager.vue 提取，负责删除、重命名、权限修改、新建等模态框操作
  */
 
-import { ref, type Ref, type ComputedRef } from 'vue';
+import { ref, computed, type Ref, type ComputedRef } from 'vue';
 import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
 import type { FileListItem } from '../../types/sftp.types';
 
@@ -12,8 +12,8 @@ export interface UseFileManagerActionModalOptions {
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
   /** WebSocket 依赖项 */
   wsDeps: WebSocketDependencies;
-  /** 会话 ID */
-  sessionId: string;
+  /** 会话 ID（响应式，session:remapped 后自动更新） */
+  sessionId: ComputedRef<string>;
   /** 实例 ID */
   instanceId: string;
   /** 选中项集合 */
@@ -35,7 +35,7 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
     showError,
   } = options;
 
-  const logPrefix = `[FileManager ${sessionId}-${instanceId}]`;
+  const logPrefix = computed(() => `[FileManager ${sessionId.value}-${instanceId}]`);
 
   // --- 模态框状态 ---
   const isActionModalVisible = ref(false);
@@ -94,7 +94,7 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
           const newMode = parseInt(value, 8);
           manager.changePermissions(actionItem.value, newMode);
         } else if (value) {
-          console.error(`${logPrefix} Invalid chmod value from modal: ${value}`);
+          console.error(`${logPrefix.value} Invalid chmod value from modal: ${value}`);
           showError(`Invalid permission value: ${value}`);
           return;
         }
@@ -102,7 +102,9 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
       case 'newFile':
         if (value) {
           if (manager.fileList.value.some((item: FileListItem) => item.filename === value)) {
-            console.warn(`${logPrefix} File ${value} already exists. Modal should prevent this.`);
+            console.warn(
+              `${logPrefix.value} File ${value} already exists. Modal should prevent this.`
+            );
             showError(`File "${value}" already exists`);
             return;
           }
@@ -112,7 +114,9 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
       case 'newFolder':
         if (value) {
           if (manager.fileList.value.some((item: FileListItem) => item.filename === value)) {
-            console.warn(`${logPrefix} Folder ${value} already exists. Modal should prevent this.`);
+            console.warn(
+              `${logPrefix.value} Folder ${value} already exists. Modal should prevent this.`
+            );
             showError(`Folder "${value}" already exists`);
             return;
           }
