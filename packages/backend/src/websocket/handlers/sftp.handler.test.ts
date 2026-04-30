@@ -487,6 +487,7 @@ describe('SFTP WebSocket Handler', () => {
         uploadId: 'upload-empty',
         chunkIndex: 0,
         data: '',
+        isLast: true,
       });
 
       expect(sftpService.handleUploadChunk).toHaveBeenCalledWith(
@@ -494,7 +495,7 @@ describe('SFTP WebSocket Handler', () => {
         'upload-empty',
         0,
         '',
-        undefined
+        true
       );
     });
   });

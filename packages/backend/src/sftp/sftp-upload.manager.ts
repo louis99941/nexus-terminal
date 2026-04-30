@@ -311,8 +311,8 @@ export class SftpUploadManager {
         uploadState.pendingChunks.delete(currentIndex);
         uploadState.expectedChunkIndex++;
 
-        // 写入流并等待完成
-        await this.writeChunkToStream(uploadId, currentIndex);
+        // 写入流并等待完成（传入 buffer，避免 writeChunkToStream 重新查找已被删除的条目）
+        await this.writeChunkToStream(uploadId, bufferedChunk);
 
         // 写入完成后减少在途计数并发送 ack
         uploadState.inFlightChunks = Math.max(0, uploadState.inFlightChunks - 1);
@@ -379,38 +379,50 @@ export class SftpUploadManager {
 
   /**
    * 将单个块写入 SFTP 流，支持背压处理
+   * 写回调作为唯一 resolve/reject 入口；
+   * 当 write() 返回 false 时，先等 drain 再从回调 resolve。
    */
-  private writeChunkToStream(uploadId: string, chunkIndex: number): Promise<void> {
+  private writeChunkToStream(uploadId: string, chunkBuffer: Buffer): Promise<void> {
     const uploadState = this.activeUploads.get(uploadId);
     if (!uploadState) return Promise.resolve();
 
     const state = this.clientStates.get(uploadState.sessionId);
     if (!state) return Promise.resolve();
 
-    const bufferedChunk = uploadState.pendingChunks.get(chunkIndex);
-    const chunkBuffer = bufferedChunk ?? Buffer.alloc(0);
-
     return new Promise<void>((resolveWrite, reject) => {
+      let settled = false;
+      const settle = (action: 'resolve' | 'reject', err?: Error) => {
+        if (settled) return;
+        settled = true;
+        if (action === 'resolve') resolveWrite();
+        else reject(err);
+      };
+
       const writeSuccess = uploadState.stream.write(chunkBuffer, (err) => {
         if (err) {
-          console.error(`[SFTP Upload ${uploadId}] Error writing chunk ${chunkIndex}:`, err);
+          console.error(`[SFTP Upload ${uploadId}] Write callback error:`, err);
           state.ws.send(
             JSON.stringify({
               type: 'sftp:upload:error',
-              payload: { uploadId, message: `写入块 ${chunkIndex} 失败: ${err.message}` },
+              payload: { uploadId, message: `写入块失败: ${(err as Error).message}` },
             })
           );
-          this.cancelUploadInternal(uploadId, `Write error on chunk ${chunkIndex}`);
-          reject(err);
+          this.cancelUploadInternal(uploadId, `Write error`);
+          settle('reject', err as Error);
           return;
         }
 
         uploadState.bytesWritten += chunkBuffer.length;
-        resolveWrite();
+
+        if (writeSuccess) {
+          // 内核缓冲区尚有余量，回调即表示数据已入队
+          settle('resolve');
+        }
+        // writeSuccess === false 时不在此 resolve，等 drain
       });
 
       if (!writeSuccess) {
-        // 背压：等待 drain 事件
+        // 背压：等 drain 事件后再 resolve（回调中 bytesWritten 已更新）
         if (!uploadState.drainPromise) {
           uploadState.drainPromise = new Promise<void>((drainResolve) => {
             uploadState.stream.once('drain', () => {
@@ -419,7 +431,7 @@ export class SftpUploadManager {
             });
           });
         }
-        uploadState.drainPromise.then(() => resolveWrite());
+        uploadState.drainPromise.then(() => settle('resolve'));
       }
     });
   }
