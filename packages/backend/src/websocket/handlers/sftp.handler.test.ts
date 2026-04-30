@@ -472,7 +472,8 @@ describe('SFTP WebSocket Handler', () => {
         'test-session',
         'upload-1',
         0,
-        'base64data'
+        'base64data',
+        undefined
       );
     });
 
@@ -486,13 +487,15 @@ describe('SFTP WebSocket Handler', () => {
         uploadId: 'upload-empty',
         chunkIndex: 0,
         data: '',
+        isLast: true,
       });
 
       expect(sftpService.handleUploadChunk).toHaveBeenCalledWith(
         'test-session',
         'upload-empty',
         0,
-        ''
+        '',
+        true
       );
     });
   });

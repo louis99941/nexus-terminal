@@ -49,6 +49,7 @@ import type { FileListItem } from '../types/sftp.types';
 import type { WebSocketMessage, MessagePayload } from '../types/websocket.types';
 import { usePathHistoryStore } from '../stores/pathHistory.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
+import { useWorkspaceEventSubscriber, useWorkspaceEventOff } from '../composables/workspaceEvents';
 
 type SftpManagerInstance = ReturnType<typeof createSftpActionsManager>;
 type SftpRealpathPayload = {
@@ -92,6 +93,9 @@ const sessionStore = useSessionStore(); // 实例化 Session Store
 // 使用 shallowRef 存储管理器实例，以便在 sessionId 变化时切换
 const currentSftpManager = shallowRef<SftpManagerInstance | null>(null);
 
+// 追踪当前有效的 session ID（session:remapped 后会更新）
+const effectiveSessionId = ref(props.sessionId);
+
 const initializeSftpManager = (sessionId: string, instanceId: string) => {
   const manager = sessionStore.getOrCreateSftpManager(sessionId, instanceId);
   if (!manager) {
@@ -113,13 +117,31 @@ const initializeSftpManager = (sessionId: string, instanceId: string) => {
 // 初始加载管理器
 initializeSftpManager(props.sessionId, props.instanceId);
 
+// --- 监听 session:remapped 事件，处理 session ID 重映射 ---
+const subscribeToWorkspaceEvents = useWorkspaceEventSubscriber();
+const unsubscribeFromWorkspaceEvents = useWorkspaceEventOff();
+
+const _onSessionRemapped = (payload: { oldSessionId: string; newSessionId: string }) => {
+  if (payload.oldSessionId === effectiveSessionId.value) {
+    console.info(
+      `[FileManager ${effectiveSessionId.value}-${props.instanceId}] 收到 session:remapped 事件，旧ID: ${payload.oldSessionId} → 新ID: ${payload.newSessionId}，重新初始化 SFTP 管理器。`
+    );
+    // 先清理旧 session 的 SFTP 管理器，避免残留监听器
+    sessionStore.removeSftpManager(payload.oldSessionId, props.instanceId);
+    effectiveSessionId.value = payload.newSessionId;
+    initializeSftpManager(payload.newSessionId, props.instanceId);
+  }
+};
+
+subscribeToWorkspaceEvents('session:remapped', _onSessionRemapped);
+
 // --- 监听 isSftpReady 状态，就绪后自动加载目录 ---
 watch(
   () => props.wsDeps.isSftpReady.value,
   (ready) => {
     if (ready && currentSftpManager.value) {
       console.info(
-        `[FileManager ${props.sessionId}-${props.instanceId}] SFTP 已就绪，自动加载根目录`
+        `[FileManager ${effectiveSessionId.value}-${props.instanceId}] SFTP 已就绪，自动加载根目录`
       );
       currentSftpManager.value.loadDirectory(currentSftpManager.value.currentPath.value || '/');
     }
@@ -130,7 +152,7 @@ watch(
 // --- 文件上传模块 ---
 // 修改：依赖 currentSftpManager 的状态
 const { uploads, startFileUpload, cancelUpload } = useFileUploader(
-  computed(() => props.sessionId),
+  computed(() => effectiveSessionId.value),
   // 传递 manager 的 currentPath 和 fileList ref
   computed(() => currentSftpManager.value?.currentPath.value ?? '/'),
   computed(() => currentSftpManager.value?.fileList.value ?? []),
@@ -166,7 +188,7 @@ const { isSearchActive, activateSearch, deactivateSearch, cancelSearch, focusSea
   useFileManagerSearch({
     toolbarRef: computed(() => toolbarRef.value),
     sessionStore,
-    sessionId: computed(() => props.sessionId),
+    sessionId: computed(() => effectiveSessionId.value),
     instanceId: props.instanceId,
     searchQuery,
     focusSwitcherStore,
@@ -179,7 +201,7 @@ const toolbarRef = ref<InstanceType<typeof FileManagerToolbar> | null>(null); //
 const fileListRef = ref<InstanceType<typeof FileManagerFileList> | null>(null); // 文件列表子组件引用
 
 // --- 日志前缀（供多个 composable 共享）---
-const logPrefix = computed(() => `[FileManager ${props.sessionId}-${props.instanceId}]`);
+const logPrefix = computed(() => `[FileManager ${effectiveSessionId.value}-${props.instanceId}]`);
 
 // --- 路径导航 Composable ---
 const {
@@ -214,7 +236,7 @@ const {
 } = useFileManagerTerminalSync({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
-  sessionId: props.sessionId,
+  sessionId: effectiveSessionId.value,
   instanceId: props.instanceId,
   t,
   uiNotificationsStore,
@@ -274,7 +296,7 @@ const {
 } = useFileManagerItemActions({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
-  sessionId: props.sessionId,
+  sessionId: effectiveSessionId.value,
   instanceId: props.instanceId,
   isMobile: computed(() => props.isMobile),
   showPopupFileEditorBoolean,
@@ -351,7 +373,7 @@ const {
 } = useFileManagerActionModal({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
-  sessionId: props.sessionId,
+  sessionId: effectiveSessionId.value,
   instanceId: props.instanceId,
   selectedItems,
   fileManagerShowDeleteConfirmationBoolean,
@@ -369,7 +391,7 @@ const {
 } = useFileManagerClipboard({
   currentSftpManager: computed(() => currentSftpManager.value),
   selectedItems,
-  sessionId: props.sessionId,
+  sessionId: effectiveSessionId.value,
   instanceId: props.instanceId,
 });
 
@@ -383,7 +405,7 @@ const { triggerDownload, triggerDownloadDirectory } = useFileManagerDownload({
   currentSftpManager: computed(() => currentSftpManager.value),
   wsDeps: props.wsDeps,
   dbConnectionId: props.dbConnectionId,
-  sessionId: props.sessionId,
+  sessionId: effectiveSessionId.value,
   instanceId: props.instanceId,
   showError: uiNotificationsStore.showError,
 });
@@ -726,10 +748,16 @@ watch(
     if (newSessionId && newSessionId !== oldSessionId) {
       cancelPathEdit(); // 关闭路径编辑、历史下拉、并重置 editablePath
       pathHistoryStore.setSearchTerm(''); // 清空搜索词
-      // 1. 重新初始化 SFTP 管理器
+      // 1. 先清理旧 session 的 SFTP 管理器，避免残留监听器
+      if (oldSessionId) {
+        sessionStore.removeSftpManager(oldSessionId, props.instanceId);
+      }
+      // 2. 同步 effectiveSessionId
+      effectiveSessionId.value = newSessionId;
+      // 3. 重新初始化 SFTP 管理器
       initializeSftpManager(newSessionId, props.instanceId);
 
-      // 2. 重置 UI 状态
+      // 4. 重置 UI 状态
       clearSelection();
       searchQuery.value = '';
       isSearchActive.value = false;
@@ -747,15 +775,15 @@ let unregisterPathFocusAction: (() => void) | null = null; // 路径编辑框注
 onMounted(() => {
   // 注册搜索框聚焦动作
   const focusSearchActionWrapper = async (): Promise<boolean | undefined> => {
-    if (props.sessionId === sessionStore.activeSessionId) {
+    if (effectiveSessionId.value === sessionStore.activeSessionId) {
       console.info(
-        `[FileManager ${props.sessionId}-${props.instanceId}] Executing search focus action for active session.`
+        `[FileManager ${effectiveSessionId.value}-${props.instanceId}] Executing search focus action for active session.`
       );
       closePathHistory(); // Close path history if open
       return focusSearchInput();
     } else {
       console.info(
-        `[FileManager ${props.sessionId}-${props.instanceId}] Search focus action skipped for inactive session.`
+        `[FileManager ${effectiveSessionId.value}-${props.instanceId}] Search focus action skipped for inactive session.`
       );
       return undefined;
     }
@@ -767,16 +795,16 @@ onMounted(() => {
 
   // 注册路径编辑框聚焦动作
   const focusPathActionWrapper = async (): Promise<boolean | undefined> => {
-    if (props.sessionId === sessionStore.activeSessionId) {
+    if (effectiveSessionId.value === sessionStore.activeSessionId) {
       console.info(
-        `[FileManager ${props.sessionId}-${props.instanceId}] Executing path edit focus action for active session.`
+        `[FileManager ${effectiveSessionId.value}-${props.instanceId}] Executing path edit focus action for active session.`
       );
       // startPathEdit 本身不是 async，但注册时需要包装成 async 以匹配类型
       startPathEdit(); // 调用暴露的方法
       return true;
     } else {
       console.info(
-        `[FileManager ${props.sessionId}-${props.instanceId}] Path edit focus action skipped for inactive session.`
+        `[FileManager ${effectiveSessionId.value}-${props.instanceId}] Path edit focus action skipped for inactive session.`
       );
       return undefined;
     }
@@ -807,7 +835,9 @@ onBeforeUnmount(() => {
   unregisterPathFocusAction = null;
   cleanupSilentExecRequest();
   isSyncingPathFromTerminal.value = false;
-  sessionStore.removeSftpManager(props.sessionId, props.instanceId);
+  // 注销 session:remapped 事件监听
+  unsubscribeFromWorkspaceEvents('session:remapped', _onSessionRemapped);
+  sessionStore.removeSftpManager(effectiveSessionId.value, props.instanceId);
 });
 
 // 拖拽蒙版逻辑已移至子组件 FileManagerFileList 内部处理

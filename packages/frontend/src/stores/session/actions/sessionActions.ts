@@ -20,6 +20,7 @@ import {
   createDockerManager,
   type DockerManagerDependencies,
 } from '../../../composables/useDockerManager';
+import { workspaceEmitter } from '../../../composables/workspaceEvents';
 
 // --- 辅助函数 (特定于此模块的 actions) ---
 const findConnectionInfo = (
@@ -203,6 +204,12 @@ export const openNewSession = (
             console.info(`[SessionActions/ssh:connected] 活动会话ID已更新为 ${backendSID}。`);
           }
           console.info(`[SessionActions/ssh:connected] 会话存储已更新，新键为 ${backendSID}。`);
+
+          // 通知 FileManager 等组件 session ID 已变更，触发 SFTP 管理器重新初始化
+          workspaceEmitter.emit('session:remapped', {
+            oldSessionId: currentFrontendSessionId,
+            newSessionId: backendSID,
+          });
         } else if (backendSID === currentFrontendSessionId) {
           console.info(
             `[SessionActions/ssh:connected] 后端SID ${backendSID} 与前端当前SID匹配。无需重新键控。`

@@ -17,6 +17,7 @@ export const getOrCreateSftpManager = (
   }
 ): SftpManagerInstance | null => {
   const session = sessions.value.get(sessionId);
+
   if (!session) {
     console.error(`[SftpManagerActions] 尝试为不存在的会话 ${sessionId} 获取 SFTP 管理器`);
     return null;

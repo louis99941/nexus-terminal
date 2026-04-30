@@ -44,6 +44,7 @@ export type WorkspaceEventPayloads = {
   'session:closeOthers': { targetSessionId: string };
   'session:closeToRight': { targetSessionId: string };
   'session:closeToLeft': { targetSessionId: string };
+  'session:remapped': { oldSessionId: string; newSessionId: string };
 
   // UI Interaction Events
   'ui:openLayoutConfigurator': void;
