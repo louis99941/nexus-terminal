@@ -1228,6 +1228,21 @@ export function createSftpActionsManager(
         newItem.filename = filename;
       }
       addOrUpdateNodeInTree(parentPath, newItem);
+
+      // 上传成功后标记父节点已加载，防止 loadDirectory 因 childrenLoaded=false 重新请求后端
+      // 后端 readdir 可能尚未包含刚上传的文件，导致文件从树中消失
+      const parentNodeAfterUpload = findNodeByPath(fileTree, parentPath);
+      if (parentNodeAfterUpload) {
+        parentNodeAfterUpload.childrenLoaded = true;
+      }
+
+      // 如果上传发生在当前目录或其子目录，刷新当前目录以确保视图同步
+      if (
+        parentPath === currentPathRef.value ||
+        parentPath.startsWith(`${currentPathRef.value}/`)
+      ) {
+        loadDirectory(currentPathRef.value, true);
+      }
     } else {
       // 如果后端未能提供更新信息，标记推断出的父节点需要重新加载
       const parentNode = findNodeByPath(fileTree, parentPath);

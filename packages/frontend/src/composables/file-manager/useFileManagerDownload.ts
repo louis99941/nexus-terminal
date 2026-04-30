@@ -20,10 +20,20 @@ export interface UseFileManagerDownloadOptions {
   instanceId: string;
   /** 显示错误通知的函数 */
   showError: (message: string) => void;
+  /** 尝试恢复 SFTP 管理器的回调（可选），返回是否恢复成功 */
+  recoverManager?: () => boolean;
 }
 
 export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
-  const { currentSftpManager, wsDeps, dbConnectionId, sessionId, instanceId, showError } = options;
+  const {
+    currentSftpManager,
+    wsDeps,
+    dbConnectionId,
+    sessionId,
+    instanceId,
+    showError,
+    recoverManager,
+  } = options;
 
   const logPrefix = `[FileManager ${sessionId}-${instanceId}]`;
 
@@ -36,10 +46,19 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
       console.error(`${logPrefix} Cannot download: Missing connection ID.`);
       return;
     }
-    const manager = currentSftpManager.value;
+    let manager = currentSftpManager.value;
     if (!manager) {
-      console.error(`${logPrefix} Cannot download: SFTP manager is not available.`);
-      return;
+      console.warn(`${logPrefix} SFTP manager not available for download, attempting recovery...`);
+      if (recoverManager?.()) {
+        manager = currentSftpManager.value;
+      }
+      if (!manager) {
+        console.error(
+          `${logPrefix} Cannot download: SFTP manager is not available after recovery.`
+        );
+        showError('SFTP manager is not available.');
+        return;
+      }
     }
 
     items.forEach((item) => {
@@ -75,10 +94,21 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
       console.error(`${logPrefix} Cannot download directory: Missing connection ID.`);
       return;
     }
-    const manager = currentSftpManager.value;
+    let manager = currentSftpManager.value;
     if (!manager) {
-      console.error(`${logPrefix} Cannot download directory: SFTP manager is not available.`);
-      return;
+      console.warn(
+        `${logPrefix} SFTP manager not available for directory download, attempting recovery...`
+      );
+      if (recoverManager?.()) {
+        manager = currentSftpManager.value;
+      }
+      if (!manager) {
+        console.error(
+          `${logPrefix} Cannot download directory: SFTP manager is not available after recovery.`
+        );
+        showError('SFTP manager is not available.');
+        return;
+      }
     }
 
     if (!item.attrs.isDirectory) {

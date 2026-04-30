@@ -408,6 +408,11 @@ const { triggerDownload, triggerDownloadDirectory } = useFileManagerDownload({
   sessionId: effectiveSessionId.value,
   instanceId: props.instanceId,
   showError: uiNotificationsStore.showError,
+  recoverManager: () => {
+    // 尝试重新初始化 SFTP 管理器
+    initializeSftpManager(effectiveSessionId.value, props.instanceId);
+    return currentSftpManager.value !== null;
+  },
 });
 
 // +++ 压缩/解压处理函数 +++
