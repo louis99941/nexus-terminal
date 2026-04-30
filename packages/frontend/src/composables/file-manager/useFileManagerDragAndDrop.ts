@@ -194,7 +194,7 @@ export function useFileManagerDragAndDrop(options: UseFileManagerDragAndDropOpti
           );
           // 递归遍历目录中的每个条目
           entries.forEach((entry) => {
-            traverseFileTree(entry, `${currentPath + item.name}/`); // 更新相对路径
+            traverseFileTree(entry, `${currentPath.value + item.name}/`); // 更新相对路径
           });
         },
         (err) => {
