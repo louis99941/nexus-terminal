@@ -43,7 +43,7 @@ export function createBufferManager(terminal: Terminal) {
   let lastFlushTime = 0;
 
   const FLUSH_INTERVAL_MS = 16; // 约 60fps
-  const MAX_BUFFER_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+  const MAX_BUFFER_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
   const IDLE_CALLBACK_TIMEOUT_MS = 50;
 
   const idleWindow = window as Window &
@@ -181,5 +181,34 @@ export function createBufferManager(terminal: Terminal) {
     flushScheduled = false;
   };
 
-  return { push, clear };
+  /**
+   * 获取缓冲区条目数
+   */
+  const getLength = (): number => buffer.length;
+
+  /**
+   * 立即刷新缓冲区到终端
+   */
+  const flushBuffer = (): void => {
+    if (buffer.length === 0) return;
+    const items = buffer.splice(0, buffer.length);
+    currentBufferSizeBytes = 0;
+    for (const item of items) {
+      terminal.write(item);
+    }
+  };
+
+  /**
+   * 将全部缓冲内容写入指定终端实例
+   */
+  const flushAllToTerminal = (term: Terminal): void => {
+    if (buffer.length === 0) return;
+    const items = buffer.splice(0, buffer.length);
+    currentBufferSizeBytes = 0;
+    for (const item of items) {
+      term.write(item);
+    }
+  };
+
+  return { push, clear, getLength, flushBuffer, flushAllToTerminal };
 }

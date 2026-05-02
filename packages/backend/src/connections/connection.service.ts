@@ -107,6 +107,21 @@ export const createConnection = async (
   if (!input.host || !input.username) {
     throw new Error('缺少必要的连接信息 (host, username)。');
   }
+  // M-27: 主机名格式验证（最大 253 字符 + 合法主机名/IP）
+  if (input.host.length > 253) {
+    throw new Error('主机名长度不能超过 253 个字符。');
+  }
+  const validHostRegex = /^[a-zA-Z0-9]([a-zA-Z0-9.\-]*[a-zA-Z0-9])?$|^\[?[a-fA-F0-9:]+\]?$/;
+  if (!validHostRegex.test(input.host)) {
+    throw new Error('主机名格式无效，请使用合法的域名或 IP 地址。');
+  }
+  // M-26: 端口范围验证
+  if (input.port !== undefined && input.port !== null) {
+    const port = Number(input.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error('端口号必须是 1 到 65535 之间的整数。');
+    }
+  }
   // Type-specific validation using the uppercase version
   if (connectionType === 'SSH') {
     if (!input.auth_method || !['password', 'key'].includes(input.auth_method)) {
@@ -345,8 +360,23 @@ export const updateConnection = async (
   // Update type if changed, using the uppercase version
   if (input.type !== undefined && targetType !== currentFullConnection.type)
     dataToUpdate.type = targetType;
-  if (input.host !== undefined) dataToUpdate.host = input.host;
-  if (input.port !== undefined) dataToUpdate.port = input.port;
+  if (input.host !== undefined) {
+    if (input.host.length > 253) {
+      throw new Error('主机名长度不能超过 253 个字符。');
+    }
+    const validHostRegex = /^[a-zA-Z0-9]([a-zA-Z0-9.\-]*[a-zA-Z0-9])?$|^\[?[a-fA-F0-9:]+\]?$/;
+    if (!validHostRegex.test(input.host)) {
+      throw new Error('主机名格式无效，请使用合法的域名或 IP 地址。');
+    }
+    dataToUpdate.host = input.host;
+  }
+  if (input.port !== undefined) {
+    const port = Number(input.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error('端口号必须是 1 到 65535 之间的整数。');
+    }
+    dataToUpdate.port = input.port;
+  }
   if (input.username !== undefined) dataToUpdate.username = input.username;
   if (input.notes !== undefined) dataToUpdate.notes = input.notes; // Add notes update
   // proxy_id 的处理已移至 jump_chain 逻辑块中

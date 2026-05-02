@@ -292,6 +292,24 @@ const handleTouchEnd = (event: TouchEvent) => {
   }
 };
 
+const handleWheelZoom = (event: WheelEvent) => {
+  if (event.ctrlKey) {
+    event.preventDefault();
+    if (terminalInstance.value) {
+      let newSize;
+      const currentSize = terminalInstance.value.options.fontSize ?? currentTerminalFontSize.value;
+      if (event.deltaY < 0) newSize = Math.min(currentSize + 1, 40);
+      else newSize = Math.max(currentSize - 1, 8);
+
+      if (newSize !== currentSize) {
+        terminalInstance.value.options.fontSize = newSize;
+        applyTerminalWrapMode();
+        debouncedSaveFontSize(newSize);
+      }
+    }
+  }
+};
+
 // 初始化终端
 onMounted(() => {
   if (terminalRef.value) {
@@ -536,23 +554,7 @@ onMounted(() => {
 
     // --- Wheel Zoom ---
     if (terminalRef.value) {
-      terminalRef.value.addEventListener('wheel', (event: WheelEvent) => {
-        if (event.ctrlKey) {
-          event.preventDefault();
-          if (term) {
-            let newSize;
-            const currentSize = term.options.fontSize ?? currentTerminalFontSize.value;
-            if (event.deltaY < 0) newSize = Math.min(currentSize + 1, 40);
-            else newSize = Math.max(currentSize - 1, 8);
-
-            if (newSize !== currentSize) {
-              term.options.fontSize = newSize;
-              applyTerminalWrapMode();
-              debouncedSaveFontSize(newSize);
-            }
-          }
-        }
-      });
+      terminalRef.value.addEventListener('wheel', handleWheelZoom);
     }
 
     // --- Mobile Pinch Zoom ---
@@ -598,6 +600,10 @@ onBeforeUnmount(() => {
     terminalRef.value.removeEventListener('touchmove', handleTouchMove);
     terminalRef.value.removeEventListener('touchend', handleTouchEnd);
     terminalRef.value.removeEventListener('touchcancel', handleTouchEnd);
+  }
+
+  if (terminalRef.value) {
+    terminalRef.value.removeEventListener('wheel', handleWheelZoom);
   }
 });
 

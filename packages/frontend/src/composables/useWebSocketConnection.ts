@@ -90,17 +90,20 @@ export function createWebSocketConnectionManager(
   };
 
   /**
-   * 安排重连（委托给 reconnect 模块）
+   * 安排重连（使用 reconnect 模块的原语）
    */
   const scheduleReconnect = () => {
-    reconnectManager.scheduleReconnect({
-      instanceSessionId,
-      connectionStatus,
-      statusMessage,
-      getStatusText,
-      connect,
-      getIsMarkedForSuspend,
+    if (!reconnectManager.shouldReconnect()) {
+      statusMessage.value = getStatusText('reconnectFailed');
+      return;
+    }
+    const isSuspendMarked = getIsMarkedForSuspend?.();
+    if (isSuspendMarked) return;
+    const delay = reconnectManager.getBackoffDelay(reconnectManager.incrementAttempts());
+    statusMessage.value = getStatusText('reconnecting', {
+      attempt: reconnectManager.state.attempts,
     });
+    reconnectManager.scheduleTimer(() => connect(reconnectManager.state.lastUrl), delay);
   };
 
   /**
@@ -175,7 +178,7 @@ export function createWebSocketConnectionManager(
 
       ws.value.onmessage = (event: MessageEvent) => {
         // 使用 messageParser 模块解析和验证消息（从 messageParser.ts 提取）
-        const message = parseWebSocketMessage(event.data, instanceSessionId);
+        const message = parseWebSocketMessage(event.data);
         if (!message) {
           dispatchMessage('internal:raw', event.data, { type: 'internal:raw' });
           return;

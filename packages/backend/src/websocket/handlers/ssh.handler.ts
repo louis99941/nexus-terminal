@@ -706,7 +706,7 @@ export async function handleSshConnect(
             ) {
               temporaryLogStorageService
                 .writeToLog(currentState.suspendLogPath, processedOutput)
-                .catch((writeLogError) => {
+                .catch((writeLogError: unknown) => {
                   console.error(
                     `[SSH Handler] 写入标记会话 ${newSessionId} 的日志失败 (路径: ${currentState.suspendLogPath}):`,
                     writeLogError
@@ -742,7 +742,7 @@ export async function handleSshConnect(
             ) {
               temporaryLogStorageService
                 .writeToLog(currentState.suspendLogPath, `[STDERR] ${processedOutput}`)
-                .catch((writeStderrLogError) => {
+                .catch((writeStderrLogError: unknown) => {
                   console.error(
                     `[SSH Handler] 写入标记会话 ${newSessionId} 的 STDERR 日志失败 (路径: ${currentState.suspendLogPath}):`,
                     writeStderrLogError
@@ -793,7 +793,7 @@ export async function handleSshConnect(
           sftpService
             .initializeSftpSession(newSessionId)
             .then(() => console.debug(`SFTP: 会话 ${newSessionId} 异步初始化成功。`))
-            .catch((sftpInitError) =>
+            .catch((sftpInitError: unknown) =>
               console.error(`WebSocket: 会话 ${newSessionId} 异步初始化 SFTP 失败:`, sftpInitError)
             );
 
@@ -892,7 +892,14 @@ export function handleSshResize(ws: AuthenticatedWebSocket, payload: SshResizePa
   }
 
   const { cols, rows } = payload || {};
-  if (typeof cols !== 'number' || typeof rows !== 'number' || cols <= 0 || rows <= 0) {
+  if (
+    typeof cols !== 'number' ||
+    typeof rows !== 'number' ||
+    cols <= 0 ||
+    rows <= 0 ||
+    cols > 1000 ||
+    rows > 500
+  ) {
     console.warn(
       `WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的无效调整大小请求:`,
       payload

@@ -131,7 +131,7 @@ export const ipWhitelistMiddleware = async (req: Request, res: Response, next: N
       code: 'IP_NOT_ALLOWED',
     });
   } catch (error: unknown) {
-    logger.error(error as Error, 'IP 白名单中间件执行出错');
+    logger.error({ err: error }, 'IP 白名单中间件执行出错');
     // 中间件出错时，为安全起见，默认拒绝访问
     return res
       .status(500)
