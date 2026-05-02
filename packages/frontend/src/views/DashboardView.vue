@@ -261,9 +261,15 @@ const handleConnectionModified = async () => {
 };
 
 const getProgressColor = (percent: number): string => {
-  if (percent < 50) return '#67c23a';
-  if (percent < 80) return '#e6a23c';
-  return '#f56c6c';
+  if (percent < 50) return 'var(--el-color-success)';
+  if (percent < 80) return 'var(--el-color-warning)';
+  return 'var(--el-color-danger)';
+};
+
+const getLatencyColorClass = (latency: number): string => {
+  if (latency < 100) return 'text-green-500';
+  if (latency < 300) return 'text-yellow-500';
+  return 'text-red-500';
 };
 
 const formatDuration = (seconds: number | null | undefined): string => {
@@ -278,18 +284,18 @@ const formatDuration = (seconds: number | null | undefined): string => {
 </script>
 
 <template>
-  <div class="dashboard p-6 min-h-full bg-background text-foreground animate-fade-in">
+  <div class="dashboard p-4 md:p-6 min-h-full bg-background text-foreground animate-fade-in">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
       <h1
-        class="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent"
+        class="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent"
       >
         {{ t('dashboard.title') }}
       </h1>
       <div
-        class="flex items-center gap-4 flex-wrap bg-surface/50 backdrop-blur-md p-2 rounded-xl border border-border shadow-sm"
+        class="flex items-center gap-4 flex-wrap bg-surface/50 backdrop-blur-md p-2 rounded-xl border border-border shadow-sm w-full md:w-auto"
       >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-1 md:flex-none justify-between md:justify-start">
           <span class="text-xs font-medium text-muted uppercase tracking-wider ml-2">{{
             t('dashboard.timeRange.label')
           }}</span>
@@ -303,14 +309,14 @@ const formatDuration = (seconds: number | null | undefined): string => {
             format="YYYY-MM-DD HH:mm"
             :clearable="false"
             @change="handleTimeRangeChange"
-            class="!w-[320px] !bg-transparent !border-none !shadow-none"
+            class="!w-[260px] md:!w-[320px] !bg-transparent !border-none !shadow-none"
             popper-class="dashboard-date-picker-popper"
           />
         </div>
 
-        <div class="w-px h-6 bg-border mx-1"></div>
+        <div class="hidden md:block w-px h-6 bg-border mx-1"></div>
 
-        <div class="flex items-center gap-3 px-2">
+        <div class="flex items-center gap-3 px-2 w-full md:w-auto justify-end md:justify-start">
           <div class="flex items-center gap-2">
             <el-switch
               v-model="autoRefresh"
@@ -337,7 +343,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             :loading="isLoading"
             circle
             size="small"
-            class="!bg-primary/10 !border-primary/20 !text-primary hover:!bg-primary hover:!text-white transition-colors"
+            class="!bg-primary/10 !border-primary/20 !text-primary hover:!bg-primary hover:!text-white transition-all hover:rotate-180"
           >
             <i class="fas fa-sync-alt"></i>
           </el-button>
@@ -346,7 +352,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       <!-- Active Sessions -->
       <div class="stat-card group">
         <div class="flex justify-between items-start">
@@ -357,7 +363,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             <h3 class="text-3xl font-bold text-foreground">{{ stats?.sessions?.active || 0 }}</h3>
           </div>
           <div
-            class="p-3 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300"
+            class="p-3 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300 group-hover:scale-110 shadow-lg shadow-blue-500/20"
           >
             <i class="fas fa-terminal text-xl !text-current"></i>
           </div>
@@ -376,7 +382,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <div
-            class="p-3 rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-300"
+            class="p-3 rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 group-hover:scale-110 shadow-lg shadow-emerald-500/20"
           >
             <i class="fas fa-plug text-xl !text-current"></i>
           </div>
@@ -384,7 +390,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
       </div>
 
       <!-- Avg Duration -->
-      <div class="stat-card group">
+      <div class="stat-card group sm:col-span-2 lg:col-span-1">
         <div class="flex justify-between items-start">
           <div>
             <p class="text-sm font-medium text-muted mb-1">
@@ -395,7 +401,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <div
-            class="p-3 rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300"
+            class="p-3 rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300 group-hover:scale-110 shadow-lg shadow-amber-500/20"
           >
             <i class="fas fa-clock text-xl !text-current"></i>
           </div>
@@ -405,7 +411,9 @@ const formatDuration = (seconds: number | null | undefined): string => {
 
     <!-- Security Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div class="stat-card group border-l-4 border-l-red-500/50">
+      <div
+        class="stat-card group border-l-4 border-l-red-500/50 hover:border-l-red-500 transition-all"
+      >
         <div class="flex justify-between items-center">
           <div>
             <p class="text-sm font-medium text-muted">{{ t('dashboard.stats.loginFailures') }}</p>
@@ -414,11 +422,13 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-exclamation-circle text-red-500/80 text-2xl group-hover:scale-110 transition-transform !text-current"
+            class="fas fa-exclamation-circle text-red-500/80 text-2xl group-hover:scale-125 group-hover:text-red-500 transition-all !text-current"
           ></i>
         </div>
       </div>
-      <div class="stat-card group border-l-4 border-l-orange-500/50">
+      <div
+        class="stat-card group border-l-4 border-l-orange-500/50 hover:border-l-orange-500 transition-all"
+      >
         <div class="flex justify-between items-center">
           <div>
             <p class="text-sm font-medium text-muted">{{ t('dashboard.stats.commandBlocks') }}</p>
@@ -427,11 +437,13 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-ban text-orange-500/80 text-2xl group-hover:scale-110 transition-transform !text-current"
+            class="fas fa-ban text-orange-500/80 text-2xl group-hover:scale-125 group-hover:text-orange-500 transition-all !text-current"
           ></i>
         </div>
       </div>
-      <div class="stat-card group border-l-4 border-l-yellow-500/50">
+      <div
+        class="stat-card group border-l-4 border-l-yellow-500/50 hover:border-l-yellow-500 transition-all"
+      >
         <div class="flex justify-between items-center">
           <div>
             <p class="text-sm font-medium text-muted">{{ t('dashboard.stats.alerts') }}</p>
@@ -440,7 +452,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-bell text-yellow-500/80 text-2xl group-hover:scale-110 transition-transform !text-current"
+            class="fas fa-bell text-yellow-500/80 text-2xl group-hover:scale-125 group-hover:text-yellow-500 transition-all !text-current"
           ></i>
         </div>
       </div>
@@ -473,20 +485,25 @@ const formatDuration = (seconds: number | null | undefined): string => {
             <div
               v-for="asset in assetHealth.assets"
               :key="asset.id"
-              class="flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 transition-colors"
+              class="flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 transition-colors border border-transparent hover:border-border/50"
             >
               <div class="flex items-center gap-3">
-                <div
-                  class="w-2 h-2 rounded-full"
-                  :class="
-                    asset.status === 'online'
-                      ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'
-                      : 'bg-red-500'
-                  "
-                ></div>
-                <span class="font-medium">{{ asset.name }}</span>
+                <div class="relative flex h-2 w-2">
+                  <span
+                    v-if="asset.status === 'online'"
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
+                  ></span>
+                  <span
+                    class="relative inline-flex rounded-full h-2 w-2"
+                    :class="asset.status === 'online' ? 'bg-green-500' : 'bg-red-500'"
+                  ></span>
+                </div>
+                <span class="font-medium text-sm">{{ asset.name }}</span>
               </div>
-              <span v-if="asset.latency" class="text-xs font-mono text-muted"
+              <span
+                v-if="asset.latency"
+                class="text-xs font-mono font-medium"
+                :class="getLatencyColorClass(asset.latency)"
                 >{{ asset.latency }}ms</span
               >
             </div>
@@ -511,7 +528,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
               type="primary"
               link
               @click="openAddConnectionForm"
-              class="!text-primary hover:!text-primary/80"
+              class="!text-primary hover:!text-primary/80 transition-transform active:scale-95"
             >
               <i class="fas fa-plus mr-1"></i> {{ t('dashboard.addConnection') }}
             </el-button>
@@ -524,12 +541,17 @@ const formatDuration = (seconds: number | null | undefined): string => {
           <div
             v-for="conn in recentConnections"
             :key="conn.id"
-            class="group flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 border border-transparent hover:border-border/50 transition-all cursor-pointer"
+            class="group relative flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 border-l-2 border-transparent transition-all cursor-pointer active:scale-[0.98] active:bg-surface/70"
+            :class="{
+              'hover:border-l-orange-500': conn.type === 'SSH',
+              'hover:border-l-blue-500': conn.type === 'RDP',
+              'hover:border-l-purple-500': conn.type === 'VNC',
+            }"
             @click="handleConnectRecent(conn)"
           >
             <div class="flex items-center gap-4">
               <div
-                class="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-primary/10 transition-colors"
+                class="w-10 h-10 rounded-xl bg-surface flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-primary/10 transition-all border border-border/50 shadow-sm"
               >
                 <i
                   class="fas"
@@ -538,22 +560,35 @@ const formatDuration = (seconds: number | null | undefined): string => {
                       ? 'fa-terminal'
                       : conn.type === 'RDP'
                         ? 'fa-desktop'
-                        : 'fa-network-wired'
+                        : conn.type === 'VNC'
+                          ? 'fa-eye'
+                          : 'fa-network-wired'
                   "
                 ></i>
               </div>
-              <div>
-                <div class="font-medium text-foreground">{{ conn.name || conn.host }}</div>
-                <div class="text-xs text-muted font-mono">
-                  {{ conn.username }}@{{ conn.host }}:{{ conn.port }}
+              <div class="truncate max-w-[120px] sm:max-w-none">
+                <div class="font-medium text-foreground text-sm truncate">
+                  {{ conn.name || conn.host }}
+                </div>
+                <div class="text-xs text-muted font-mono truncate">
+                  {{ conn.username }}@{{ conn.host }}
                 </div>
               </div>
             </div>
-            <span
-              class="px-2 py-1 rounded text-xs font-medium bg-surface border border-border"
-              :class="conn.type === 'SSH' ? 'text-orange-400' : 'text-blue-400'"
-              >{{ conn.type }}</span
-            >
+            <div class="flex items-center gap-2">
+              <span
+                class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight bg-surface border border-border shadow-sm uppercase"
+                :class="{
+                  'text-orange-400 border-orange-500/20': conn.type === 'SSH',
+                  'text-blue-400 border-blue-500/20': conn.type === 'RDP',
+                  'text-purple-400 border-purple-500/20': conn.type === 'VNC',
+                }"
+                >{{ conn.type }}</span
+              >
+              <i
+                class="fas fa-chevron-right text-[10px] text-muted opacity-0 group-hover:opacity-100 transition-opacity"
+              ></i>
+            </div>
           </div>
         </div>
         <div v-else class="p-8 text-center text-muted">
@@ -574,8 +609,10 @@ const formatDuration = (seconds: number | null | undefined): string => {
             <h3 class="font-semibold text-lg">{{ t('dashboard.stats.sessionDuration') }}</h3>
           </div>
         </div>
-        <div v-if="stats?.sessions?.durationDistribution" class="p-6 h-[300px]">
-          <SessionDurationChart :distribution="stats.sessions.durationDistribution" />
+        <div v-if="stats?.sessions?.durationDistribution" class="p-4 md:p-6 h-[300px]">
+          <div class="w-full h-full bg-surface/20 rounded-xl border border-border/30 p-4">
+            <SessionDurationChart :distribution="stats.sessions.durationDistribution" />
+          </div>
         </div>
         <div v-else class="p-6 h-[300px] flex items-center justify-center">
           <el-skeleton :rows="3" animated />
@@ -592,17 +629,19 @@ const formatDuration = (seconds: number | null | undefined): string => {
             <h3 class="font-semibold text-lg">{{ t('dashboard.stats.systemResources') }}</h3>
           </div>
         </div>
-        <div v-if="systemResources" class="p-6 space-y-6">
+        <div v-if="systemResources" class="p-4 md:p-6 space-y-6">
           <!-- Resource Bars -->
           <div class="space-y-4">
             <div class="resource-item">
-              <div class="flex justify-between text-sm mb-1">
-                <span class="text-muted">CPU</span>
-                <span class="font-mono font-medium">{{ systemResources.cpuPercent }}%</span>
+              <div class="flex justify-between text-sm mb-1.5 px-1">
+                <span class="text-muted font-medium">CPU</span>
+                <span class="font-mono font-bold">{{ systemResources.cpuPercent }}%</span>
               </div>
-              <div class="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                class="h-2.5 bg-surface rounded-full overflow-hidden border border-border/30 shadow-inner relative"
+              >
                 <div
-                  class="h-full rounded-full transition-all duration-500"
+                  class="h-full rounded-full transition-all duration-1000 ease-out resource-progress-flow"
                   :style="{
                     width: `${systemResources.cpuPercent}%`,
                     backgroundColor: getProgressColor(systemResources.cpuPercent),
@@ -611,15 +650,19 @@ const formatDuration = (seconds: number | null | undefined): string => {
               </div>
             </div>
             <div class="resource-item">
-              <div class="flex justify-between text-sm mb-1">
-                <span class="text-muted">{{ t('dashboard.memory') }}</span>
-                <span class="font-mono font-medium">{{
-                  formatBytes(systemResources.memUsed)
-                }}</span>
+              <div class="flex justify-between text-sm mb-1.5 px-1">
+                <span class="text-muted font-medium">{{ t('dashboard.memory') }}</span>
+                <span class="font-mono font-bold"
+                  >{{ formatBytes(systemResources.memUsed) }} ({{
+                    systemResources.memPercent
+                  }}%)</span
+                >
               </div>
-              <div class="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                class="h-2.5 bg-surface rounded-full overflow-hidden border border-border/30 shadow-inner relative"
+              >
                 <div
-                  class="h-full rounded-full transition-all duration-500"
+                  class="h-full rounded-full transition-all duration-1000 ease-out resource-progress-flow"
                   :style="{
                     width: `${systemResources.memPercent}%`,
                     backgroundColor: getProgressColor(systemResources.memPercent),
@@ -628,15 +671,19 @@ const formatDuration = (seconds: number | null | undefined): string => {
               </div>
             </div>
             <div class="resource-item">
-              <div class="flex justify-between text-sm mb-1">
-                <span class="text-muted">{{ t('dashboard.disk') }}</span>
-                <span class="font-mono font-medium">{{
-                  formatBytes(systemResources.diskUsed)
-                }}</span>
+              <div class="flex justify-between text-sm mb-1.5 px-1">
+                <span class="text-muted font-medium">{{ t('dashboard.disk') }}</span>
+                <span class="font-mono font-bold"
+                  >{{ formatBytes(systemResources.diskUsed) }} ({{
+                    systemResources.diskPercent
+                  }}%)</span
+                >
               </div>
-              <div class="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                class="h-2.5 bg-surface rounded-full overflow-hidden border border-border/30 shadow-inner relative"
+              >
                 <div
-                  class="h-full rounded-full transition-all duration-500"
+                  class="h-full rounded-full transition-all duration-1000 ease-out resource-progress-flow"
                   :style="{
                     width: `${systemResources.diskPercent}%`,
                     backgroundColor: getProgressColor(systemResources.diskPercent),
@@ -649,7 +696,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
           <!-- History Chart -->
           <div
             v-if="systemResourcesHistory.length > 1"
-            class="h-[150px] mt-4 pt-4 border-t border-border/50"
+            class="h-[150px] mt-4 pt-4 border-t border-border/50 bg-surface/20 rounded-xl p-4"
           >
             <SystemResourcesHistoryChart :history="systemResourcesHistory" />
           </div>
@@ -695,7 +742,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
   border: 1px solid var(--card-border, var(--border-color));
   border-radius: 1.25rem;
   padding: 1.5rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -709,21 +756,24 @@ const formatDuration = (seconds: number | null | undefined): string => {
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.4s;
+  z-index: 1;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.25);
+  transform: translateY(-6px);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   border-color: var(--link-active-color);
-  background: var(--card-hover-bg, rgba(255, 255, 255, 0.05));
+  background: var(--card-hover-bg, rgba(255, 255, 255, 0.06));
 }
 
 .stat-card:hover::before {
-  opacity: 1;
+  opacity: 0.6;
 }
 
 .content-card {
@@ -736,11 +786,13 @@ const formatDuration = (seconds: number | null | undefined): string => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .content-card:hover {
-  border-color: rgba(var(--input-focus-glow-rgb, 14, 165, 233), 0.3);
+  border-color: rgba(var(--input-focus-glow-rgb, 14, 165, 233), 0.4);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
@@ -752,6 +804,37 @@ const formatDuration = (seconds: number | null | undefined): string => {
   align-items: center;
 }
 
+.resource-progress-flow {
+  position: relative;
+}
+
+.resource-progress-flow::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 40px 100%;
+  background-repeat: no-repeat;
+  animation: flow 2s infinite linear;
+}
+
+@keyframes flow {
+  from {
+    background-position: -40px 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -759,7 +842,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(15px);
   }
   to {
     opacity: 1;
@@ -769,7 +852,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
@@ -785,11 +868,18 @@ const formatDuration = (seconds: number | null | undefined): string => {
 /* Dark mode specific adjustments for card backgrounds if variables aren't defined */
 :deep(.dark) .stat-card,
 :deep(.dark) .content-card {
-  --card-bg: rgba(30, 41, 59, 0.5);
+  --card-bg: rgba(15, 23, 42, 0.4);
   --card-border: rgba(255, 255, 255, 0.08);
 }
 
 :deep(.dark) .stat-card:hover {
-  --card-hover-bg: rgba(30, 41, 59, 0.7);
+  --card-hover-bg: rgba(15, 23, 42, 0.6);
+}
+
+@media (max-width: 640px) {
+  .dashboard-date-picker-popper {
+    width: 90vw !important;
+    left: 5vw !important;
+  }
 }
 </style>
