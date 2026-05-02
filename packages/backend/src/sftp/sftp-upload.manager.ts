@@ -143,7 +143,25 @@ export class SftpUploadManager {
       }
 
       if (!state.sftp) throw new Error('SFTP session is not available after pre-check.');
-      const stream = state.sftp.createWriteStream(remotePath);
+
+      // 上传替换已有文件时，保留原始权限（避免 755 被默认 666 覆盖）
+      let existingMode: number | undefined;
+      try {
+        const fileStats = await new Promise<import('ssh2').Stats>((resolve, reject) => {
+          sftp.stat(remotePath, (statErr, s) => {
+            if (statErr) return reject(statErr);
+            resolve(s);
+          });
+        });
+        existingMode = fileStats.mode;
+      } catch {
+        // 文件不存在（新上传），使用默认权限
+      }
+
+      const stream = state.sftp.createWriteStream(
+        remotePath,
+        existingMode ? { mode: existingMode } : {}
+      );
       const uploadState: ActiveUpload = {
         remotePath,
         totalSize,

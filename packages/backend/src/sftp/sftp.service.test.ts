@@ -1073,6 +1073,9 @@ describe('SftpService', () => {
       mockSftp.close.mockImplementation((handle: unknown, callback: unknown) => {
         callback(null);
       });
+      mockSftp.stat.mockImplementation((path: string, callback: unknown) => {
+        callback(null, { mode: 0o100755 });
+      });
       mockSftp.createWriteStream.mockReturnValue(mockWriteStream);
 
       await service.startUpload(sessionId, uploadId, remotePath, totalSize);
