@@ -436,7 +436,7 @@ describe('SftpService', () => {
 
       await writePromise;
 
-      expect(mockSftp.createWriteStream).toHaveBeenCalled();
+      expect(mockSftp.createWriteStream).toHaveBeenCalledWith(testPath, { mode: 0o644 });
     });
 
     it('应使用指定编码写入文件', async () => {

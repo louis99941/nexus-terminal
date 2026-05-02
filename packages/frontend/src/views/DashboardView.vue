@@ -9,7 +9,7 @@ import { useAuditLogStore } from '../stores/audit.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useAuthStore } from '../stores/auth.store';
 import { useSessionStore } from '../stores/session.store';
-import { useRouter } from 'vue-router';
+
 import SessionDurationChart from '../components/dashboard/SessionDurationChart.vue';
 import SystemResourcesHistoryChart from '../components/dashboard/SystemResourcesHistoryChart.vue';
 
@@ -24,7 +24,6 @@ const auditLogStore = useAuditLogStore();
 const uiNotifications = useUiNotificationsStore();
 const authStore = useAuthStore();
 const sessionStore = useSessionStore();
-const router = useRouter();
 
 const {
   stats,
@@ -57,6 +56,19 @@ const statIconConfig = {
   commandBlocks: { icon: 'fa-ban', color: 'red' },
   alerts: { icon: 'fa-bell', color: 'orange' },
 } as const;
+
+// 连接类型颜色映射（统一管理，避免重复定义）
+const CONNECTION_TYPE_STYLES = {
+  SSH: { border: 'hover:border-l-orange-500', badge: 'text-orange-400 border-orange-500/20' },
+  RDP: { border: 'hover:border-l-blue-500', badge: 'text-blue-400 border-blue-500/20' },
+  VNC: { border: 'hover:border-l-purple-500', badge: 'text-purple-400 border-purple-500/20' },
+} as const;
+
+const getConnectionTypeStyle = (type: string) =>
+  CONNECTION_TYPE_STYLES[type as keyof typeof CONNECTION_TYPE_STYLES] ?? {
+    border: '',
+    badge: 'text-gray-400 border-gray-500/20',
+  };
 
 // Computed 缓存优化列表渲染
 const recentTimeline = computed(() => timeline.value?.slice(0, 10) || []);
@@ -243,8 +255,13 @@ const handleFormClose = () => {
   connectionToEdit.value = null;
 };
 
-const handleConnectRecent = (conn: ConnectionInfo) => {
-  sessionStore.handleConnectRequest(conn);
+const handleConnectRecent = async (conn: ConnectionInfo) => {
+  try {
+    await sessionStore.handleConnectRequest(conn);
+  } catch (error: unknown) {
+    console.error('[Dashboard] 连接失败:', error);
+    uiNotifications.showError(t('dashboard.errors.connectFailed') || '连接失败，请稍后重试');
+  }
 };
 
 const handleConnectionModified = async () => {
@@ -542,11 +559,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             v-for="conn in recentConnections"
             :key="conn.id"
             class="group relative flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 border-l-2 border-transparent transition-all cursor-pointer active:scale-[0.98] active:bg-surface/70"
-            :class="{
-              'hover:border-l-orange-500': conn.type === 'SSH',
-              'hover:border-l-blue-500': conn.type === 'RDP',
-              'hover:border-l-purple-500': conn.type === 'VNC',
-            }"
+            :class="getConnectionTypeStyle(conn.type).border"
             @click="handleConnectRecent(conn)"
           >
             <div class="flex items-center gap-4">
@@ -578,11 +591,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             <div class="flex items-center gap-2">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight bg-surface border border-border shadow-sm uppercase"
-                :class="{
-                  'text-orange-400 border-orange-500/20': conn.type === 'SSH',
-                  'text-blue-400 border-blue-500/20': conn.type === 'RDP',
-                  'text-purple-400 border-purple-500/20': conn.type === 'VNC',
-                }"
+                :class="getConnectionTypeStyle(conn.type).badge"
                 >{{ conn.type }}</span
               >
               <i

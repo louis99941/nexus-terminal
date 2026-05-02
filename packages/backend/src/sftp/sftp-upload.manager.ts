@@ -160,7 +160,7 @@ export class SftpUploadManager {
 
       const stream = state.sftp.createWriteStream(
         remotePath,
-        existingMode ? { mode: existingMode } : {}
+        existingMode !== undefined ? { mode: existingMode } : {}
       );
       const uploadState: ActiveUpload = {
         remotePath,
