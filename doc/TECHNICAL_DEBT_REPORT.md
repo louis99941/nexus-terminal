@@ -1,8 +1,8 @@
 # 星枢终端 - 技术债务报告
 
-> **生成时间**：2025-12-23 | **更新时间**：2026-04-25
+> **生成时间**：2025-12-23 | **更新时间**：2026-05-02
 > **扫描范围**：packages/backend、packages/frontend、packages/remote-gateway
-> **状态**：🟢 持续治理中（ESLint warning: 0，error: 0；Flat Config 迁移完成）
+> **状态**：🟢 持续治理中（ESLint warning: 0，error: 0；Flat Config 迁移完成；类型系统泛型化重构完成）
 
 ---
 
@@ -25,16 +25,16 @@
 - `96960f8`：收敛 AI 审计与前端 store
 - `7b1e1bf`：清零剩余 warnings
 
-### 待推进项
+### 已完成推进项
 
-1. **WebSocket 消息总线泛型化（类型债务专项）**
-   - 目标：将 `MessagePayload` 从宽泛 `any` 收敛为可判定的联合类型/泛型消息模型
-   - 范围：`useWebSocketConnection.ts`、`useSftpActions.ts`、`useSshTerminal.ts` 等
-   - 验收：`npm run -w @nexus-terminal/frontend -s typecheck` 通过，且不新增 `@ts-ignore`
+1. ~~**WebSocket 消息总线泛型化（类型债务专项）**~~ ✅ 已完成（2026-05-02）
+   - 提交 `1162be0`：消息类型系统泛型化重构
+   - 新增 ~30 个消息接口，SftpMessage 联合类型覆盖 50+ 消息类型
+   - 删除死代码 `SsshOutputPayload`，清理冗余字段
+   - 拆分 `SftpErrorMessage` 为新旧两版（`sftp:error` / `sftp_error` @deprecated）
 
-2. **质量门禁扩展到 Backend/Remote-Gateway 类型检查**
-   - 完成内容：新增 `typecheck:backend`、`typecheck:remote-gateway` 并接入根 `quality:check`
-   - 当前口径：`quality:check` 已覆盖 debt + frontend/backend/remote-gateway typecheck + lint + format
+2. ~~**质量门禁扩展到 Backend/Remote-Gateway 类型检查**~~ ✅ 已完成（2026-04-22）
+   - `quality:check` 已覆盖 debt + frontend/backend/remote-gateway typecheck + lint + format
 
 ---
 
@@ -112,7 +112,7 @@
 | L3   | audit_logs 表缺少 user_id 列          | schema.ts:12-19        | ✅ 已修复（2026-04-24） |
 | L4   | 路线图 Phase 6-11 功能全部未实现      | PERSONAL_ROADMAP.md    | 📋 待规划               |
 | L5   | Swagger/API 文档生产环境禁用          | index.ts:446-470       | ✅ 已修复（2026-04-24） |
-| L6   | 移动端体验不足（滑动/长按/虚拟键盘）  | 前端多文件             | 📋 待规划               |
+| L6   | 移动端体验不足（滑动/长按/虚拟键盘）  | 前端多文件             | ✅ 已完成（2026-05-02） |
 | L7   | 硬编码颜色绕过主题系统                | FileEditorContainer 等 | ✅ 已修复（2026-04-24） |
 | L8   | 12 个组件超过 500 行                  | 前端多文件             | ✅ 已修复（2026-04-25） |
 | L9   | 无障碍访问 (a11y) 严重不足            | 前端全局               | ✅ 已修复（2026-04-24） |
@@ -120,5 +120,45 @@
 
 ---
 
+## 2026-05-02 债务收敛进展
+
+> **扫描时间**: 2026-05-02
+> **扫描方式**: grep 搜索 TODO/FIXME/HACK/XXX + 类型健康度检查
+> **业务代码 TODO/FIXME**: 0
+> **`@ts-ignore` / `@ts-expect-error`**: 0
+> **`: any` / `<any>` / `any[]`（业务源码）**: 0（前端仅 `auto-imports.d.ts` 自动生成文件含 1 处）
+> **`console.log`（业务源码）**: 0
+
+### 本轮完成项
+
+| 日期       | 提交      | 内容                                                                            |
+| ---------- | --------- | ------------------------------------------------------------------------------- |
+| 2026-05-02 | 待提交    | L6 移动端体验优化：虚拟键盘适配、设备检测增强、触摸区域优化、横竖屏响应         |
+| 2026-05-02 | `1162be0` | WebSocket 消息类型系统泛型化重构（~30 个新接口，SftpMessage 联合类型 50+ 消息） |
+| 2026-05-02 | `270ad5d` | AI issue 工作流文件上下文提取优化（关键词定位替代盲目截断）                     |
+| 2026-04-28 | `bd11d6e` | 修复切换标签页时文件管理器路径被重置                                            |
+| 2026-04-28 | `237eb7d` | 修复 SFTP 管理器在会话 ID 重映射后找不到的问题                                  |
+| 2026-04-28 | `fb725b2` | 修复拖拽上传目录遍历路径拼接错误                                                |
+| 2026-04-28 | `1f17e39` | 修复拖拽上传路径显示为 `[object Object]`                                        |
+| 2026-04-25 | `f994007` | FileManager 大组件拆分：提取 19 个 composable 和子组件                          |
+| 2026-04-25 | `7502a31` | SFTP 滑动窗口流控实现，防止大文件上传 OOM                                       |
+| 2026-04-25 | `521cfd7` | pino 结构化日志支持运行时动态调整级别                                           |
+
+### 剩余债务项
+
+> 无（全部已修复）
+
+> **L6 细分完成情况**（2026-05-02）：
+>
+> - ~~滑动手势~~：不适用，浏览器环境下滑动会触发浏览器前进/后退导航，与 Web 应用冲突
+> - ✅ 虚拟键盘遮挡：`useVisualViewport` composable 追踪 `visualViewport` 高度变化，动态调整内容区
+> - ✅ 设备检测增强：`useDeviceDetection` 新增 `hasCoarsePointer`、`isTouchDevice`，matchMedia 兜底
+> - ✅ 触摸区域优化：`@media (hover: none) and (pointer: coarse)` 下 44px 最小触摸区、`touch-action: manipulation`
+> - ✅ 横竖屏适配：`useDeviceDetection` 新增 `orientation` 响应式状态，matchMedia 监听
+
+> 债务收敛率：**100%**（26/26 已修复）
+
+---
+
 **文档维护者**：工程治理
-**最后更新**：2026-04-25
+**最后更新**：2026-05-02

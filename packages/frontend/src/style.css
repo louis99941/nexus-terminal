@@ -138,6 +138,9 @@
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
+
+  /* Layout */
+  --header-height: 55px;
 }
 
 /* 应用基础样式 */
@@ -343,4 +346,63 @@ button:hover {
 .dashboard-date-picker-popper {
   background-color: var(--header-bg-color) !important;
   border-color: var(--border-color) !important;
+}
+
+/* ==========================================
+   移动端触摸优化 (L6 - 触摸区域增强)
+   ========================================== */
+
+/* 触屏设备：确保交互元素最小 44px 触摸区域（Apple HIG 标准） */
+@media (hover: none) and (pointer: coarse) {
+  /* 按钮和可点击元素最小触摸区域 */
+  button,
+  .el-button,
+  .el-icon-button,
+  [role='button'] {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  /* 列表项触摸友好间距 */
+  .el-menu-item,
+  .el-sub-menu__title,
+  .el-dropdown-menu__item {
+    min-height: 44px;
+    line-height: 44px;
+  }
+
+  /* active 状态替代 hover 触摸反馈 */
+  button:active,
+  .el-button:active,
+  [role='button']:active {
+    opacity: 0.7;
+  }
+
+  /* 表格行触摸友好 */
+  .el-table .el-table__row {
+    min-height: 44px;
+  }
+
+  /* 交互式链接点击区域扩大（仅限列表/菜单中的链接，避免影响行内文本链接） */
+  .el-menu-item a,
+  .el-dropdown-menu__item a,
+  .el-table a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 0;
+  }
+}
+
+/* 仅应用最小触摸区域，不限制宽度 */
+@media (pointer: coarse) {
+  .el-checkbox__input,
+  .el-radio__input {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

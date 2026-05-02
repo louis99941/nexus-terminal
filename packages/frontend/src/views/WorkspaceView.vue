@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useLayoutStore, type LayoutNode } from '../stores/layout.store';
 import { useDeviceDetection } from '../composables/useDeviceDetection';
+import { useVisualViewport } from '../composables/useVisualViewport';
 import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
 import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
@@ -35,6 +36,7 @@ const connectionsStore = useConnectionsStore();
 const uiNotificationsStore = useUiNotificationsStore();
 const { isHeaderVisible } = storeToRefs(layoutStore);
 const { isMobile } = useDeviceDetection();
+const { isKeyboardOpen, keyboardHeight } = useVisualViewport();
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const {
@@ -397,7 +399,14 @@ const toggleVirtualKeyboard = () => {
 
     <!-- --- 移动端布局 --- -->
     <template v-else>
-      <div class="mobile-content-area">
+      <div
+        class="mobile-content-area"
+        :style="
+          isKeyboardOpen
+            ? { height: `calc(100dvh - var(--header-height) - ${keyboardHeight}px)` }
+            : {}
+        "
+      >
         <LayoutRenderer
           v-if="activeSessionId && mobileLayoutNodeForTerminal"
           :layout-node="mobileLayoutNodeForTerminal"
@@ -466,15 +475,16 @@ const toggleVirtualKeyboard = () => {
   display: flex;
   background-color: transparent;
   flex-direction: column;
-  height: 100dvh; /* 使用动态视口高度 */
+  height: 100vh; /* 兜底：旧版浏览器不支持 dvh */
+  height: 100dvh; /* 动态视口高度，解决移动端地址栏遮挡 */
   overflow: hidden;
-  transition: height 0.3s ease; /* 可选：添加过渡效果 */
+  transition: height 0.3s ease;
 }
 
 /* 当 Header 可见时，调整高度 */
 .workspace-view.with-header {
-  /* 假设 Header 高度为 55px (根据 App.vue CSS) */
-  height: calc(100dvh - 55px); /* 使用动态视口高度计算 */
+  height: calc(100vh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
 }
 
 .main-content-area {
@@ -522,15 +532,15 @@ const toggleVirtualKeyboard = () => {
 }
 
 .mobile-content-area {
-  display: flex; /* Use flex for the terminal container */
-  flex-direction: column; /* Stack elements vertically if needed */
-  flex-grow: 1; /* Allow this area to take up remaining space */
-  overflow: hidden; /* Prevent overflow */
-  position: relative; /* Needed for potential absolute positioning inside */
-  /* Remove desktop margins/borders */
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* 填充父容器剩余空间（父容器已减去 header 高度） */
+  overflow: hidden;
+  position: relative;
   margin: 0;
   border: none;
   border-radius: 0;
+  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1); /* 匹配系统动画曲线 */
 }
 
 .mobile-terminal {
