@@ -594,10 +594,11 @@ describe('useWebSocketConnection (createWebSocketConnectionManager)', () => {
       const ws = createdWebSockets[0];
       ws.simulateError();
 
-      expect(manager.connectionStatus.value).toBe('connecting');
+      // 错误后状态为 error，scheduleReconnect 通过定时器延迟重连
+      expect(manager.connectionStatus.value).toBe('error');
 
-      // 快进第一次重连延迟 (2秒)
-      vi.advanceTimersByTime(2000);
+      // 快进第一次重连延迟 (2^1*1000 + jitter 0~1000 = 最多 3s，留余量)
+      vi.advanceTimersByTime(4000);
 
       expect(createdWebSockets.length).toBe(2);
     });
@@ -609,22 +610,22 @@ describe('useWebSocketConnection (createWebSocketConnectionManager)', () => {
       let ws = createdWebSockets[0];
       ws.simulateError();
 
-      // 第一次重连 (2^1 * 1000 = 2s)
-      vi.advanceTimersByTime(2000);
+      // 第一次重连 (2^1*1000 + jitter = 2~3s，留余量)
+      vi.advanceTimersByTime(4000);
       expect(createdWebSockets.length).toBe(2);
 
       ws = createdWebSockets[1];
       ws.simulateError();
 
-      // 第二次重连 (2^2 * 1000 = 4s)
-      vi.advanceTimersByTime(4000);
+      // 第二次重连 (2^2*1000 + jitter = 4~5s，留余量)
+      vi.advanceTimersByTime(6000);
       expect(createdWebSockets.length).toBe(3);
 
       ws = createdWebSockets[2];
       ws.simulateError();
 
-      // 第三次重连 (2^3 * 1000 = 8s)
-      vi.advanceTimersByTime(8000);
+      // 第三次重连 (2^3*1000 + jitter = 8~9s，留余量)
+      vi.advanceTimersByTime(10000);
       expect(createdWebSockets.length).toBe(4);
     });
 
