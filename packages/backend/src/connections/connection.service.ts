@@ -117,8 +117,12 @@ export const createConnection = async (
   }
   // M-26: 端口范围验证
   if (input.port !== undefined && input.port !== null) {
-    const port = Number(input.port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    const portStr = String(input.port).trim();
+    if (!/^\d+$/.test(portStr)) {
+      throw new Error('端口号必须是 1 到 65535 之间的整数。');
+    }
+    const port = Number(portStr);
+    if (port < 1 || port > 65535) {
       throw new Error('端口号必须是 1 到 65535 之间的整数。');
     }
   }
@@ -371,8 +375,12 @@ export const updateConnection = async (
     dataToUpdate.host = input.host;
   }
   if (input.port !== undefined) {
-    const port = Number(input.port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    const portStr = String(input.port).trim();
+    if (!/^\d+$/.test(portStr)) {
+      throw new Error('端口号必须是 1 到 65535 之间的整数。');
+    }
+    const port = Number(portStr);
+    if (port < 1 || port > 65535) {
       throw new Error('端口号必须是 1 到 65535 之间的整数。');
     }
     dataToUpdate.port = input.port;
