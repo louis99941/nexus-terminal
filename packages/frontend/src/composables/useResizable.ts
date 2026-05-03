@@ -44,6 +44,7 @@ export function useResizable(
   let startHeight = 0;
 
   const getEdge = (event: MouseEvent, el: HTMLElement): Edge => {
+    if (!(el instanceof HTMLElement)) return null;
     const rect = el.getBoundingClientRect();
     const { clientX, clientY } = event;
 

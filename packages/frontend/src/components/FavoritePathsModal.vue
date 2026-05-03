@@ -120,6 +120,11 @@ const updatePosition = () => {
     return;
   }
 
+  // 防止元素已卸载或非 DOM 节点时调用 getBoundingClientRect
+  if (!(props.triggerElement instanceof HTMLElement)) {
+    return;
+  }
+
   const triggerRect = props.triggerElement.getBoundingClientRect();
   const modalWidth = modalContentRef.value.offsetWidth;
   const modalHeight = modalContentRef.value.offsetHeight;

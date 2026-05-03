@@ -99,6 +99,7 @@ const effectiveSessionId = ref(props.sessionId);
 // 标记是否刚完成 session 重映射，用于抑制 isSftpReady watcher 的冗余 loadDirectory 调用
 // 重映射后由连接 watcher（initialLoadDone 分支）负责正确的初始加载
 const justRemapped = ref(false);
+const lastReconnectPath = ref<string | null>(null);
 
 const initializeSftpManager = (sessionId: string, instanceId: string, initialPath?: string) => {
   const manager = sessionStore.getOrCreateSftpManager(sessionId, instanceId, initialPath);
@@ -142,6 +143,7 @@ const _onSessionRemapped = (payload: { oldSessionId: string; newSessionId: strin
     // 标记为刚重映射，阻止 isSftpReady watcher 触发冗余的 loadDirectory
     // 目录加载由连接 watcher（initialLoadDone 分支）负责
     justRemapped.value = true;
+    lastReconnectPath.value = null;
     // 传入保存的路径，使新管理器恢复到之前的导航位置
     initializeSftpManager(payload.newSessionId, props.instanceId, savedPath);
   }
@@ -766,18 +768,20 @@ watchEffect((onCleanup) => {
     // 连接恢复，并且之前已经加载过 (initialLoadDone is true)
     // 显式地重新加载管理器中记录的当前路径，以防内部状态被重置
     const pathBeforeReconnect = currentSftpManager.value.currentPath.value;
-    console.info(
-      `[FileManager ${props.sessionId}-${props.instanceId}] Connection re-established. Explicitly reloading previous path: ${pathBeforeReconnect}`
-    );
-    // 检查是否正在加载，避免并发请求
-    if (!currentSftpManager.value.isLoading.value) {
-      // 使用 false 参数可能表示非强制刷新，如果 SFTP 管理器支持的话
-      // 主要目的是确保视图与管理器状态同步到重连前的路径
-      currentSftpManager.value.loadDirectory(pathBeforeReconnect, false);
-    } else {
+    // 防止 watchEffect 因响应式依赖变化重复触发：同一路径只重载一次
+    if (pathBeforeReconnect !== lastReconnectPath.value) {
+      lastReconnectPath.value = pathBeforeReconnect;
       console.info(
-        `[FileManager ${props.sessionId}-${props.instanceId}] SFTP manager is currently loading, skipping explicit path reload on reconnect.`
+        `[FileManager ${props.sessionId}-${props.instanceId}] Connection re-established. Explicitly reloading previous path: ${pathBeforeReconnect}`
       );
+      // 检查是否正在加载，避免并发请求
+      if (!currentSftpManager.value.isLoading.value) {
+        currentSftpManager.value.loadDirectory(pathBeforeReconnect, false);
+      } else {
+        console.info(
+          `[FileManager ${props.sessionId}-${props.instanceId}] SFTP manager is currently loading, skipping explicit path reload on reconnect.`
+        );
+      }
     }
     cleanupListeners(); // 清理可能存在的旧监听器
   } else if (!props.wsDeps.isConnected.value && currentSftpManager.value?.initialLoadDone.value) {
