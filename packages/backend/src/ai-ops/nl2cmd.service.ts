@@ -84,7 +84,7 @@ export async function getAISettings(): Promise<AISettings | null> {
     return config;
   } catch (error: unknown) {
     console.error('[NL2CMD] 获取 AI 配置失败:', error);
-    return null;
+    throw new Error('获取 AI 配置失败');
   }
 }
 

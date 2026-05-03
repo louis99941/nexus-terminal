@@ -25,6 +25,38 @@ const encryptCredential = (value: string | null | undefined): string | null => {
 };
 
 /**
+ * 辅助函数：批量加密凭证字段
+ * 对 Record 中所有非空字符串值执行加密，空值/null/undefined 统一返回 null
+ * @param fields - 需要加密的字段映射（key 为字段名，value 为明文值）
+ * @returns 加密后的字段映射
+ */
+const encryptConnectionCredentials = (
+  fields: Record<string, string | undefined | null>
+): Record<string, string | null> => {
+  const result: Record<string, string | null> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    result[key] = value ? encrypt(value) : null;
+  }
+  return result;
+};
+
+/**
+ * 辅助函数：批量解密凭证字段
+ * 对 Record 中所有非空字符串值执行解密，空值/null/undefined 统一返回 undefined
+ * @param fields - 需要解密的字段映射（key 为字段名，value 为密文值）
+ * @returns 解密后的字段映射
+ */
+const decryptConnectionCredentials = (
+  fields: Record<string, string | undefined | null>
+): Record<string, string | undefined> => {
+  const result: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    result[key] = value ? decrypt(value) : undefined;
+  }
+  return result;
+};
+
+/**
  * 辅助函数：验证 jump_chain 并处理与 proxy_id 的互斥关系
  * @param jumpChain 输入的 jump_chain
  * @param proxyId 输入的 proxy_id
@@ -193,11 +225,13 @@ export const createConnection = async (
         encryptedPrivateKey = null;
         encryptedPassphrase = null;
       } else if (input.private_key) {
-        // Encrypt the provided private key and passphrase
-        encryptedPrivateKey = encryptCredential(input.private_key);
-        if (input.passphrase) {
-          encryptedPassphrase = encryptCredential(input.passphrase);
-        }
+        // 批量加密私钥和密码短语
+        const enc = encryptConnectionCredentials({
+          encrypted_private_key: input.private_key,
+          encrypted_passphrase: input.passphrase,
+        });
+        encryptedPrivateKey = enc.encrypted_private_key;
+        encryptedPassphrase = enc.encrypted_passphrase;
         sshKeyIdToSave = null; // Ensure ssh_key_id is null if providing key directly
       } else {
         // This case should be caught by validation above, but as a safeguard:
@@ -444,9 +478,14 @@ export const updateConnection = async (
             dataToUpdate.encrypted_private_key = null;
             dataToUpdate.encrypted_passphrase = null;
           } else {
-            // Encrypt the direct key provided alongside clearing ssh_key_id
-            dataToUpdate.encrypted_private_key = encryptCredential(input.private_key);
-            dataToUpdate.encrypted_passphrase = encryptCredential(input.passphrase);
+            // 批量加密直接提供的私钥和密码短语
+            Object.assign(
+              dataToUpdate,
+              encryptConnectionCredentials({
+                encrypted_private_key: input.private_key,
+                encrypted_passphrase: input.passphrase,
+              })
+            );
           }
         } else {
           // Validate the provided ssh_key_id
@@ -663,12 +702,13 @@ export const getConnectionWithDecryptedCredentials = async (
           `[Service:getConnWithDecrypt] Successfully fetched and decrypted stored SSH key ${fullConnection.ssh_key_id} for connection ${id}.`
         );
       } else if (fullConnection.encrypted_private_key) {
-        // Decrypt the key stored directly in the connection record
-        decryptedPrivateKey = decrypt(fullConnection.encrypted_private_key);
-        // Only decrypt passphrase if it exists alongside the direct key
-        if (fullConnection.encrypted_passphrase) {
-          decryptedPassphrase = decrypt(fullConnection.encrypted_passphrase);
-        }
+        // 批量解密直接存储的私钥和密码短语
+        const decrypted = decryptConnectionCredentials({
+          private_key: fullConnection.encrypted_private_key,
+          passphrase: fullConnection.encrypted_passphrase,
+        });
+        decryptedPrivateKey = decrypted.private_key;
+        decryptedPassphrase = decrypted.passphrase;
       } else {
         console.warn(
           `[Service:getConnWithDecrypt] Connection ${id} uses key auth but has neither ssh_key_id nor encrypted_private_key.`

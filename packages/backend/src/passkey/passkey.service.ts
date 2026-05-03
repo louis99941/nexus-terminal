@@ -316,7 +316,7 @@ export class PasskeyService {
           '[PasskeyService] Error decoding authenticatorData from client response:',
           getErrorMessage(error)
         );
-        // Potentially re-throw or handle as a critical error, as this is unexpected.
+        throw new Error('Failed to decode authenticatorData from client response.');
       }
     } else {
       console.warn('[PasskeyService] authenticatorData is missing in the client response.');

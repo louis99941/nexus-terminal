@@ -4,7 +4,7 @@ import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/conn
 import { SidebarConfig, LayoutNode, CaptchaSettings } from '../types/settings.types';
 
 // 登录封禁默认时长（秒），对应 5 分钟
-const DEFAULT_LOGIN_BAN_DURATION_SECONDS = '300';
+const DEFAULT_LOGIN_BAN_DURATION_SECONDS = 300;
 
 const SIDEBAR_CONFIG_KEY = 'sidebarConfig';
 const CAPTCHA_CONFIG_KEY = 'captchaConfig';
@@ -280,7 +280,7 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
     ipWhitelistEnabled: 'false',
     ipWhitelist: '',
     maxLoginAttempts: '5',
-    loginBanDuration: DEFAULT_LOGIN_BAN_DURATION_SECONDS,
+    loginBanDuration: String(DEFAULT_LOGIN_BAN_DURATION_SECONDS),
     focusSwitcherSequence: JSON.stringify([
       'quickCommandsSearch',
       'commandHistorySearch',
