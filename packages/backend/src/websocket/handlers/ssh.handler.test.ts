@@ -285,7 +285,7 @@ describe('SSH WebSocket Handler', () => {
           try {
             const parsed = JSON.parse(call[0] as string);
             return parsed.type === 'ssh:error' && parsed.payload.includes('Shell 就绪超时');
-          } catch {
+          } catch (_parseError: unknown) {
             return false;
           }
         });

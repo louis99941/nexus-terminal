@@ -442,6 +442,15 @@ export const setupAdmin = async (
     });
     return;
   }
+  // Codex 审查：类型收敛，防止非字符串输入导致 500
+  if (typeof username !== 'string' || typeof password !== 'string' || typeof confirmPassword !== 'string') {
+    res.status(400).json({
+      success: false,
+      error: '用户名、密码和确认密码必须是字符串类型。',
+      code: ErrorCode.VALIDATION_ERROR,
+    });
+    return;
+  }
   // M-28: 用户名长度与格式验证
   if (username.length < 3 || username.length > 64) {
     res.status(400).json({
