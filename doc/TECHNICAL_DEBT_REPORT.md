@@ -1,6 +1,6 @@
 # 星枢终端 - 技术债务报告
 
-> **状态**：🟡 收敛中 | **更新时间**：2026-05-03 | **收敛率**：40/84 已修复（48%）
+> **状态**：🟡 收敛中 | **更新时间**：2026-05-03 | **收敛率**：41/84 已修复（49%）
 
 ---
 
@@ -148,7 +148,7 @@
 | ~~M-22~~ | ~~SFTP 上传 `activeUploads` 在流未触发 close 时可能泄漏~~ | ~~`sftp-upload.manager.ts:47`~~           | ✅ 已有 5s 超时回退 `stream.destroy()`                       |
 | ~~M-23~~ | ~~SSH 挂起日志轮转丢弃全部历史~~                          | ~~`temporary-log-storage.service.ts:75`~~ | ✅ 已实现环形缓冲（100MB 上限，保留 80MB）                   |
 | M-24     | 多设备会话状态不一致                                      | `websocket/state.ts:15`                   | 文档说明行为，考虑添加会话列表端点                           |
-| M-25     | SFTP 操作 payload 使用 `z.any()` 绕过 Zod 验证            | `websocket/schemas.ts`                    | 为每个 SFTP 操作定义专用 Zod schema                          |
+| ~~M-25~~     | ~~SFTP 操作 payload 使用 `z.any()` 绕过 Zod 验证~~            | ~~`websocket/schemas.ts`~~                    | ✅ 已为每个 SFTP 操作定义专用 Zod schema（10+ 个 schema）     |
 | ~~M-26~~ | ~~无端口范围验证（1-65535）~~                             | ~~`connections.controller.ts`~~           | ✅ 已添加 `port >= 1 && port <= 65535` 校验（create/update） |
 | ~~M-27~~ | ~~无主机名格式验证~~                                      | ~~`connections.controller.ts`~~           | ✅ 已添加最大 253 字符 + 合法域名/IPv6 正则校验              |
 | ~~M-28~~ | ~~注册无用户名长度/密码复杂度限制~~                           | ~~`auth.controller.ts`~~                      | ✅ 用户名 3-64 字符 + 字母数字下划线连字符；密码含字母和数字  |
@@ -526,4 +526,4 @@
 ---
 
 **文档维护者**：工程治理
-**最后更新**：2026-05-03（H-7/M-13/M-7 已确认规范 + H-21 测试补充，累计 40/84 已修复，收敛率 48%）
+**最后更新**：2026-05-03（M-25 SFTP Zod schemas 已确认，累计 41/84 已修复，收敛率 49%）
