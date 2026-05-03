@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, readonly } from 'vue';
 import apiClient from '../utils/apiClient';
 import { extractErrorMessage } from '../utils/errorExtractor';
 

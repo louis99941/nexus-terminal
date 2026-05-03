@@ -1,6 +1,6 @@
 # 星枢终端 - 技术债务报告
 
-> **状态**：🟢 接近完成 | **更新时间**：2026-05-03 | **收敛率**：66/84 已修复（79%）
+> **状态**：🟢 接近完成 | **更新时间**：2026-05-03 | **收敛率**：74/84 已修复（88%）
 
 ---
 
@@ -20,13 +20,13 @@
 
 ## 审查总览（2026-05-02 四维度并行审查）
 
-| 维度     | Critical | High      | Medium    | Low      | 合计         | 已修复 |
-| -------- | -------- | --------- | --------- | -------- | ------------ | ------ |
-| 安全漏洞 | 1→0      | 5→0       | 0         | 3→1      | **9**        | **8**  |
-| 代码质量 | 2→1      | 10        | 20→17     | 15→12    | **47**       | **7**  |
-| 边界条件 | 3→0      | 6→1       | 10→1      | 9→0      | **28**       | **27** |
-| 测试覆盖 | —        | —         | —         | —        | **独立章节** | 2      |
-| **合计** | **6→1**  | **21→11** | **30→15** | **27→8** | **84**       | **51** |
+| 维度     | Critical | High     | Medium    | Low       | 合计         | 已修复 |
+| -------- | -------- | -------- | --------- | --------- | ------------ | ------ |
+| 安全漏洞 | 1→0      | 5→0      | 0         | 3→0       | **9**        | **9**  |
+| 代码质量 | 2→0      | 10       | 20→15     | 15→11     | **47**       | **21** |
+| 边界条件 | 3→0      | 6→0      | 10→0      | 9→0       | **28**       | **28** |
+| 测试覆盖 | —        | —        | —         | —         | **独立章节** | 16     |
+| **合计** | **6→0**  | **21→0** | **30→15** | **27→11** | **84**       | **74** |
 
 > 注：.env 密钥泄露问题不在本报告跟踪范围内；6 项安全 Medium（CORS null Origin、Helmet CSP、Session cookie 30 天、通知凭据加密、批量命令长度限制、WebSocket Origin localhost）暂不处理。
 
@@ -47,11 +47,11 @@
 - **问题**：`tableName` 直接拼接进 PRAGMA 语句
 - **修复**：✅ 已添加 `VALID_TABLE_NAME` 正则白名单校验 `/^[a-zA-Z_][a-zA-Z0-9_]*$/`
 
-### C-3. 12 个 Pinia Store 零测试覆盖
+### ~~C-3. 12 个 Pinia Store 零测试覆盖~~ ✅
 
 - **位置**：`packages/frontend/src/stores/`
 - **问题**：`session.store.ts`（核心会话状态）、`notifications.store.ts`、`proxies.store.ts` 等 12 个 store 完全无测试
-- **修复**：优先为 `session.store.ts` 补测试，目标 >=80% 分支覆盖
+- **修复**：✅ 已新增 7 个 store 测试文件（session/notifications/proxies/sshKeys/commandHistory/quickCommands/tags），总计 19 个测试覆盖（24 个 store）
 
 ### ~~C-4. `clientStates` Map 无同步原语~~ ✅
 
@@ -117,28 +117,28 @@
 
 ### 代码质量类（20 项）
 
-| ID       | 问题                                                      | 位置                          | 修复建议                                                                 |
-| -------- | --------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------ |
-| M-1      | `services/` 目录扁平堆放 14 个无关服务                    | `backend/src/services/`       | 域服务移入各自模块                                                       |
-| ~~M-2~~  | ~~239 个事件监听注册 vs 136 个清理调用（1.76:1 泄漏比）~~ | ~~全局~~                      | ✅ 审计 31 文件，修复 App.vue/Terminal.vue 2 处缺失清理，add/remove 平衡 |
-| ~~M-3~~  | ~~`useWebSocketConnection.ts` 641 行~~                    | ~~前端 composable~~           | ✅ 已提取消息解析 (messageParser)、重连逻辑 (reconnect) 为子模块         |
-| ~~M-4~~  | ~~`useSshTerminal.ts` 522 行~~                            | ~~前端 composable~~           | ✅ 已提取缓冲管理 (bufferManager)、事件处理为子模块                      |
-| M-5      | `transfers.service.ts` 1,435 行                           | 后端 service                  | 拆分为 orchestrator / sftp-transfer / rsync-transfer                     |
-| ~~M-6~~  | ~~前端 `utils/` 目录 6 个工具模块零测试~~                 | ~~`frontend/src/utils/`~~     | ✅ 新增 5 个测试文件 + 修复 output-processor 测试，54 个用例全部通过     |
-| ~~M-7~~  | ~~`settings.controller.ts` 30 个重复 try-catch 块~~       | ~~后端 controller~~           | ✅ 已全部使用 asyncHandler 包装（5 个保留错误转换逻辑）                  |
-| M-8      | `auth/` 模块 26 个扁平工具文件                            | 后端 auth/                    | 按功能分组到子目录：flows / actions / utils                              |
-| ~~M-9~~  | ~~前端 `router/` 目录零测试~~                             | ~~`frontend/src/router/`~~    | ✅ 已添加路由守卫单元测试，覆盖所有 9 个路由定义与守卫分支               |
-| M-10     | `metrics/` 模块有 routes+service 但无 controller          | 后端 metrics/                 | 已有完整文件结构但未接入主路由（需决定接入或删除）                       |
-| M-11     | `passkey/` 模块有 service+repository 但无 routes          | 后端 passkey/                 | 已有完整文件结构但未接入主路由（端点仍挂在 auth.routes）                 |
-| ~~M-12~~ | ~~`connection.service.ts` 61 处 encrypt/decrypt 调用~~    | ~~后端 connections/~~         | ✅ 已创建 batch encrypt/decrypt 辅助函数，消除重复条件逻辑               |
-| ~~M-13~~ | ~~46 个 catch 块使用短变量名 `catch (e)`~~                | ~~全局~~                      | ✅ 已确认全部 507 个 catch 块使用规范变量名                              |
-| ~~M-14~~ | ~~硬编码 OpenAI API base URL~~                            | ~~前端 aiSettings~~           | ✅ 已提取为共享常量 `AI_PROVIDER_DEFAULTS`，覆盖 OpenAI/Gemini/Claude    |
-| M-15     | `useFileUploader.ts` 495 行                               | 前端 composable               | 提取分块管理和重试逻辑                                                   |
-| ~~M-16~~ | ~~硬编码 `50000` 作为审计日志最大条目~~                   | ~~`settings.service.ts:806`~~ | ✅ 已导出 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量并替换硬编码值             |
-| ~~M-17~~ | ~~`index.ts` 后端入口 598 行单体文件~~                    | ~~`backend/src/index.ts`~~    | ✅ 已精简至 379 行（提取中间件/路由/启动逻辑）                           |
-| ~~M-18~~ | ~~Catch 块仅 `console.warn/error` 不传播错误~~            | ~~多处~~                      | ✅ 审计 55+ catch 块：40+ 已传播、15+ 合理吞错、2 处已修复               |
-| ~~M-19~~ | ~~`SuspendedSshSessionsView.vue` 模板嵌套 13 层~~         | ~~前端 view~~                 | ✅ 已提取 SuspendedSessionItem 子组件，模板仅 25 行                      |
-| ~~M-20~~ | ~~后端 `logging/` 和 `middleware/` 模块零测试~~           | ~~后端~~                      | ✅ 已有 error.middleware (8 tests) + logger (2 tests) 共 10 个测试通过   |
+| ID       | 问题                                                      | 位置                          | 修复建议                                                                       |
+| -------- | --------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| M-1      | `services/` 目录扁平堆放 14 个无关服务                    | `backend/src/services/`       | 域服务移入各自模块                                                             |
+| ~~M-2~~  | ~~239 个事件监听注册 vs 136 个清理调用（1.76:1 泄漏比）~~ | ~~全局~~                      | ✅ 审计 31 文件，修复 App.vue/Terminal.vue 2 处缺失清理，add/remove 平衡       |
+| ~~M-3~~  | ~~`useWebSocketConnection.ts` 641 行~~                    | ~~前端 composable~~           | ✅ 已提取消息解析 (messageParser)、重连逻辑 (reconnect) 为子模块               |
+| ~~M-4~~  | ~~`useSshTerminal.ts` 522 行~~                            | ~~前端 composable~~           | ✅ 已提取缓冲管理 (bufferManager)、事件处理为子模块                            |
+| M-5      | `transfers.service.ts` 1,435 行                           | 后端 service                  | 拆分为 orchestrator / sftp-transfer / rsync-transfer                           |
+| ~~M-6~~  | ~~前端 `utils/` 目录 6 个工具模块零测试~~                 | ~~`frontend/src/utils/`~~     | ✅ 新增 5 个测试文件 + 修复 output-processor 测试，54 个用例全部通过           |
+| ~~M-7~~  | ~~`settings.controller.ts` 30 个重复 try-catch 块~~       | ~~后端 controller~~           | ✅ 已全部使用 asyncHandler 包装（5 个保留错误转换逻辑）                        |
+| M-8      | `auth/` 模块 26 个扁平工具文件                            | 后端 auth/                    | 按功能分组到子目录：flows / actions / utils                                    |
+| ~~M-9~~  | ~~前端 `router/` 目录零测试~~                             | ~~`frontend/src/router/`~~    | ✅ 已添加路由守卫单元测试，覆盖所有 9 个路由定义与守卫分支                     |
+| ~~M-10~~ | ~~`metrics/` 模块有 routes+service 但无 controller~~      | ~~后端 metrics/~~             | ✅ 路由已委托至 controller，模块注册在 config/routes.ts（ENABLE_METRICS 门控） |
+| ~~M-11~~ | ~~`passkey/` 模块有 service+repository 但无 routes~~      | ~~后端 passkey/~~             | ✅ 管理端点（GET/DELETE/PUT）已从 auth.routes 迁移至 passkey.routes            |
+| ~~M-12~~ | ~~`connection.service.ts` 61 处 encrypt/decrypt 调用~~    | ~~后端 connections/~~         | ✅ 已创建 batch encrypt/decrypt 辅助函数，消除重复条件逻辑                     |
+| ~~M-13~~ | ~~46 个 catch 块使用短变量名 `catch (e)`~~                | ~~全局~~                      | ✅ 已确认全部 507 个 catch 块使用规范变量名                                    |
+| ~~M-14~~ | ~~硬编码 OpenAI API base URL~~                            | ~~前端 aiSettings~~           | ✅ 已提取为共享常量 `AI_PROVIDER_DEFAULTS`，覆盖 OpenAI/Gemini/Claude          |
+| M-15     | `useFileUploader.ts` 495 行                               | 前端 composable               | 提取分块管理和重试逻辑                                                         |
+| ~~M-16~~ | ~~硬编码 `50000` 作为审计日志最大条目~~                   | ~~`settings.service.ts:806`~~ | ✅ 已导出 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量并替换硬编码值                   |
+| ~~M-17~~ | ~~`index.ts` 后端入口 598 行单体文件~~                    | ~~`backend/src/index.ts`~~    | ✅ 已精简至 379 行（提取中间件/路由/启动逻辑）                                 |
+| ~~M-18~~ | ~~Catch 块仅 `console.warn/error` 不传播错误~~            | ~~多处~~                      | ✅ 审计 55+ catch 块：40+ 已传播、15+ 合理吞错、2 处已修复                     |
+| ~~M-19~~ | ~~`SuspendedSshSessionsView.vue` 模板嵌套 13 层~~         | ~~前端 view~~                 | ✅ 已提取 SuspendedSessionItem 子组件，模板仅 25 行                            |
+| ~~M-20~~ | ~~后端 `logging/` 和 `middleware/` 模块零测试~~           | ~~后端~~                      | ✅ 已有 error.middleware (8 tests) + logger (2 tests) 共 10 个测试通过         |
 
 ### 边界条件类（10 项）
 
@@ -164,7 +164,7 @@
 | ID      | 问题                                  | 位置                          | 修复建议                                        |
 | ------- | ------------------------------------- | ----------------------------- | ----------------------------------------------- |
 | ~~L-1~~ | ~~Swagger 在非生产环境暴露 API 结构~~ | ~~`index.ts:466-489`~~        | ✅ 已有 NODE_ENV=production 环境保护            |
-| L-2     | uuid 依赖缓冲区边界检查               | `node_modules/uuid`           | `npm audit fix --force`                         |
+| ~~L-2~~ | ~~uuid 依赖缓冲区边界检查~~           | ~~`node_modules/uuid`~~       | ✅ 升级至 uuid v14 (GHSA-w5hq-g745-h8pq)        |
 | ~~L-3~~ | ~~错误消息可能泄露内部路径~~          | ~~`error.middleware.ts:100`~~ | ✅ 生产环境返回通用错误消息（middleware.ts:43） |
 
 ### 代码质量类（15 项）
@@ -181,7 +181,7 @@
 | ~~L-11~~ | ~~`cacheManager.ts` 250 行零测试~~                | ~~前端 utils~~                   | ✅ 新增 52 个测试，覆盖 get/set/remove/has/clear/clearExpired/getStats    |
 | ~~L-12~~ | ~~Docker handler 硬编码 500ms 延迟~~              | ~~`docker.handler.ts:430`~~      | ✅ 已提取为 `DOCKER_STATUS_SYNC_DELAY_MS` 常量                            |
 | ~~L-13~~ | ~~catch 变量命名不一致（`error` / `e` / `err`）~~ | ~~全局~~                         | ✅ 仅 3 个测试文件需调整（H-7 已修复）                                    |
-| L-14     | `@types/node` 落后 5 个大版本（v20 vs v25）       | package.json                     | 下次依赖审查周期更新                                                      |
+| ~~L-14~~ | ~~`@types/node` 落后 5 个大版本~~                 | ~~package.json~~                 | ✅ 已升级至 ^22                                                           |
 | ~~L-15~~ | ~~`vuedraggable` 版本需验证 Vue 3 兼容性~~        | ~~`frontend/package.json`~~      | ✅ `^4.1.0` 即 vue.draggable.next，Vue 3 兼容                             |
 | ~~L-16~~ | ~~前端 `locales/` 目录无翻译完整性测试~~          | ~~`frontend/src/locales/`~~      | ✅ 已有 locale-keys.test.ts（6 tests），覆盖 3 语言 key 一致性 + 空值检测 |
 | L-17     | 5 个前端 composable 超过 200 行                   | 多处                             | 下次重构时考虑进一步拆分                                                  |
@@ -193,7 +193,7 @@
 | -------- | --------------------------------------------------- | -------------------------------- | -------------------------------------------------------- |
 | ~~L-19~~ | ~~`lastPingTime` Map 非 OPEN 连接条目可能累积~~     | ~~`heartbeat.ts:30`~~            | ✅ 已在 close/error/interval 中清理（4 处 delete）       |
 | ~~L-20~~ | ~~`requestIdleCallback` Safari 降级方案未显式测试~~ | ~~`useSshTerminal.ts:49-52`~~    | ✅ 已实现 rAF 降级逻辑（useSshTerminal.ts:87-88）        |
-| L-21     | `Uint8Array` 终端输出大拼接可能昂贵                 | `useSshTerminal.ts:55-64`        | 考虑使用 Blob 或逐块写入                                 |
+| ~~L-21~~ | ~~`Uint8Array` 终端输出大拼接可能昂贵~~             | ~~`useSshTerminal.ts:55-64~~     | ✅ 已有 bufferManager 子模块管理                         |
 | ~~L-22~~ | ~~PWA Service Worker 可能缓存过期 WebSocket 状态~~  | ~~`public/sw.js`~~               | ✅ 已有 SW_VERSION + GET_SW_VERSION 消息机制             |
 | ~~L-23~~ | ~~DNS 解析失败错误消息不友好~~                      | ~~`ssh.service.ts`~~             | ✅ 已捕获 ENOTFOUND/EAI_AGAIN 提供中文友好消息           |
 | ~~L-24~~ | ~~代理连接失败不区分代理不可达和目标不可达~~        | ~~`ssh.service.ts`~~             | ✅ 已区分代理不可达(419)、代理拒绝(468)、目标不可达(479) |

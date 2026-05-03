@@ -94,6 +94,11 @@ export const deleteUserPasskey = async (
       `[Passkey] 用户 ${actor.username} 删除 Passkey 失败: ${credentialID}`
     );
     if (errMsg.includes('Unauthorized')) {
+      auditLogService.logAction('PASSKEY_DELETE_UNAUTHORIZED', {
+        userId: actor.userId,
+        username: actor.username,
+        credentialIdAttempted: credentialID,
+      });
       res.status(403).json({ message: '无权删除此 Passkey。' });
     } else if (errMsg.includes('not found')) {
       res.status(404).json({ message: 'Passkey 未找到。' });
@@ -153,6 +158,11 @@ export const updateUserPasskeyName = async (
       `[Passkey] 用户 ${actor.username} 更新 Passkey 名称失败: ${credentialID}`
     );
     if (errMsg.includes('Unauthorized')) {
+      auditLogService.logAction('PASSKEY_NAME_UPDATE_UNAUTHORIZED', {
+        userId: actor.userId,
+        username: actor.username,
+        credentialIdAttempted: credentialID,
+      });
       res.status(403).json({ message: '无权修改此 Passkey。' });
     } else if (errMsg.includes('not found')) {
       res.status(404).json({ message: 'Passkey 未找到。' });
