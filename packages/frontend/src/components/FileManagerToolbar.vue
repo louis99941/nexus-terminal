@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
           :disabled="!isConnected || isEditingPath"
           :title="t('fileManager.actions.cdToTerminal', '将终端路径切换到文件管理器当前路径')"
         >
-          <i class="fas fa-terminal" :class="isMobile ? 'text-sm' : 'text-base'"></i>
+          <i class="fas fa-terminal leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
         </button>
         <!-- 从终端同步路径按钮 -->
         <button
@@ -188,6 +188,7 @@ onBeforeUnmount(() => {
             :class="[
               'fas',
               isSyncingFromTerminal ? 'fa-spinner fa-spin' : 'fa-folder-open',
+              'leading-none',
               isMobile ? 'text-sm' : 'text-base',
             ]"
           ></i>
@@ -200,7 +201,7 @@ onBeforeUnmount(() => {
           :disabled="!isConnected || isEditingPath"
           :title="t('fileManager.actions.refresh')"
         >
-          <i class="fas fa-sync-alt" :class="isMobile ? 'text-sm' : 'text-base'"></i>
+          <i class="fas fa-sync-alt leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
         </button>
         <!-- 返回上级目录按钮 -->
         <button
@@ -210,7 +211,7 @@ onBeforeUnmount(() => {
           :disabled="!isConnected || isAtRoot || isEditingPath"
           :title="t('fileManager.actions.parentDirectory')"
         >
-          <i class="fas fa-arrow-up" :class="isMobile ? 'text-sm' : 'text-base'"></i>
+          <i class="fas fa-arrow-up leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
         </button>
         <!-- 搜索区域 -->
         <div class="flex items-center flex-shrink-0">
@@ -222,7 +223,7 @@ onBeforeUnmount(() => {
             :disabled="!isConnected"
             :title="t('fileManager.searchPlaceholder')"
           >
-            <i class="fas fa-search" :class="isMobile ? 'text-sm' : 'text-base'"></i>
+            <i class="fas fa-search leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
           </button>
           <div v-else class="relative flex items-center min-w-[150px] flex-shrink">
             <i
@@ -252,7 +253,7 @@ onBeforeUnmount(() => {
             :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
             @click="toggleFavoritePathsModal"
           >
-            <i class="fas fa-star" :class="isMobile ? 'text-sm' : 'text-base'"></i>
+            <i class="fas fa-star leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
           </button>
           <FavoritePathsModal
             :is-visible="showFavoritePathsModal"
@@ -317,10 +318,10 @@ onBeforeUnmount(() => {
         @click="emit('open-popup-editor')"
         :disabled="!isConnected"
         :title="t('fileManager.actions.openEditor', 'Open Popup Editor')"
-        class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+        class="flex items-center justify-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
         :class="{ 'px-1.5': isMobile }"
       >
-        <i class="far fa-edit text-sm"></i>
+        <i class="far fa-edit text-sm leading-none"></i>
         <span v-if="!isMobile">{{ t('fileManager.actions.openEditor', 'Open Editor') }}</span>
       </button>
       <!-- 上传文件按钮 -->
@@ -328,10 +329,10 @@ onBeforeUnmount(() => {
         @click="emit('trigger-file-upload')"
         :disabled="isActionDisabled"
         :title="t('fileManager.actions.uploadFile')"
-        class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+        class="flex items-center justify-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
         :class="{ 'px-1.5': isMobile }"
       >
-        <i class="fas fa-upload text-sm"></i>
+        <i class="fas fa-upload text-sm leading-none"></i>
         <span v-if="!isMobile">{{ t('fileManager.actions.uploadFile') }}</span>
       </button>
       <!-- 上传文件夹按钮 -->
@@ -343,10 +344,10 @@ onBeforeUnmount(() => {
             ? t('fileManager.actions.uploadFolder')
             : t('fileManager.actions.uploadFolderUnsupported', '当前浏览器不支持文件夹上传')
         "
-        class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+        class="flex items-center justify-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
         :class="{ 'px-1.5': isMobile }"
       >
-        <i class="fas fa-cloud-arrow-up text-sm"></i>
+        <i class="fas fa-cloud-arrow-up text-sm leading-none"></i>
         <span v-if="!isMobile">{{ t('fileManager.actions.uploadFolder') }}</span>
       </button>
       <!-- 新建文件夹按钮 -->
@@ -354,10 +355,10 @@ onBeforeUnmount(() => {
         @click="emit('new-folder')"
         :disabled="isActionDisabled"
         :title="t('fileManager.actions.newFolder')"
-        class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+        class="flex items-center justify-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
         :class="{ 'px-1.5': isMobile }"
       >
-        <i class="fas fa-folder-plus text-sm"></i>
+        <i class="fas fa-folder-plus text-sm leading-none"></i>
         <span v-if="!isMobile">{{ t('fileManager.actions.newFolder') }}</span>
       </button>
       <!-- 新建文件按钮 -->
@@ -365,10 +366,10 @@ onBeforeUnmount(() => {
         @click="emit('new-file')"
         :disabled="isActionDisabled"
         :title="t('fileManager.actions.newFile')"
-        class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+        class="flex items-center justify-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
         :class="{ 'px-1.5': isMobile }"
       >
-        <i class="far fa-file-alt text-sm"></i>
+        <i class="far fa-file-alt text-sm leading-none"></i>
         <span v-if="!isMobile">{{ t('fileManager.actions.newFile') }}</span>
       </button>
       <!-- 多选模式切换按钮 (仅移动端) -->
@@ -380,13 +381,13 @@ onBeforeUnmount(() => {
             ? t('fileManager.actions.exitMultiSelect', 'Exit Multi-Select Mode')
             : t('fileManager.actions.multiSelect', 'Enter Multi-Select Mode')
         "
-        class="flex items-center gap-1 px-1.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex items-center justify-center gap-1 px-1.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         :class="{
           'hover:bg-header hover:border-primary hover:text-primary': !isMultiSelectMode,
           'bg-primary text-white border-primary': isMultiSelectMode,
         }"
       >
-        <i class="fas fa-check-square text-sm"></i>
+        <i class="fas fa-check-square text-sm leading-none"></i>
       </button>
     </div>
   </div>

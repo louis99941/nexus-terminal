@@ -444,7 +444,7 @@ onBeforeUnmount(() => {
       props.isMobile ? 'h-8' : 'h-10', // Mobile height h-8, Desktop h-10 - Use props.isMobile
     ]"
   >
-    <div class="flex items-center overflow-x-auto flex-shrink min-w-0 h-full">
+    <div class="flex items-center overflow-x-auto flex-shrink min-w-0 h-full pl-1">
       <!-- Ensure inner div has h-full -->
       <draggable
         v-model="draggableSessions"
