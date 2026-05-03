@@ -35,30 +35,36 @@ describe('路由守卫', () => {
     vi.mocked(useAuthStore).mockReturnValue(mockAuthStore as any);
   });
 
-  it('应该允许访问登录页面', async () => {
-    const _to = { name: 'Login', path: '/login' };
-    const result = await router.options.routes;
-    expect(result.length).toBeGreaterThan(0);
+  describe('路由定义', () => {
+    it('应该包含所有必要路由', () => {
+      const routes = router.getRoutes();
+      const routeNames = routes.map((r) => r.name);
+
+      expect(routeNames).toContain('Dashboard');
+      expect(routeNames).toContain('Login');
+      expect(routeNames).toContain('Setup');
+      expect(routeNames).toContain('Workspace');
+      expect(routeNames).toContain('Connections');
+      expect(routeNames).toContain('Settings');
+      expect(routeNames).toContain('Proxies');
+      expect(routeNames).toContain('Notifications');
+      expect(routeNames).toContain('AuditLogs');
+    });
+
+    it('应该使用 HTML5 History 模式', () => {
+      expect(router.options.history).toBeDefined();
+    });
+
+    it('应该有 9 个路由定义', () => {
+      const routes = router.getRoutes();
+      // 注意: getRoutes() 返回扁平化路由，包含嵌套路由
+      expect(routes.length).toBeGreaterThanOrEqual(9);
+    });
   });
 
-  it('应该允许访问公开路由', async () => {
-    mockAuthStore.isInitCompleted = true;
-    mockAuthStore.needsSetup = false;
-    mockAuthStore.isAuthenticated = false;
-
-    const guard = router.beforeEach;
-    expect(guard).toBeDefined();
-  });
-
-  it('应该包含所有必要路由', () => {
-    const routes = router.getRoutes();
-    const routeNames = routes.map((r) => r.name);
-
-    expect(routeNames).toContain('Dashboard');
-    expect(routeNames).toContain('Login');
-    expect(routeNames).toContain('Setup');
-    expect(routeNames).toContain('Workspace');
-    expect(routeNames).toContain('Connections');
-    expect(routeNames).toContain('Settings');
+  describe('守卫逻辑', () => {
+    it('应该定义 beforeEach 守卫', () => {
+      expect(router.beforeEach).toBeDefined();
+    });
   });
 });

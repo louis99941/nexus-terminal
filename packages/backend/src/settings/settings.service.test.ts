@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { settingsService } from './settings.service';
+import { settingsService, DEFAULT_AUDIT_LOG_MAX_ENTRIES } from './settings.service';
 import {
   settingsRepository,
   getSidebarConfig,
@@ -561,16 +561,16 @@ describe('Settings Service', () => {
       expect(settingsRepository.getSetting).toHaveBeenCalledWith('auditLogMaxEntries');
     });
 
-    it('存储值为空时应回退到默认值 50000', async () => {
+    it('存储值为空时应回退到默认值', async () => {
       (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
       const result = await settingsService.getAuditLogMaxEntries();
-      expect(result).toBe(50000);
+      expect(result).toBe(DEFAULT_AUDIT_LOG_MAX_ENTRIES);
     });
 
-    it('存储值为无效数字时应回退到默认值 50000', async () => {
+    it('存储值为无效数字时应回退到默认值', async () => {
       (settingsRepository.getSetting as any).mockResolvedValueOnce('not-a-number');
       const result = await settingsService.getAuditLogMaxEntries();
-      expect(result).toBe(50000);
+      expect(result).toBe(DEFAULT_AUDIT_LOG_MAX_ENTRIES);
     });
   });
 

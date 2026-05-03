@@ -527,8 +527,6 @@ export const settingsController = {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="nexus_connections_export.zip"');
     res.send(encryptedZipBuffer);
-
-    // auditLogService.logAction('CONNECTIONS_EXPORTED', { userId: (req.user as any)?.id || 'unknown' }); // 移除审计日志
   }),
 
   // --- 容器日志等级设置 ---

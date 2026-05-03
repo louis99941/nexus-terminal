@@ -229,7 +229,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useAISettingsStore } from '../../stores/aiSettings.store';
 import type { AISettings } from '../../types/nl2cmd.types';
-import { DEFAULT_OPENAI_BASE_URL } from '../../utils/aiConstants';
+import { DEFAULT_OPENAI_BASE_URL, AI_PROVIDER_DEFAULTS } from '../../utils/aiConstants';
 
 const aiSettingsStore = useAISettingsStore();
 
@@ -281,18 +281,18 @@ watch(
 function handleProviderChange() {
   switch (localSettings.value.provider) {
     case 'openai':
-      localSettings.value.baseUrl = DEFAULT_OPENAI_BASE_URL;
-      localSettings.value.model = 'gpt-4o-mini';
-      localSettings.value.openaiEndpoint = 'chat/completions';
+      localSettings.value.baseUrl = AI_PROVIDER_DEFAULTS.openai.baseUrl;
+      localSettings.value.model = AI_PROVIDER_DEFAULTS.openai.model;
+      localSettings.value.openaiEndpoint = AI_PROVIDER_DEFAULTS.openai.endpoint;
       break;
     case 'gemini':
-      localSettings.value.baseUrl = 'https://generativelanguage.googleapis.com';
-      localSettings.value.model = 'gemini-2.0-flash';
+      localSettings.value.baseUrl = AI_PROVIDER_DEFAULTS.gemini.baseUrl;
+      localSettings.value.model = AI_PROVIDER_DEFAULTS.gemini.model;
       delete localSettings.value.openaiEndpoint;
       break;
     case 'claude':
-      localSettings.value.baseUrl = 'https://api.anthropic.com';
-      localSettings.value.model = 'claude-3-5-haiku-20241022';
+      localSettings.value.baseUrl = AI_PROVIDER_DEFAULTS.claude.baseUrl;
+      localSettings.value.model = AI_PROVIDER_DEFAULTS.claude.model;
       delete localSettings.value.openaiEndpoint;
       break;
   }
@@ -302,11 +302,11 @@ function handleProviderChange() {
 function getBaseUrlPlaceholder(): string {
   switch (localSettings.value.provider) {
     case 'openai':
-      return `OpenAI API 地址，默认为 ${DEFAULT_OPENAI_BASE_URL}`;
+      return `OpenAI API 地址，默认为 ${AI_PROVIDER_DEFAULTS.openai.baseUrl}`;
     case 'gemini':
-      return 'Gemini API 地址，默认为 https://generativelanguage.googleapis.com';
+      return `Gemini API 地址，默认为 ${AI_PROVIDER_DEFAULTS.gemini.baseUrl}`;
     case 'claude':
-      return 'Claude API 地址，默认为 https://api.anthropic.com';
+      return `Claude API 地址，默认为 ${AI_PROVIDER_DEFAULTS.claude.baseUrl}`;
     default:
       return '';
   }

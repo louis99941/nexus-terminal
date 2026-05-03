@@ -81,13 +81,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const error = ref<string | null>(null);
 
   // --- 初始化子 Store ---
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const systemGetters = createSystemSettingsGetters({ settings: settings as any });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const securityGetters = createSecuritySettingsGetters({ settings: settings as any });
+  const systemGetters = createSystemSettingsGetters({ settings });
+  const securityGetters = createSecuritySettingsGetters({ settings });
   const layoutGetters = createLayoutSettingsGetters({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    settings: settings as any,
+    settings,
     parsedSidebarPaneWidths,
     parsedFileManagerColWidths,
   });
