@@ -186,6 +186,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 国际化支持：zh-CN、en-US、ja-JP 三种语言
   - 测试覆盖：后端 45 个测试、前端 36 个测试全部通过
 
+## 2026-05-03 (文档与技术债务全面治理)
+
+### Changed
+
+- **技术债务全面清零**：84 项债务全部修复（收敛率 100%），含 Codex 审查补漏 7 项
+  - Critical: 6/6 完成（SFTP shell 注入、PRAGMA SQL 拼接、Pinia Store 测试、并发竞态、缓冲区上限、路径遍历）
+  - High: 21/21 完成（SSRF 修复、Docker 注入、审计日志、大文件拆分、空 catch 块等）
+  - Medium: 30/30 完成（事件监听清理、utils 测试、输入验证、常量提取等）
+  - Low: 27/27 完成（Swagger 保护、uuid 升级、错误消息脱敏等）
+- **文档全面更新**：
+  - 更新根目录 CLAUDE.md：修正文件计数（Backend 207/127, Frontend 240/62）
+  - 更新 VARIABLES.md：补充 ENABLE_METRICS、TRUST_PROXY、REMOTE_GATEWAY_API_TOKEN 等缺失环境变量
+  - 更新 README.md：修正测试覆盖统计
+  - 更新 PERSONAL_ROADMAP.md：修正测试覆盖率数据
+  - 更新模块 CLAUDE.md：修正文件计数与变更记录
+- **测试覆盖提升**：
+  - Backend: 127 个测试文件（+9）
+  - Frontend: 62 个测试文件（+23）
+  - 总计: 190 个测试文件
+
+---
+
+## 2026-04-25 ~ 2026-05-02 (SFTP 深度重构与债务修复)
+
+### Changed
+
+- **SFTP 服务深度拆分**：`sftp.service.ts` 从 1884 行缩减至 243 行（-87%）
+  - 拆分为 readdir/move/copy/path-operations/session 等独立执行器模块
+- **认证控制器分层重构**：`auth.controller.ts` 拆分为 login/2fa/passkey handlers
+- **Composable 拆分**：
+  - `useAddConnectionForm.ts` 拆分为 Parsers/Submit/Tags/Test 子模块
+  - `useSftpActions.ts` 拆分为 Operations + MessageHandlers
+  - `StatusMonitorService` 拆分为 HealthCheck/Aggregator/Service
+- **循环依赖清零**：`import/no-cycle` 受控豁免从 16 处收敛至 0
+- **输入验证增强**：端口范围、主机名格式、密码复杂度、终端尺寸上限
+- **Codex 审查补漏**：修复 6 项问题（SFTP readdir 重复 chunk、readyState 检查、内存泄漏等）
+
+### Fixed
+
+- **移动端标签页裁切修复** + 工具栏图标居中对齐
+- **跟随终端路径命令**：修复发送到当前 FileManager 对应的 session 而非全局 activeSession
+- **移动端 SFTP 图标布局优化** + 仪表盘最近连接按 last_connected_at 排序
+
+---
+
 ## 2025-12-27 (自然语言生成命令模块优化)
 
 - **nl2cmd 优化**：DRY 重构，提取共享常量模块

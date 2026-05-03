@@ -1738,11 +1738,11 @@ documentation/
 
 ### 6. 测试覆盖率
 
-**当前状态**（2026-04-24 更新）：
+**当前状态**（2026-05-03 更新）：
 
-- ✅ 测试框架已全面建立，共 164 个测试文件
-- ✅ Backend: 118 个单元/集成测试文件（Vitest）
-- ✅ Frontend: 37 个单元测试文件（Vitest + Vue Test Utils）
+- ✅ 测试框架已全面建立，共 190 个测试文件
+- ✅ Backend: 127 个单元/集成测试文件（Vitest）
+- ✅ Frontend: 62 个单元测试文件（Vitest + Vue Test Utils）
 - ✅ E2E: 8 个 Playwright 测试规范
 - ✅ Remote Gateway: 1 个测试文件
 
@@ -1818,5 +1818,5 @@ documentation/
 
 **文档版本**：v1.1  
 **创建时间**：2025-12-22  
-**最后更新**：2026-04-24（测试覆盖率状态修正）  
+**最后更新**：2026-05-03（测试覆盖率状态更新：Backend 127, Frontend 62）  
 **维护者**：Nexus Terminal Team

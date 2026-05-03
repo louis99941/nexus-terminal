@@ -106,7 +106,18 @@
 | `LOG_TZ`    | `string`                                 | 否   | -      | 日志时间戳时区，优先级高于 `TZ`。                          |
 | `TZ`        | `string`                                 | 否   | `UTC`  | 进程默认时区，日志模块在未设置 `LOG_TZ` 时会回退使用此值。 |
 
-### 1.10 API 限流覆盖配置
+### 1.10 Prometheus 指标与代理配置
+
+> 定义位置：`packages/backend/src/config/routes.ts`、`packages/backend/src/config/middleware.ts`、`packages/backend/src/services/guacamole.service.ts`
+
+| 变量名                      | 类型      | 必填 | 默认值  | 描述                                                                                           |
+| --------------------------- | --------- | ---- | ------- | ---------------------------------------------------------------------------------------------- |
+| `ENABLE_METRICS`            | `'true'`  | 否   | -       | 设为 `true` 时启用 `/api/v1/metrics` Prometheus 指标端点。未设置或非 `true` 则端点不注册。      |
+| `TRUST_PROXY`               | `string`  | 否   | `false` | Express `trust proxy` 配置。支持 `true`/`false`/跳层数/自定义值，用于正确获取客户端真实 IP。    |
+| `TRUST_PROXY_HOPS`          | `number`  | 否   | -       | 代理跳层数，当 `TRUST_PROXY` 未设置时作为备选。设为 `n` 表示信任前 `n` 层代理。                 |
+| `REMOTE_GATEWAY_API_TOKEN`  | `string`  | 否   | `''`    | 远程网关 API 认证令牌。设置后后端向 Remote Gateway 发起请求时会携带 `X-Remote-Gateway-Token` 头。 |
+
+### 1.11 API 限流覆盖配置
 
 > 定义位置：`packages/backend/src/index.ts`（解析与应用）  
 > 说明：缺省或非法值会自动回退到默认值。
@@ -118,7 +129,7 @@
 | `SETTINGS_RATE_LIMIT_WINDOW_MS` | `number` | 否   | `900000` | `/api/v1/settings/*` 限流窗口（毫秒）。         |
 | `SETTINGS_RATE_LIMIT_MAX`       | `number` | 否   | `500`    | `/api/v1/settings/*` 在窗口内允许的最大请求数。 |
 
-### 1.11 NL2CMD 请求超时与 Shell 推断
+### 1.12 NL2CMD 请求超时与 Shell 推断
 
 > 定义位置：`packages/backend/src/ai-ops/nl2cmd.constants.ts`、`packages/backend/src/ai-ops/nl2cmd.service.ts`
 
@@ -486,4 +497,4 @@
 
 ---
 
-**文档生成时间**：2025-12-26（初始）| **最后更新**：2026-04-24（镜像名对齐修正）
+**文档生成时间**：2025-12-26（初始）| **最后更新**：2026-05-03（补充 ENABLE_METRICS/TRUST_PROXY/REMOTE_GATEWAY_API_TOKEN 等缺失环境变量）

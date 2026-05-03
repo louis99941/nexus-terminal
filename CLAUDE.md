@@ -6,6 +6,20 @@
 
 ## 变更记录
 
+### 2026-05-03 (文档与技术债务全面治理)
+
+- **技术债务清零**：84 项债务全部修复（收敛率 100%），含 Codex 审查补漏 7 项
+- **文件统计更新**：
+  - Backend: 207 个 TypeScript 源文件，127 个测试文件
+  - Frontend: 240 个源文件（143 TS + 97 Vue），62 个测试文件
+  - Remote Gateway: 2 个源文件，1 个测试文件
+  - 总计: 449 个源代码文件 + 190 个测试文件
+- **测试覆盖率**：
+  - Backend: 127 个测试文件（单元测试 + 集成测试 + 性能测试）
+  - Frontend: 62 个测试文件（组件、Store、Composables 测试）
+  - E2E: 8 个 Playwright 测试规范
+  - Remote Gateway: 1 个测试文件
+
 ### 2026-04-28 (架构文档增量扫描更新)
 
 - **文件统计更新**：
@@ -128,8 +142,8 @@
 graph TD
     subgraph "Nexus Terminal Monorepo"
         A["nexus-terminal (根)"] --> B["packages"]
-        B --> C["backend<br/>Express + SQLite<br/>(192 TS文件, 23 数据表, 118 测试)"]
-        B --> D["frontend<br/>Vue 3 + Vite<br/>(99 TS + 88 Vue, 24 Stores, 39 测试)"]
+        B --> C["backend<br/>Express + SQLite<br/>(207 TS文件, 23 数据表, 127 测试)"]
+        B --> D["frontend<br/>Vue 3 + Vite<br/>(143 TS + 97 Vue, 24 Stores, 62 测试)"]
         B --> E["remote-gateway<br/>Guacamole Lite<br/>(2 源文件, 1 测试)"]
         A --> F["doc<br/>(技术债务、路线图)"]
     end
@@ -188,8 +202,8 @@ sequenceDiagram
 
 | 模块名称           | 路径                      | 语言/框架               | TS 文件数 | 职责描述                                                                | 文档入口                                                        |
 | ------------------ | ------------------------- | ----------------------- | --------- | ----------------------------------------------------------------------- | --------------------------------------------------------------- |
-| **backend**        | `packages/backend`        | TypeScript / Express.js | 192       | 后端 API 服务：SSH/SFTP 连接、用户认证、审计日志、通知、Docker 管理等   | [backend/CLAUDE.md](./packages/backend/CLAUDE.md)               |
-| **frontend**       | `packages/frontend`       | TypeScript / Vue 3      | 187       | 前端 Web 应用：终端界面、文件管理器、连接管理、主题定制、路由与状态管理 | [frontend/CLAUDE.md](./packages/frontend/CLAUDE.md)             |
+| **backend**        | `packages/backend`        | TypeScript / Express.js | 207       | 后端 API 服务：SSH/SFTP 连接、用户认证、审计日志、通知、Docker 管理等   | [backend/CLAUDE.md](./packages/backend/CLAUDE.md)               |
+| **frontend**       | `packages/frontend`       | TypeScript / Vue 3      | 240       | 前端 Web 应用：终端界面、文件管理器、连接管理、主题定制、路由与状态管理 | [frontend/CLAUDE.md](./packages/frontend/CLAUDE.md)             |
 | **remote-gateway** | `packages/remote-gateway` | TypeScript / Express.js | 2         | 远程桌面网关：RDP/VNC 连接代理，基于 Guacamole 协议                     | [remote-gateway/CLAUDE.md](./packages/remote-gateway/CLAUDE.md) |
 
 ### 规划文档
@@ -197,7 +211,7 @@ sequenceDiagram
 | 文档                                                       | 描述                                                                                                                           |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | [PERSONAL_ROADMAP.md](./doc/PERSONAL_ROADMAP.md)           | **个人版功能规划**：Phase 6-11 详细实施计划，包含命令模板、工作区快照、AI 推荐、知识库等功能的数据库设计、模块架构、工作量评估 |
-| [TECHNICAL_DEBT_REPORT.md](./doc/TECHNICAL_DEBT_REPORT.md) | **技术债务报告**：完整分析代码库中的 24 个 TODO/FIXME 标记，按优先级分类，提供处理建议和 GitHub Issues 转换模板                |
+| [TECHNICAL_DEBT_REPORT.md](./doc/TECHNICAL_DEBT_REPORT.md) | **技术债务报告**：84 项债务全部清零（收敛率 100%），含 Critical/High/Medium/Low 四级分类与 Codex 审查补漏 |
 
 ---
 
@@ -268,9 +282,9 @@ npm run build
 ### 当前状态
 
 - **测试框架已配置**：Backend 与 Frontend 均已配置完整测试框架
-- **测试覆盖率**（2026-04-28 更新）：
-  - Backend: 118 个 `*.test.ts` 文件（单元测试 + 集成测试 + 性能测试）
-  - Frontend: 39 个 `*.test.ts` 文件（组件、Store、Composables 测试）
+- **测试覆盖率**（2026-05-03 更新）：
+  - Backend: 127 个 `*.test.ts` 文件（单元测试 + 集成测试 + 性能测试）
+  - Frontend: 62 个 `*.test.ts` 文件（组件、Store、Composables 测试）
   - E2E: 8 个 `*.spec.ts` 文件（边缘场景覆盖）
   - Remote Gateway: 1 个 `*.test.ts` 文件
 - **测试类型覆盖**：
@@ -778,16 +792,17 @@ Guacd (4822) → RDP/VNC 协议转换
 
 ---
 
-**文档生成时间**：2026-04-28 19:11:10 CST（架构文档增量扫描更新）
+**文档生成时间**：2026-05-03 CST（文档与技术债务全面治理更新）
 
 **已完成任务**：
 
 - 阶段 A：全仓清点 - 文件统计与模块识别
-- 阶段 B：模块优先扫描 - 23 个数据表、192 TypeScript 文件（Backend）、187 TypeScript/Vue 文件（Frontend）
-- 阶段 C：深度补捞 - 补充前端测试文件统计（39 个）
+- 阶段 B：模块优先扫描 - 23 个数据表、207 TypeScript 文件（Backend）、240 TypeScript/Vue 文件（Frontend）
+- 阶段 C：深度补捞 - 补充前端测试文件统计（62 个）
 - 架构图更新 - 保持模块统计信息准确
-- 测试覆盖率更新 - 118 Backend 测试、39 Frontend 测试、8 个 E2E 测试
+- 测试覆盖率更新 - 127 Backend 测试、62 Frontend 测试、8 个 E2E 测试
 - 覆盖率报告 - 100% 模块文档化完成
+- 技术债务清零 - 84/84 项全部修复（含 Codex 审查补漏 7 项）
 
 **下次扫描建议**：
 
