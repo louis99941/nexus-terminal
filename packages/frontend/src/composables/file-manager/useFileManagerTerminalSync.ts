@@ -98,18 +98,20 @@ export function useFileManagerTerminalSync(options: UseFileManagerTerminalSyncOp
 
     console.info(`${logPrefix.value} Sending command to terminal: ${command.trim()}`);
     try {
-      const activeSession = sessionStore.activeSession;
-      if (!activeSession) {
-        console.error(`${logPrefix.value} Failed to send command: No active session found.`);
-        return;
-      }
-      if (!activeSession.terminalManager) {
+      const targetSession = sessionStore.sessions.get(sessionId.value);
+      if (!targetSession) {
         console.error(
-          `${logPrefix.value} Failed to send command: Terminal manager not found for active session.`
+          `${logPrefix.value} Failed to send command: Session ${sessionId.value} not found.`
         );
         return;
       }
-      activeSession.terminalManager.sendData(command);
+      if (!targetSession.terminalManager) {
+        console.error(
+          `${logPrefix.value} Failed to send command: Terminal manager not found for session ${sessionId.value}.`
+        );
+        return;
+      }
+      targetSession.terminalManager.sendData(command);
     } catch (error: unknown) {
       console.error(`${logPrefix.value} Failed to send command to terminal:`, error);
     }
