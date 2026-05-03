@@ -191,17 +191,17 @@ packages/frontend/
 
 ## 路由配置
 
-| 路径           | 名称          | 视图组件              | 描述                       |
-| -------------- | ------------- | --------------------- | -------------------------- |
-| `/`            | Dashboard     | DashboardView.vue     | 仪表盘/首页（含图表统计）  |
-| `/login`       | Login         | LoginView.vue         | 用户登录                   |
-| `/setup`       | Setup         | SetupView.vue         | 初始设置（首次使用）       |
-| `/workspace`   | Workspace     | WorkspaceView.vue     | 工作区（终端+文件+编辑器） |
-| `/connections` | Connections   | ConnectionsView.vue   | 连接配置管理               |
-| `/proxies`     | Proxies       | ProxiesView.vue       | 代理配置管理               |
-| `/settings`    | Settings      | SettingsView.vue      | 系统设置                   |
+| 路径             | 名称          | 视图组件              | 描述                       |
+| ---------------- | ------------- | --------------------- | -------------------------- |
+| `/`              | Dashboard     | DashboardView.vue     | 仪表盘/首页（含图表统计）  |
+| `/login`         | Login         | LoginView.vue         | 用户登录                   |
+| `/setup`         | Setup         | SetupView.vue         | 初始设置（首次使用）       |
+| `/workspace`     | Workspace     | WorkspaceView.vue     | 工作区（终端+文件+编辑器） |
+| `/connections`   | Connections   | ConnectionsView.vue   | 连接配置管理               |
+| `/proxies`       | Proxies       | ProxiesView.vue       | 代理配置管理               |
+| `/settings`      | Settings      | SettingsView.vue      | 系统设置                   |
 | `/notifications` | Notifications | NotificationsView.vue | 通知渠道配置               |
-| `/audit-logs`  | AuditLogs     | AuditLogView.vue      | 审计日志查看               |
+| `/audit-logs`    | AuditLogs     | AuditLogView.vue      | 审计日志查看               |
 
 ### 路由守卫
 
@@ -252,13 +252,13 @@ packages/frontend/
 
 ### 终端相关
 
-| 组件                     | 描述                       |
-| ------------------------ | -------------------------- |
+| 组件                     | 描述                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------- |
 | `Terminal.vue`           | 基于 Xterm.js 的终端模拟器，支持 Bracketed Paste Mode（`\x1b[200~`/`\x1b[201~`） |
-| `TerminalTabBar.vue`     | 终端标签栏                 |
-| `VirtualKeyboard.vue`    | 移动端虚拟键盘             |
-| `CommandInputBar.vue`    | 命令输入栏（支持同步输入、ESC 键转义序列、Ctrl+C 中断） |
-| `CommandHistoryMenu.vue` | 命令历史菜单               |
+| `TerminalTabBar.vue`     | 终端标签栏                                                                       |
+| `VirtualKeyboard.vue`    | 移动端虚拟键盘                                                                   |
+| `CommandInputBar.vue`    | 命令输入栏（支持同步输入、ESC 键转义序列、Ctrl+C 中断）                          |
+| `CommandHistoryMenu.vue` | 命令历史菜单                                                                     |
 
 ### 文件管理
 
@@ -309,10 +309,10 @@ packages/frontend/
 
 ### 仪表盘图表
 
-| 组件                                | 描述                          |
-| ----------------------------------- | ----------------------------- |
-| `SessionDurationChart.vue`          | 会话时长统计图表（Bar）       |
-| `SystemResourcesHistoryChart.vue`   | 系统资源历史图表（Line）      |
+| 组件                              | 描述                     |
+| --------------------------------- | ------------------------ |
+| `SessionDurationChart.vue`        | 会话时长统计图表（Bar）  |
+| `SystemResourcesHistoryChart.vue` | 系统资源历史图表（Line） |
 
 ### 其他功能
 

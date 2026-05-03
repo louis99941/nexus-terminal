@@ -1,24 +1,6 @@
 #!/usr/bin/env sh
 set -e
 
-if [ "${SKIP_PRECOMMIT_PULL:-0}" != "1" ]; then
-  if git rev-parse --abbrev-ref "@{upstream}" >/dev/null 2>&1; then
-    echo "[pre-commit] 拉取远程最新提交（rebase + autostash）..."
-    if ! git pull --rebase --autostash --quiet; then
-      echo "[pre-commit] 远程更新拉取失败，已阻止提交。请先解决同步问题后重试。"
-      exit 1
-    fi
-  else
-    echo "[pre-commit] 当前分支未设置上游，跳过自动拉取。"
-  fi
-else
-  echo "[pre-commit] 已设置 SKIP_PRECOMMIT_PULL=1，跳过自动拉取。"
-fi
-
+# lint-staged 已覆盖 eslint、prettier、debt:check 对暂存文件的增量检查
+# quality:check（全量 typecheck/lint/format）移至 pre-push 执行
 npx lint-staged
-
-if [ "${SKIP_PRECOMMIT_QUALITY:-0}" != "1" ]; then
-  npm run -s quality:check
-else
-  echo "[pre-commit] 已设置 SKIP_PRECOMMIT_QUALITY=1，跳过全仓质量门禁（quality:check）。"
-fi
