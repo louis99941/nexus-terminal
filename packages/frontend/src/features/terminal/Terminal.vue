@@ -49,6 +49,7 @@ const unsubscribeFromWorkspaceEvent = useWorkspaceEventOff();
 const terminalRef = ref<HTMLElement | null>(null); // xterm 挂载点的引用 (内部容器)
 const terminalOuterWrapperRef = ref<HTMLElement | null>(null); // 最外层容器的引用
 const terminalInstance = ref<Terminal | null>(null); // 使用 ref 管理 terminal 实例以便传递给 composable
+const textareaKeydownHandler = ref<((event: KeyboardEvent) => void) | null>(null);
 let searchAddon: SearchAddon | null = null;
 let outputEnhancerAddon: OutputEnhancerAddon | null = null;
 let selectionListenerDisposable: IDisposable | null = null;
@@ -490,33 +491,33 @@ onMounted(() => {
 
     // --- Ctrl+Shift+C/V/O (Terminal Actions) ---
     if (term.textarea) {
-      term.textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
+      const handler = (event: KeyboardEvent) => {
         if (event.ctrlKey && event.shiftKey && event.code === 'KeyC') {
           event.preventDefault();
           event.stopPropagation();
           const selection = term?.getSelection();
           if (selection) {
-            try {
-              await navigator.clipboard.writeText(selection);
-            } catch (err: unknown) {
+            navigator.clipboard.writeText(selection).catch((err: unknown) => {
               console.error('[Terminal] Copy failed:', err);
-            }
+            });
           }
         } else if (event.ctrlKey && event.shiftKey && event.code === 'KeyV') {
           event.preventDefault();
           event.stopPropagation();
-          try {
-            const text = await navigator.clipboard.readText();
-            if (text) {
-              const processedText = text.replace(/\r\n?/g, '\n');
-              emitWorkspaceEvent('terminal:input', {
-                sessionId: props.sessionId,
-                data: processedText,
-              });
-            }
-          } catch (err: unknown) {
-            console.error('[Terminal] Paste failed:', err);
-          }
+          navigator.clipboard
+            .readText()
+            .then((text) => {
+              if (text) {
+                const processedText = text.replace(/\r\n?/g, '\n');
+                emitWorkspaceEvent('terminal:input', {
+                  sessionId: props.sessionId,
+                  data: processedText,
+                });
+              }
+            })
+            .catch((err: unknown) => {
+              console.error('[Terminal] Paste failed:', err);
+            });
         } else if (event.ctrlKey && event.shiftKey && event.code === 'KeyO') {
           // Ctrl+Shift+O: 展开最近折叠的输出
           event.preventDefault();
@@ -528,7 +529,9 @@ onMounted(() => {
             }
           }
         }
-      });
+      };
+      textareaKeydownHandler.value = handler;
+      term.textarea.addEventListener('keydown', handler);
     }
 
     if (terminalEnableRightClickPasteBoolean.value) {
@@ -578,12 +581,17 @@ onBeforeUnmount(() => {
     webglAddonInstance = null;
   }
 
+  // 清理 textarea keydown 监听器（dispose 前执行，因为 dispose 后 textarea 引用丢失）
+  if (textareaKeydownHandler.value && terminalInstance.value?.textarea) {
+    terminalInstance.value.textarea.removeEventListener('keydown', textareaKeydownHandler.value);
+    textareaKeydownHandler.value = null;
+  }
+
   if (terminalInstance.value) {
     terminalInstance.value.dispose();
     terminalInstance.value = null;
   }
 
-  // 显式调用 dispose() 清理资源，然后设置为 null
   if (outputEnhancerAddon) {
     outputEnhancerAddon.dispose();
     outputEnhancerAddon = null;

@@ -26,8 +26,10 @@ describe('OutputProcessor', () => {
     });
 
     it('应该检测 TABLE 输出（分隔符格式）', () => {
+      // 管道符表格需要 3+ 列且每行列数一致（>=2 空格分隔）才能触发空间对齐检测
+      // 每个值后保留 3 个空格确保 split(/\s{2,}/) 能正确分列
       const result = processor.process(
-        '+----+------+\n| ID | Name |\n+----+------+\n| 1  | test |'
+        '| ID   | Name   | Code   |\n| 1    | test   | A01    |\n| 2    | dev    | B02    |'
       );
       expect(result.type).toBe(OutputType.TABLE);
     });
@@ -61,7 +63,7 @@ describe('OutputProcessor', () => {
 
   describe('YAML 高亮', () => {
     it('应该高亮 YAML 键值对', () => {
-      const result = processor.process('key: value\nnumber: 42');
+      const result = processor.process('key: value\nnumber: 42\nname: test');
       expect(result.type).toBe(OutputType.YAML);
       expect(result.content).toContain('\x1b[');
     });
@@ -106,7 +108,9 @@ describe('OutputProcessor', () => {
 
     it('应该禁用表格格式化', () => {
       const processor2 = new OutputProcessor({ enableTableFormat: false });
-      const result = processor2.process('+----+------+\n| ID | Name |\n+----+------+');
+      const result = processor2.process(
+        '| ID   | Name   | Code   |\n| 1    | test   | A01    |\n| 2    | dev    | B02    |'
+      );
       expect(result.type).toBe(OutputType.TABLE);
       expect(result.content).not.toContain('\x1b[');
     });

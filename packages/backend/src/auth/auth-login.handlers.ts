@@ -443,7 +443,11 @@ export const setupAdmin = async (
     return;
   }
   // Codex 审查：类型收敛，防止非字符串输入导致 500
-  if (typeof username !== 'string' || typeof password !== 'string' || typeof confirmPassword !== 'string') {
+  if (
+    typeof username !== 'string' ||
+    typeof password !== 'string' ||
+    typeof confirmPassword !== 'string'
+  ) {
     res.status(400).json({
       success: false,
       error: '用户名、密码和确认密码必须是字符串类型。',

@@ -996,7 +996,10 @@ export class TransfersService {
           try {
             targetClientForMkdir.end();
           } catch (cleanupError: unknown) {
-            console.debug('[TransfersService] 关闭目标连接失败:', cleanupError instanceof Error ? cleanupError.message : cleanupError);
+            console.debug(
+              '[TransfersService] 关闭目标连接失败:',
+              cleanupError instanceof Error ? cleanupError.message : cleanupError
+            );
           }
         }
         console.error(

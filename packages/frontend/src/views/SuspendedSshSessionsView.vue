@@ -49,14 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  onMounted,
-  onUnmounted,
-  onActivated,
-  onDeactivated,
-  computed,
-} from 'vue';
+import { ref, onMounted, onUnmounted, onActivated, onDeactivated, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useSessionStore } from '../stores/session.store';

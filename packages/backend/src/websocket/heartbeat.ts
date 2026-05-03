@@ -103,7 +103,10 @@ export function initializeHeartbeat(
               `连续 ${extWs.missedPongCount} 次无响应（阈值: ${maxMissed}），正在终止...`
           );
           cleanupClientConnection(extWs.sessionId).catch((error: unknown) => {
-            console.debug('[WebSocket] 心跳超时清理连接失败:', error instanceof Error ? error.message : error);
+            console.debug(
+              '[WebSocket] 心跳超时清理连接失败:',
+              error instanceof Error ? error.message : error
+            );
           });
           lastPingTime.delete(extWs);
           return extWs.terminate();

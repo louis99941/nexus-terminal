@@ -59,7 +59,10 @@ export function useDataManagement() {
             const errorJson = JSON.parse(await error.response.data.text());
             message = errorJson.message || message;
           } catch (parseError: unknown) {
-            console.debug('[DataManagement] Blob 响应非 JSON 格式:', parseError instanceof Error ? parseError.message : parseError);
+            console.debug(
+              '[DataManagement] Blob 响应非 JSON 格式:',
+              parseError instanceof Error ? parseError.message : parseError
+            );
           }
         } else if (typeof error.response.data === 'string' && error.response.data.length < 200) {
           // Avoid overly long string errors

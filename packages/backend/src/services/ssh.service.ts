@@ -552,7 +552,10 @@ const _establishProxyConnection = async (
     try {
       sshClient.end();
     } catch (cleanupError: unknown) {
-      console.debug('[SshService] 关闭代理连接失败:', cleanupError instanceof Error ? cleanupError.message : cleanupError);
+      console.debug(
+        '[SshService] 关闭代理连接失败:',
+        cleanupError instanceof Error ? cleanupError.message : cleanupError
+      );
     }
     throw proxyError;
   }

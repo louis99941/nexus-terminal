@@ -55,6 +55,14 @@ const isAltPressed = ref(false); // 跟踪 Alt 键是否按下
 const altShortcutKey = ref<string | null>(null);
 // --- 移除 shortcutTriggeredInKeyDown 标志 ---
 
+// PWA event handlers (模块作用域，确保 add/remove 配对)
+const handleBeforeInstallPrompt = (e: Event) => {
+  console.info('[App.vue] beforeinstallprompt event fired. Browser will handle install prompt.');
+};
+const handleAppInstalled = () => {
+  console.info('[App.vue] PWA was installed');
+};
+
 const updateUnderline = async () => {
   await nextTick(); // 等待 DOM 更新
   if (navRef.value && underlineRef.value) {
@@ -81,13 +89,8 @@ onMounted(() => {
   window.addEventListener('keyup', handleGlobalKeyUp); // +++ 监听 keyup 执行切换 +++
 
   // PWA Install Prompt
-  window.addEventListener('beforeinstallprompt', (e) => {
-    console.info('[App.vue] beforeinstallprompt event fired. Browser will handle install prompt.');
-  });
-
-  window.addEventListener('appinstalled', () => {
-    console.info('[App.vue] PWA was installed');
-  });
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.addEventListener('appinstalled', handleAppInstalled);
 
   // +++ 加载 Header 可见性状态 +++
   layoutStore.loadHeaderVisibility();
@@ -108,6 +111,8 @@ watch(
 onUnmounted(() => {
   window.removeEventListener('keydown', handleAltKeyDown); // +++ 移除 keydown 监听 +++
   window.removeEventListener('keyup', handleGlobalKeyUp); // +++ 移除 keyup 监听 +++
+  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.removeEventListener('appinstalled', handleAppInstalled);
 });
 
 // *** 计算属性，判断是否在 workspace 路由 ***

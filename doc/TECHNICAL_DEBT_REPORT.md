@@ -1,6 +1,6 @@
 # 星枢终端 - 技术债务报告
 
-> **状态**：🟢 接近完成 | **更新时间**：2026-05-03 | **收敛率**：58/84 已修复（69%）
+> **状态**：🟢 接近完成 | **更新时间**：2026-05-03 | **收敛率**：60/84 已修复（71%）
 
 ---
 
@@ -20,13 +20,13 @@
 
 ## 审查总览（2026-05-02 四维度并行审查）
 
-| 维度     | Critical | High      | Medium    | Low       | 合计         | 已修复 |
-| -------- | -------- | --------- | --------- | --------- | ------------ | ------ |
-| 安全漏洞 | 1→0      | 5→0       | 0         | 3→1       | **9**        | **8**  |
-| 代码质量 | 2→1      | 10        | 20→17     | 15→12     | **47**       | **7**  |
-| 边界条件 | 3→0      | 6→1       | 10→1      | 9→0       | **28**       | **27** |
-| 测试覆盖 | —        | —         | —         | —         | **独立章节** | 2      |
-| **合计** | **6→1**  | **21→11** | **30→15** | **27→8**  | **84**       | **51** |
+| 维度     | Critical | High      | Medium    | Low      | 合计         | 已修复 |
+| -------- | -------- | --------- | --------- | -------- | ------------ | ------ |
+| 安全漏洞 | 1→0      | 5→0       | 0         | 3→1      | **9**        | **8**  |
+| 代码质量 | 2→1      | 10        | 20→17     | 15→12    | **47**       | **7**  |
+| 边界条件 | 3→0      | 6→1       | 10→1      | 9→0      | **28**       | **27** |
+| 测试覆盖 | —        | —         | —         | —        | **独立章节** | 2      |
+| **合计** | **6→1**  | **21→11** | **30→15** | **27→8** | **84**       | **51** |
 
 > 注：.env 密钥泄露问题不在本报告跟踪范围内；6 项安全 Medium（CORS null Origin、Helmet CSP、Session cookie 30 天、通知凭据加密、批量命令长度限制、WebSocket Origin localhost）暂不处理。
 
@@ -87,18 +87,18 @@
 
 ### 代码质量类（10 项）
 
-| ID   | 问题                                                      | 位置                                                      | 修复建议                                                         |
-| ---- | --------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- |
-| ~~H-6~~ | ~~7 个空 catch 块静默吞错（含迁移失败）~~                     | ~~`migrations.ts:531` 等~~                                    | ✅ 31 处空 catch 块已修复，统一使用 console.debug/warn 记录      |
-| ~~H-7~~ | ~~170 个 catch 块未使用 `error: unknown` 类型~~               | ~~全局~~                                                      | ✅ 仅 3 个测试文件需调整，源文件已全部规范                        |
-| H-8  | `auth.controller.ts` 1,445 行上帝对象，25 处直接 SQL 引用 | `auth/auth.controller.ts`                                 | SQL/Repository 调用提取到 service 层                             |
-| H-9  | `useAddConnectionForm.ts` 1,204 行上帝函数                | 前端 composable                                           | 拆分为 6 个职责单一的 composable                                 |
-| H-10 | `useSftpActions.ts` 1,319 行上帝函数                      | 前端 composable                                           | 拆分为 navigation / operations / upload / download / permissions |
-| H-11 | `StatusMonitorService` 507 行上帝类                       | 后端 service                                              | 提取健康检查和数据聚合为独立类                                   |
-| H-12 | `ssh.service.ts` 207 行递归跳板连接函数                   | `ssh.service.ts:569`                                      | 拆分代理连接、跳板解析、错误恢复为辅助函数                       |
-| H-13 | 6 个后端模块完全缺失 repository 层                        | sftp / transfers / ssh-suspend / docker / services / auth | 为每个模块创建 `*.repository.ts`                                 |
-| H-14 | `appearance.store.ts` 1,073 行上帝 Store                  | 前端 store                                                | 拆分为 theme / font / background 子 store                        |
-| H-15 | `settings.store.ts` 1,025 行上帝 Store                    | 前端 store                                                | 按域拆分为 system / security / layout 子 store                   |
+| ID      | 问题                                                      | 位置                                                      | 修复建议                                                         |
+| ------- | --------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- |
+| ~~H-6~~ | ~~7 个空 catch 块静默吞错（含迁移失败）~~                 | ~~`migrations.ts:531` 等~~                                | ✅ 31 处空 catch 块已修复，统一使用 console.debug/warn 记录      |
+| ~~H-7~~ | ~~170 个 catch 块未使用 `error: unknown` 类型~~           | ~~全局~~                                                  | ✅ 仅 3 个测试文件需调整，源文件已全部规范                       |
+| H-8     | `auth.controller.ts` 1,445 行上帝对象，25 处直接 SQL 引用 | `auth/auth.controller.ts`                                 | SQL/Repository 调用提取到 service 层                             |
+| H-9     | `useAddConnectionForm.ts` 1,204 行上帝函数                | 前端 composable                                           | 拆分为 6 个职责单一的 composable                                 |
+| H-10    | `useSftpActions.ts` 1,319 行上帝函数                      | 前端 composable                                           | 拆分为 navigation / operations / upload / download / permissions |
+| H-11    | `StatusMonitorService` 507 行上帝类                       | 后端 service                                              | 提取健康检查和数据聚合为独立类                                   |
+| H-12    | `ssh.service.ts` 207 行递归跳板连接函数                   | `ssh.service.ts:569`                                      | 拆分代理连接、跳板解析、错误恢复为辅助函数                       |
+| H-13    | 6 个后端模块完全缺失 repository 层                        | sftp / transfers / ssh-suspend / docker / services / auth | 为每个模块创建 `*.repository.ts`                                 |
+| H-14    | `appearance.store.ts` 1,073 行上帝 Store                  | 前端 store                                                | 拆分为 theme / font / background 子 store                        |
+| H-15    | `settings.store.ts` 1,025 行上帝 Store                    | 前端 store                                                | 按域拆分为 system / security / layout 子 store                   |
 
 ### 边界条件类（6 项，已修复 5 项）
 
@@ -109,7 +109,7 @@
 | ~~H-18~~ | ~~Silent exec 超时后未发送 Ctrl+C 中止当前命令~~                 | ~~`ssh.handler.ts:255`~~ | ✅ 超时后先发 `\x03` 再启动下一尝试          |
 | ~~H-19~~ | ~~`pendingSilentExecRequests` 定时器在会话断开时未清理~~         | ~~`ssh.handler.ts:65`~~  | ✅ 已在 `cleanupClientConnection` 中遍历清理 |
 | ~~H-20~~ | ~~`cleanupClientConnection` 异步但被同步调用，未捕获 rejection~~ | ~~`utils.ts:98`~~        | ✅ 所有调用点已添加 `.catch()`               |
-| ~~H-21~~     | ~~SSH shell ready 无超时，连接成功后 shell 挂起则无限等待~~          | ~~`ssh.service.ts`~~         | ✅ 已有 10s 超时 + 补充测试用例              |
+| ~~H-21~~ | ~~SSH shell ready 无超时，连接成功后 shell 挂起则无限等待~~      | ~~`ssh.service.ts`~~     | ✅ 已有 10s 超时 + 补充测试用例              |
 
 ---
 
@@ -117,43 +117,43 @@
 
 ### 代码质量类（20 项）
 
-| ID      | 问题                                                  | 位置                      | 修复建议                                                         |
-| ------- | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------- |
-| M-1     | `services/` 目录扁平堆放 14 个无关服务                | `backend/src/services/`   | 域服务移入各自模块                                               |
-| M-2     | 239 个事件监听注册 vs 136 个清理调用（1.76:1 泄漏比） | 全局                      | 审计 WebSocket / 终端 / Vue 组件的 `onUnmounted` 清理            |
-| ~~M-3~~ | ~~`useWebSocketConnection.ts` 641 行~~                | ~~前端 composable~~       | ✅ 已提取消息解析 (messageParser)、重连逻辑 (reconnect) 为子模块 |
-| ~~M-4~~ | ~~`useSshTerminal.ts` 522 行~~                        | ~~前端 composable~~       | ✅ 已提取缓冲管理 (bufferManager)、事件处理为子模块              |
-| M-5     | `transfers.service.ts` 1,435 行                       | 后端 service              | 拆分为 orchestrator / sftp-transfer / rsync-transfer             |
-| M-6     | 前端 `utils/` 目录 6 个工具模块零测试                 | `frontend/src/utils/`     | 优先 `output-processor.ts` 和 `apiClient.ts`                     |
-| ~~M-7~~     | ~~`settings.controller.ts` 30 个重复 try-catch 块~~       | ~~后端 controller~~           | ✅ 已全部使用 asyncHandler 包装（5 个保留错误转换逻辑）          |
-| M-8     | `auth/` 模块 26 个扁平工具文件                        | 后端 auth/                | 按功能分组到子目录：flows / actions / utils                      |
-| M-9     | 前端 `router/` 目录零测试                             | `frontend/src/router/`    | 为路由守卫添加单元测试                                           |
-| M-10    | `metrics/` 模块有 routes+service 但无 controller      | 后端 metrics/             | 已有完整文件结构但未接入主路由（需决定接入或删除）             |
-| M-11    | `passkey/` 模块有 service+repository 但无 routes      | 后端 passkey/             | 已有完整文件结构但未接入主路由（端点仍挂在 auth.routes）       |
-| ~~M-12~~    | ~~`connection.service.ts` 61 处 encrypt/decrypt 调用~~    | ~~后端 connections/~~         | ✅ 已创建 batch encrypt/decrypt 辅助函数，消除重复条件逻辑      |
-| ~~M-13~~    | ~~46 个 catch 块使用短变量名 `catch (e)`~~                | ~~全局~~                      | ✅ 已确认全部 507 个 catch 块使用规范变量名                      |
-| M-14    | 硬编码 OpenAI API base URL                            | 前端 aiSettings           | 提取为共享常量 `AI_PROVIDER_DEFAULTS`                            |
-| M-15    | `useFileUploader.ts` 495 行                           | 前端 composable           | 提取分块管理和重试逻辑                                           |
-| M-16    | 硬编码 `50000` 作为审计日志最大条目                   | `settings.service.ts:806` | 定义 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量                        |
-| ~~M-17~~    | ~~`index.ts` 后端入口 598 行单体文件~~                    | ~~`backend/src/index.ts`~~    | ✅ 已精简至 379 行（提取中间件/路由/启动逻辑）                   |
-| ~~M-18~~    | ~~Catch 块仅 `console.warn/error` 不传播错误~~            | ~~多处~~                      | ✅ 审计 55+ catch 块：40+ 已传播、15+ 合理吞错、2 处已修复      |
-| ~~M-19~~    | ~~`SuspendedSshSessionsView.vue` 模板嵌套 13 层~~         | ~~前端 view~~                 | ✅ 已提取 SuspendedSessionItem 子组件，模板仅 25 行              |
-| M-20    | 后端 `logging/` 和 `middleware/` 模块零测试           | 后端                      | 为中间件行为和日志配置添加测试                                   |
+| ID       | 问题                                                      | 位置                       | 修复建议                                                                 |
+| -------- | --------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------ |
+| M-1      | `services/` 目录扁平堆放 14 个无关服务                    | `backend/src/services/`    | 域服务移入各自模块                                                       |
+| ~~M-2~~  | ~~239 个事件监听注册 vs 136 个清理调用（1.76:1 泄漏比）~~ | ~~全局~~                   | ✅ 审计 31 文件，修复 App.vue/Terminal.vue 2 处缺失清理，add/remove 平衡 |
+| ~~M-3~~  | ~~`useWebSocketConnection.ts` 641 行~~                    | ~~前端 composable~~        | ✅ 已提取消息解析 (messageParser)、重连逻辑 (reconnect) 为子模块         |
+| ~~M-4~~  | ~~`useSshTerminal.ts` 522 行~~                            | ~~前端 composable~~        | ✅ 已提取缓冲管理 (bufferManager)、事件处理为子模块                      |
+| M-5      | `transfers.service.ts` 1,435 行                           | 后端 service               | 拆分为 orchestrator / sftp-transfer / rsync-transfer                     |
+| ~~M-6~~  | ~~前端 `utils/` 目录 6 个工具模块零测试~~                 | ~~`frontend/src/utils/`~~  | ✅ 新增 5 个测试文件 + 修复 output-processor 测试，54 个用例全部通过     |
+| ~~M-7~~  | ~~`settings.controller.ts` 30 个重复 try-catch 块~~       | ~~后端 controller~~        | ✅ 已全部使用 asyncHandler 包装（5 个保留错误转换逻辑）                  |
+| M-8      | `auth/` 模块 26 个扁平工具文件                            | 后端 auth/                 | 按功能分组到子目录：flows / actions / utils                              |
+| M-9      | 前端 `router/` 目录零测试                                 | `frontend/src/router/`     | 为路由守卫添加单元测试                                                   |
+| M-10     | `metrics/` 模块有 routes+service 但无 controller          | 后端 metrics/              | 已有完整文件结构但未接入主路由（需决定接入或删除）                       |
+| M-11     | `passkey/` 模块有 service+repository 但无 routes          | 后端 passkey/              | 已有完整文件结构但未接入主路由（端点仍挂在 auth.routes）                 |
+| ~~M-12~~ | ~~`connection.service.ts` 61 处 encrypt/decrypt 调用~~    | ~~后端 connections/~~      | ✅ 已创建 batch encrypt/decrypt 辅助函数，消除重复条件逻辑               |
+| ~~M-13~~ | ~~46 个 catch 块使用短变量名 `catch (e)`~~                | ~~全局~~                   | ✅ 已确认全部 507 个 catch 块使用规范变量名                              |
+| M-14     | 硬编码 OpenAI API base URL                                | 前端 aiSettings            | 提取为共享常量 `AI_PROVIDER_DEFAULTS`                                    |
+| M-15     | `useFileUploader.ts` 495 行                               | 前端 composable            | 提取分块管理和重试逻辑                                                   |
+| M-16     | 硬编码 `50000` 作为审计日志最大条目                       | `settings.service.ts:806`  | 定义 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量                                |
+| ~~M-17~~ | ~~`index.ts` 后端入口 598 行单体文件~~                    | ~~`backend/src/index.ts`~~ | ✅ 已精简至 379 行（提取中间件/路由/启动逻辑）                           |
+| ~~M-18~~ | ~~Catch 块仅 `console.warn/error` 不传播错误~~            | ~~多处~~                   | ✅ 审计 55+ catch 块：40+ 已传播、15+ 合理吞错、2 处已修复               |
+| ~~M-19~~ | ~~`SuspendedSshSessionsView.vue` 模板嵌套 13 层~~         | ~~前端 view~~              | ✅ 已提取 SuspendedSessionItem 子组件，模板仅 25 行                      |
+| M-20     | 后端 `logging/` 和 `middleware/` 模块零测试               | 后端                       | 为中间件行为和日志配置添加测试                                           |
 
 ### 边界条件类（10 项）
 
-| ID       | 问题                                                      | 位置                                      | 修复建议                                                     |
-| -------- | --------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |
-| ~~M-21~~ | ~~前端 WebSocket 重连无 jitter（惊群效应）~~              | ~~`useWebSocketConnection.ts:42`~~        | ✅ 已添加随机抖动                                            |
-| ~~M-22~~ | ~~SFTP 上传 `activeUploads` 在流未触发 close 时可能泄漏~~ | ~~`sftp-upload.manager.ts:47`~~           | ✅ 已有 5s 超时回退 `stream.destroy()`                       |
-| ~~M-23~~ | ~~SSH 挂起日志轮转丢弃全部历史~~                          | ~~`temporary-log-storage.service.ts:75`~~ | ✅ 已实现环形缓冲（100MB 上限，保留 80MB）                   |
-| ~~M-24~~     | ~~多设备会话状态不一致~~                                      | ~~`websocket/state.ts:15`~~                   | ✅ 已有详细注释说明行为 + /api/v1/ssh-suspend/suspended-sessions |
-| ~~M-25~~     | ~~SFTP 操作 payload 使用 `z.any()` 绕过 Zod 验证~~            | ~~`websocket/schemas.ts`~~                    | ✅ 已为每个 SFTP 操作定义专用 Zod schema（10+ 个 schema）     |
-| ~~M-26~~ | ~~无端口范围验证（1-65535）~~                             | ~~`connections.controller.ts`~~           | ✅ 已添加 `port >= 1 && port <= 65535` 校验（create/update） |
-| ~~M-27~~ | ~~无主机名格式验证~~                                      | ~~`connections.controller.ts`~~           | ✅ 已添加最大 253 字符 + 合法域名/IPv6 正则校验              |
-| ~~M-28~~ | ~~注册无用户名长度/密码复杂度限制~~                           | ~~`auth.controller.ts`~~                      | ✅ 用户名 3-64 字符 + 字母数字下划线连字符；密码含字母和数字  |
-| ~~M-29~~ | ~~`ssh:resize` 无 cols/rows 上限~~                        | ~~`ssh.handler.ts`~~                      | ✅ 已添加 `cols <= 1000 && rows <= 500` 上限校验             |
-| ~~M-30~~ | ~~SFTP readdir 响应无分页（大目录可超 4MB）~~             | ~~后端 SFTP~~                             | ✅ 已实现按大小分批发送（3MB 阈值），并修复重复发送 bug      |
+| ID       | 问题                                                      | 位置                                      | 修复建议                                                         |
+| -------- | --------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| ~~M-21~~ | ~~前端 WebSocket 重连无 jitter（惊群效应）~~              | ~~`useWebSocketConnection.ts:42`~~        | ✅ 已添加随机抖动                                                |
+| ~~M-22~~ | ~~SFTP 上传 `activeUploads` 在流未触发 close 时可能泄漏~~ | ~~`sftp-upload.manager.ts:47`~~           | ✅ 已有 5s 超时回退 `stream.destroy()`                           |
+| ~~M-23~~ | ~~SSH 挂起日志轮转丢弃全部历史~~                          | ~~`temporary-log-storage.service.ts:75`~~ | ✅ 已实现环形缓冲（100MB 上限，保留 80MB）                       |
+| ~~M-24~~ | ~~多设备会话状态不一致~~                                  | ~~`websocket/state.ts:15`~~               | ✅ 已有详细注释说明行为 + /api/v1/ssh-suspend/suspended-sessions |
+| ~~M-25~~ | ~~SFTP 操作 payload 使用 `z.any()` 绕过 Zod 验证~~        | ~~`websocket/schemas.ts`~~                | ✅ 已为每个 SFTP 操作定义专用 Zod schema（10+ 个 schema）        |
+| ~~M-26~~ | ~~无端口范围验证（1-65535）~~                             | ~~`connections.controller.ts`~~           | ✅ 已添加 `port >= 1 && port <= 65535` 校验（create/update）     |
+| ~~M-27~~ | ~~无主机名格式验证~~                                      | ~~`connections.controller.ts`~~           | ✅ 已添加最大 253 字符 + 合法域名/IPv6 正则校验                  |
+| ~~M-28~~ | ~~注册无用户名长度/密码复杂度限制~~                       | ~~`auth.controller.ts`~~                  | ✅ 用户名 3-64 字符 + 字母数字下划线连字符；密码含字母和数字     |
+| ~~M-29~~ | ~~`ssh:resize` 无 cols/rows 上限~~                        | ~~`ssh.handler.ts`~~                      | ✅ 已添加 `cols <= 1000 && rows <= 500` 上限校验                 |
+| ~~M-30~~ | ~~SFTP readdir 响应无分页（大目录可超 4MB）~~             | ~~后端 SFTP~~                             | ✅ 已实现按大小分批发送（3MB 阈值），并修复重复发送 bug          |
 
 ---
 
@@ -161,45 +161,45 @@
 
 ### 安全类（3 项）
 
-| ID  | 问题                              | 位置                      | 修复建议                                |
-| --- | --------------------------------- | ------------------------- | --------------------------------------- |
-| ~~L-1~~ | ~~Swagger 在非生产环境暴露 API 结构~~ | ~~`index.ts:466-489`~~        | ✅ 已有 NODE_ENV=production 环境保护 |
-| L-2 | uuid 依赖缓冲区边界检查           | `node_modules/uuid`       | `npm audit fix --force`                 |
-| ~~L-3~~ | ~~错误消息可能泄露内部路径~~          | ~~`error.middleware.ts:100`~~ | ✅ 生产环境返回通用错误消息（middleware.ts:43）         |
+| ID      | 问题                                  | 位置                          | 修复建议                                        |
+| ------- | ------------------------------------- | ----------------------------- | ----------------------------------------------- |
+| ~~L-1~~ | ~~Swagger 在非生产环境暴露 API 结构~~ | ~~`index.ts:466-489`~~        | ✅ 已有 NODE_ENV=production 环境保护            |
+| L-2     | uuid 依赖缓冲区边界检查               | `node_modules/uuid`           | `npm audit fix --force`                         |
+| ~~L-3~~ | ~~错误消息可能泄露内部路径~~          | ~~`error.middleware.ts:100`~~ | ✅ 生产环境返回通用错误消息（middleware.ts:43） |
 
 ### 代码质量类（15 项）
 
-| ID   | 问题                                          | 位置                         | 修复建议                                               |
-| ---- | --------------------------------------------- | ---------------------------- | ------------------------------------------------------ |
-| ~~L-4~~ | ~~硬编码 GitHub 仓库 URL（3 处）~~                | ~~前端 settings composable~~     | ✅ 已提取为 `GITHUB_REPO_URL` 常量（utils/constants.ts） |
-| ~~L-5~~ | ~~硬编码 CORS 默认 origin~~                       | ~~`index.ts:242`~~               | ✅ 生产环境日志警告已存在（middleware.ts:106-109）       |
-| ~~L-6~~ | ~~Passkey 超时硬编码 60000ms~~                    | ~~`passkey.service.ts:168,287`~~ | ✅ 已使用 `SECURITY_CONFIG.PASSKEY_CHALLENGE_TIMEOUT_MS` |
-| ~~L-7~~ | ~~SSH 重连延迟硬编码 5000ms~~                     | ~~`ssh.handler.ts:433`~~         | ✅ 已定义 `DEFAULT_SSH_RECONNECT_DELAY_MS` 常量         |
-| ~~L-8~~ | ~~SQLite PRAGMA 值硬编码~~                        | ~~`connection.ts:96,100`~~       | ✅ 已定义 `SQLITE_CACHE_SIZE_KB` / `SQLITE_MMAP_SIZE_BYTES` |
-| ~~L-9~~ | ~~`loginBanDuration: '300'` 硬编码为字符串~~      | ~~`settings.repository.ts:280`~~ | ✅ 已定义 `DEFAULT_LOGIN_BAN_DURATION_SECONDS`（类型修正为数字） |
-| L-10 | `output-processor.ts` 395 行零测试            | 前端 utils                   | 添加 ANSI 转义码处理、分块、边界测试                   |
-| L-11 | `cacheManager.ts` 250 行零测试                | 前端 utils                   | 添加缓存命中/未命中、TTL 过期、驱逐测试                |
-| ~~L-12~~ | ~~Docker handler 硬编码 500ms 延迟~~              | ~~`docker.handler.ts:430`~~      | ✅ 已提取为 `DOCKER_STATUS_SYNC_DELAY_MS` 常量         |
-| ~~L-13~~ | ~~catch 变量命名不一致（`error` / `e` / `err`）~~ | ~~全局~~                         | ✅ 仅 3 个测试文件需调整（H-7 已修复）               |
-| L-14 | `@types/node` 落后 5 个大版本（v20 vs v25）   | package.json                 | 下次依赖审查周期更新                                   |
-| ~~L-15~~ | ~~`vuedraggable` 版本需验证 Vue 3 兼容性~~        | ~~`frontend/package.json`~~      | ✅ `^4.1.0` 即 vue.draggable.next，Vue 3 兼容       |
-| L-16 | 前端 `locales/` 目录无翻译完整性测试          | `frontend/src/locales/`      | 添加 key 一致性校验测试                                |
-| L-17 | 5 个前端 composable 超过 200 行               | 多处                         | 下次重构时考虑进一步拆分                               |
-| L-18 | 5 个 `as any` 类型断言在生产代码中            | 多处                         | 创建类型化访问函数或全局 `.d.ts` 声明                  |
+| ID       | 问题                                              | 位置                             | 修复建议                                                         |
+| -------- | ------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| ~~L-4~~  | ~~硬编码 GitHub 仓库 URL（3 处）~~                | ~~前端 settings composable~~     | ✅ 已提取为 `GITHUB_REPO_URL` 常量（utils/constants.ts）         |
+| ~~L-5~~  | ~~硬编码 CORS 默认 origin~~                       | ~~`index.ts:242`~~               | ✅ 生产环境日志警告已存在（middleware.ts:106-109）               |
+| ~~L-6~~  | ~~Passkey 超时硬编码 60000ms~~                    | ~~`passkey.service.ts:168,287`~~ | ✅ 已使用 `SECURITY_CONFIG.PASSKEY_CHALLENGE_TIMEOUT_MS`         |
+| ~~L-7~~  | ~~SSH 重连延迟硬编码 5000ms~~                     | ~~`ssh.handler.ts:433`~~         | ✅ 已定义 `DEFAULT_SSH_RECONNECT_DELAY_MS` 常量                  |
+| ~~L-8~~  | ~~SQLite PRAGMA 值硬编码~~                        | ~~`connection.ts:96,100`~~       | ✅ 已定义 `SQLITE_CACHE_SIZE_KB` / `SQLITE_MMAP_SIZE_BYTES`      |
+| ~~L-9~~  | ~~`loginBanDuration: '300'` 硬编码为字符串~~      | ~~`settings.repository.ts:280`~~ | ✅ 已定义 `DEFAULT_LOGIN_BAN_DURATION_SECONDS`（类型修正为数字） |
+| L-10     | `output-processor.ts` 395 行零测试                | 前端 utils                       | 添加 ANSI 转义码处理、分块、边界测试                             |
+| L-11     | `cacheManager.ts` 250 行零测试                    | 前端 utils                       | 添加缓存命中/未命中、TTL 过期、驱逐测试                          |
+| ~~L-12~~ | ~~Docker handler 硬编码 500ms 延迟~~              | ~~`docker.handler.ts:430`~~      | ✅ 已提取为 `DOCKER_STATUS_SYNC_DELAY_MS` 常量                   |
+| ~~L-13~~ | ~~catch 变量命名不一致（`error` / `e` / `err`）~~ | ~~全局~~                         | ✅ 仅 3 个测试文件需调整（H-7 已修复）                           |
+| L-14     | `@types/node` 落后 5 个大版本（v20 vs v25）       | package.json                     | 下次依赖审查周期更新                                             |
+| ~~L-15~~ | ~~`vuedraggable` 版本需验证 Vue 3 兼容性~~        | ~~`frontend/package.json`~~      | ✅ `^4.1.0` 即 vue.draggable.next，Vue 3 兼容                    |
+| L-16     | 前端 `locales/` 目录无翻译完整性测试              | `frontend/src/locales/`          | 添加 key 一致性校验测试                                          |
+| L-17     | 5 个前端 composable 超过 200 行                   | 多处                             | 下次重构时考虑进一步拆分                                         |
+| L-18     | 5 个 `as any` 类型断言在生产代码中                | 多处                             | 创建类型化访问函数或全局 `.d.ts` 声明                            |
 
 ### 边界条件类（9 项）
 
-| ID       | 问题                                              | 位置                             | 修复建议                                     |
-| -------- | ------------------------------------------------- | -------------------------------- | -------------------------------------------- |
-| ~~L-19~~     | ~~`lastPingTime` Map 非 OPEN 连接条目可能累积~~       | ~~`heartbeat.ts:30`~~                | ✅ 已在 close/error/interval 中清理（4 处 delete）  |
-| ~~L-20~~     | ~~`requestIdleCallback` Safari 降级方案未显式测试~~   | ~~`useSshTerminal.ts:49-52`~~        | ✅ 已实现 rAF 降级逻辑（useSshTerminal.ts:87-88） |
-| L-21     | `Uint8Array` 终端输出大拼接可能昂贵               | `useSshTerminal.ts:55-64`        | 考虑使用 Blob 或逐块写入                     |
-| ~~L-22~~ | ~~PWA Service Worker 可能缓存过期 WebSocket 状态~~    | ~~`public/sw.js`~~                   | ✅ 已有 SW_VERSION + GET_SW_VERSION 消息机制     |
-| ~~L-23~~     | ~~DNS 解析失败错误消息不友好~~                        | ~~`ssh.service.ts`~~                 | ✅ 已捕获 ENOTFOUND/EAI_AGAIN 提供中文友好消息  |
-| ~~L-24~~     | ~~代理连接失败不区分代理不可达和目标不可达~~          | ~~`ssh.service.ts`~~                 | ✅ 已区分代理不可达(419)、代理拒绝(468)、目标不可达(479) |
-| ~~L-25~~ | ~~`flushPendingChunks` 重入守卫非原子~~           | ~~`sftp-upload.manager.ts:311`~~ | ✅ 已使用 Promise 锁实现                     |
-| ~~L-26~~ | ~~SFTP base64 分块解码无全局内存跟踪~~            | ~~`sftp-upload.manager.ts:280`~~ | ✅ 已有 `globalBufferedBytes` 跟踪           |
-| ~~L-27~~ | ~~WebSocket 4MB maxPayload 但出站消息无大小限制~~ | ~~`websocket.ts`~~               | ✅ 已实现分批发送（3MB 阈值）                |
+| ID       | 问题                                                | 位置                             | 修复建议                                                 |
+| -------- | --------------------------------------------------- | -------------------------------- | -------------------------------------------------------- |
+| ~~L-19~~ | ~~`lastPingTime` Map 非 OPEN 连接条目可能累积~~     | ~~`heartbeat.ts:30`~~            | ✅ 已在 close/error/interval 中清理（4 处 delete）       |
+| ~~L-20~~ | ~~`requestIdleCallback` Safari 降级方案未显式测试~~ | ~~`useSshTerminal.ts:49-52`~~    | ✅ 已实现 rAF 降级逻辑（useSshTerminal.ts:87-88）        |
+| L-21     | `Uint8Array` 终端输出大拼接可能昂贵                 | `useSshTerminal.ts:55-64`        | 考虑使用 Blob 或逐块写入                                 |
+| ~~L-22~~ | ~~PWA Service Worker 可能缓存过期 WebSocket 状态~~  | ~~`public/sw.js`~~               | ✅ 已有 SW_VERSION + GET_SW_VERSION 消息机制             |
+| ~~L-23~~ | ~~DNS 解析失败错误消息不友好~~                      | ~~`ssh.service.ts`~~             | ✅ 已捕获 ENOTFOUND/EAI_AGAIN 提供中文友好消息           |
+| ~~L-24~~ | ~~代理连接失败不区分代理不可达和目标不可达~~        | ~~`ssh.service.ts`~~             | ✅ 已区分代理不可达(419)、代理拒绝(468)、目标不可达(479) |
+| ~~L-25~~ | ~~`flushPendingChunks` 重入守卫非原子~~             | ~~`sftp-upload.manager.ts:311`~~ | ✅ 已使用 Promise 锁实现                                 |
+| ~~L-26~~ | ~~SFTP base64 分块解码无全局内存跟踪~~              | ~~`sftp-upload.manager.ts:280`~~ | ✅ 已有 `globalBufferedBytes` 跟踪                       |
+| ~~L-27~~ | ~~WebSocket 4MB maxPayload 但出站消息无大小限制~~   | ~~`websocket.ts`~~               | ✅ 已实现分批发送（3MB 阈值）                            |
 
 ---
 
@@ -291,7 +291,7 @@
 | ~~P1~~ | ~~统一 Docker 命令校验（H-2）~~                         | ~~2h~~    | ✅ 已完成 |
 | ~~P1~~ | ~~批量命令审计日志（H-3）~~                             | ~~2h~~    | ✅ 已完成 |
 | ~~P1~~ | ~~更新 glob 依赖（H-5）~~                               | ~~30min~~ | ✅ 已完成 |
-| ~~P1~~ | ~~修复空 catch 块（H-6）~~                                  | ~~2h~~    | ✅ 已完成 |
+| ~~P1~~ | ~~修复空 catch 块（H-6）~~                              | ~~2h~~    | ✅ 已完成 |
 | **P1** | 补数据库层 + WebSocket 层测试                           | 8h        | 待执行    |
 | **P2** | 拆分上帝对象（H-8 ~ H-15）                              | 24h       | 待执行    |
 | ~~P2~~ | ~~修复边界条件 High（H-21）~~                           | ~~2h~~    | ✅ 已完成 |
@@ -355,33 +355,33 @@
 
 #### 3. 输入验证与边界条件（10 项，预估 16h）
 
-| ID   | 验证缺失                   | 影响        | 修复建议                               |
-| ---- | -------------------------- | ----------- | -------------------------------------- |
-| H-21 | SSH shell ready 无超时     | 连接挂起    | 添加 shell-ready 超时（如 10s）        |
-| M-24 | 多设备会话状态不一致       | 用户困惑    | 文档说明行为，考虑添加会话列表端点     |
-| M-25 | SFTP payload 用 `z.any()`  | 验证绕过    | 为每个 SFTP 操作定义专用 Zod schema    |
-| M-26 | 无端口范围验证             | 无效连接    | 添加 `port >= 1 && port <= 65535`      |
-| M-27 | 无主机名格式验证           | 无效连接    | 添加最大 253 字符 + 合法主机名/IP 正则 |
-| ~~M-28~~ | ~~注册无密码复杂度限制~~       | ~~弱密码~~      | ✅ 用户名 3-64 字符 + 密码含字母和数字    |
-| M-29 | `ssh:resize` 无上限        | 资源消耗    | 添加 `cols <= 1000 && rows <= 500`     |
-| L-19 | `lastPingTime` 条目累积    | 内存泄漏    | 在连接 close 处理中清理                |
-| L-20 | `requestIdleCallback` 兼容 | Safari 降级 | 使用 polyfill 或辅助函数               |
-| L-21 | `Uint8Array` 大拼接开销    | 性能        | 考虑使用 Blob 或逐块写入               |
+| ID       | 验证缺失                   | 影响        | 修复建议                               |
+| -------- | -------------------------- | ----------- | -------------------------------------- |
+| H-21     | SSH shell ready 无超时     | 连接挂起    | 添加 shell-ready 超时（如 10s）        |
+| M-24     | 多设备会话状态不一致       | 用户困惑    | 文档说明行为，考虑添加会话列表端点     |
+| M-25     | SFTP payload 用 `z.any()`  | 验证绕过    | 为每个 SFTP 操作定义专用 Zod schema    |
+| M-26     | 无端口范围验证             | 无效连接    | 添加 `port >= 1 && port <= 65535`      |
+| M-27     | 无主机名格式验证           | 无效连接    | 添加最大 253 字符 + 合法主机名/IP 正则 |
+| ~~M-28~~ | ~~注册无密码复杂度限制~~   | ~~弱密码~~  | ✅ 用户名 3-64 字符 + 密码含字母和数字 |
+| M-29     | `ssh:resize` 无上限        | 资源消耗    | 添加 `cols <= 1000 && rows <= 500`     |
+| L-19     | `lastPingTime` 条目累积    | 内存泄漏    | 在连接 close 处理中清理                |
+| L-20     | `requestIdleCallback` 兼容 | Safari 降级 | 使用 polyfill 或辅助函数               |
+| L-21     | `Uint8Array` 大拼接开销    | 性能        | 考虑使用 Blob 或逐块写入               |
 
 #### 4. 代码质量清理（10 项，预估 10h）
 
-| ID   | 问题                                         | 修复建议                                  |
-| ---- | -------------------------------------------- | ----------------------------------------- |
-| ~~H-6~~ | ~~7 个空 catch 块静默吞错~~                      | ✅ 31 处已修复，统一 console.debug/warn    |
-| H-7  | 170 个 catch 块未 `error: unknown`           | 批量替换                                  |
-| M-1  | `services/` 目录 14 个服务扁平堆放           | 域服务移入各自模块                        |
-| M-7  | `settings.controller.ts` 30 个重复 try-catch | 使用 `asyncHandler` 包装所有路由          |
-| M-13 | 46 个 catch 块用短变量名 `e`                 | 统一为 `error: unknown`                   |
-| M-14 | 硬编码 OpenAI API base URL                   | 提取为共享常量 `AI_PROVIDER_DEFAULTS`     |
-| M-15 | `useFileUploader.ts` 495 行                  | 提取分块管理和重试逻辑                    |
-| M-16 | 硬编码 50000 审计日志最大条目                | 定义 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量 |
-| M-18 | Catch 块仅 console.warn/error 不传播         | 评估是否应传播 / 设置 UI 状态             |
-| L-13 | catch 变量命名不一致                         | 统一为 `catch (error: unknown)`           |
+| ID      | 问题                                         | 修复建议                                  |
+| ------- | -------------------------------------------- | ----------------------------------------- |
+| ~~H-6~~ | ~~7 个空 catch 块静默吞错~~                  | ✅ 31 处已修复，统一 console.debug/warn   |
+| H-7     | 170 个 catch 块未 `error: unknown`           | 批量替换                                  |
+| M-1     | `services/` 目录 14 个服务扁平堆放           | 域服务移入各自模块                        |
+| M-7     | `settings.controller.ts` 30 个重复 try-catch | 使用 `asyncHandler` 包装所有路由          |
+| M-13    | 46 个 catch 块用短变量名 `e`                 | 统一为 `error: unknown`                   |
+| M-14    | 硬编码 OpenAI API base URL                   | 提取为共享常量 `AI_PROVIDER_DEFAULTS`     |
+| M-15    | `useFileUploader.ts` 495 行                  | 提取分块管理和重试逻辑                    |
+| M-16    | 硬编码 50000 审计日志最大条目                | 定义 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量 |
+| M-18    | Catch 块仅 console.warn/error 不传播         | 评估是否应传播 / 设置 UI 状态             |
+| L-13    | catch 变量命名不一致                         | 统一为 `catch (error: unknown)`           |
 
 #### 5. 安全与配置（6 项，预估 4h）
 
@@ -407,15 +407,15 @@
 
 ### 修复建议优先级
 
-| 优先级 | 批次                       | 预估工时 | 收益                                              |
-| ------ | -------------------------- | -------- | ------------------------------------------------- |
-| **P0** | C-3：补 session.store 测试 | 4h       | 核心状态管理零测试→基础覆盖                       |
-| ~~P1~~ | ~~H-6 空 catch~~ + H-7 类型化  | 4h       | H-6 已完成，H-7 待处理                    |
-| **P1** | H-21 shell ready 超时      | 2h       | 防止 SSH 连接挂起                                 |
-| ~~P2~~ | ~~M-25~~/~~M-28~~ 输入验证补全     | 4h       | M-28 已完成，M-25 待处理（M-26/M-27/M-29 已修复） |
-| **P2** | M-6/M-9/M-20 测试补充      | 14h      | 基础设施层测试覆盖                                |
-| **P3** | H-8~H-15 上帝对象拆分      | 40h+     | 长期可维护性，需逐个推进                          |
-| **P3** | L-tier 常量提取 + 代码清理 | 13h      | 代码整洁度，可随开发穿插完成                      |
+| 优先级 | 批次                           | 预估工时 | 收益                                              |
+| ------ | ------------------------------ | -------- | ------------------------------------------------- |
+| **P0** | C-3：补 session.store 测试     | 4h       | 核心状态管理零测试→基础覆盖                       |
+| ~~P1~~ | ~~H-6 空 catch~~ + H-7 类型化  | 4h       | H-6 已完成，H-7 待处理                            |
+| **P1** | H-21 shell ready 超时          | 2h       | 防止 SSH 连接挂起                                 |
+| ~~P2~~ | ~~M-25~~/~~M-28~~ 输入验证补全 | 4h       | M-28 已完成，M-25 待处理（M-26/M-27/M-29 已修复） |
+| **P2** | M-6/M-9/M-20 测试补充          | 14h      | 基础设施层测试覆盖                                |
+| **P3** | H-8~H-15 上帝对象拆分          | 40h+     | 长期可维护性，需逐个推进                          |
+| **P3** | L-tier 常量提取 + 代码清理     | 13h      | 代码整洁度，可随开发穿插完成                      |
 
 ---
 
@@ -425,48 +425,48 @@
 
 **提交待定**：3 文件变更（connection.service.ts, settings.repository.ts, passkey.service.ts, nl2cmd.service.ts）
 
-| 类别        | 已修复                  | 说明                                                                                         |
-| ----------- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| 类别        | 已修复                                                                       | 说明                                                                                                                                                                                                                                                                               |
+| ----------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Low 常量    | L-4, L-5, L-6, L-7, L-8, L-9, L-12, L-13, L-15, L-19, L-20, L-22, L-23, L-24 | 14 项 Low 层已确认/修复：GitHub URL 常量、CORS 生产警告、Passkey 超时常量、SSH 重连常量、SQLite PRAGMA 常量、loginBanDuration 类型修正、Docker 延迟常量、catch 命名统一、vuedraggable 兼容性、lastPingTime 清理、requestIdleCallback 降级、SW 版本机制、DNS 友好消息、代理错误区分 |
-| Medium 代码 | M-12, M-18             | connection.service.ts encrypt/decrypt batch 辅助函数；catch 块审计 55+ 处（40+ 已传播，15+ 合理吞错，2 处已修复） |
-| Medium 代码 | M-14, M-16             | OpenAI URL 常量已提取；审计日志最大条目常量已定义（前期已修复，本轮确认）                    |
+| Medium 代码 | M-12, M-18                                                                   | connection.service.ts encrypt/decrypt batch 辅助函数；catch 块审计 55+ 处（40+ 已传播，15+ 合理吞错，2 处已修复）                                                                                                                                                                  |
+| Medium 代码 | M-14, M-16                                                                   | OpenAI URL 常量已提取；审计日志最大条目常量已定义（前期已修复，本轮确认）                                                                                                                                                                                                          |
 
 ### 2026-05-03（Codex 审查补漏 + 模块完整性验证）
 
-| 类别        | 已修复                  | 说明                                                                                         |
-| ----------- | ----------------------- | -------------------------------------------------------------------------------------------- |
-| Codex 补漏  | —                       | setupAdmin 类型收敛（防非字符串 500）；ssh.handler.test.ts catch 类型补漏                      |
+| 类别        | 已修复                       | 说明                                                                                                    |
+| ----------- | ---------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Codex 补漏  | —                            | setupAdmin 类型收敛（防非字符串 500）；ssh.handler.test.ts catch 类型补漏                               |
 | Medium 代码 | M-10, M-11, M-17, M-19, M-24 | metrics/passkey 模块已完整；index.ts 精简至 379 行；SuspendedSshSessions 已拆分组件；多设备行为已文档化 |
-| 已确认存在  | L-1                     | Swagger 已有 NODE_ENV 生产环境保护                                                            |
+| 已确认存在  | L-1                          | Swagger 已有 NODE_ENV 生产环境保护                                                                      |
 
 ### 2026-05-03（代码质量批量验证 + 测试补充）
 
-| 类别        | 已修复                  | 说明                                                                                         |
-| ----------- | ----------------------- | -------------------------------------------------------------------------------------------- |
-| High 代码   | H-7, H-21               | catch 块类型化已全面规范（仅 3 测试文件调整）；shell ready 超时已存在+补充测试                |
-| Medium 代码 | M-7, M-13               | settings.controller 已全面 asyncHandler；507 个 catch 块变量名已规范                          |
-| 已确认存在  | M-14, M-16              | OpenAI URL 常量已提取；审计日志最大条目常量已定义                                             |
+| 类别        | 已修复     | 说明                                                                           |
+| ----------- | ---------- | ------------------------------------------------------------------------------ |
+| High 代码   | H-7, H-21  | catch 块类型化已全面规范（仅 3 测试文件调整）；shell ready 超时已存在+补充测试 |
+| Medium 代码 | M-7, M-13  | settings.controller 已全面 asyncHandler；507 个 catch 块变量名已规范           |
+| 已确认存在  | M-14, M-16 | OpenAI URL 常量已提取；审计日志最大条目常量已定义                              |
 
 ### 2026-05-03（输入验证增强 + 空 catch 块批量修复）
 
 **提交 `3296d99d`**：13 文件，137 行新增，57 行删除
 
-| 类别        | 已修复           | 说明                                                                                              |
-| ----------- | ---------------- | ------------------------------------------------------------------------------------------------- |
-| Medium 验证 | M-28             | 用户名长度/格式验证(3-64字符) + 密码复杂度验证(字母+数字) + 端口正则验证 + 主机名格式验证         |
-| High 代码   | H-6 (31处)       | 空 catch 块批量修复：status-monitor(16), ssh-suspend(5), websocket(10), ssh.service, transfers.service, 前端组件 |
+| 类别        | 已修复     | 说明                                                                                                             |
+| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| Medium 验证 | M-28       | 用户名长度/格式验证(3-64字符) + 密码复杂度验证(字母+数字) + 端口正则验证 + 主机名格式验证                        |
+| High 代码   | H-6 (31处) | 空 catch 块批量修复：status-monitor(16), ssh-suspend(5), websocket(10), ssh.service, transfers.service, 前端组件 |
 
 ### 2026-05-03（输入验证 + 事件监听 + composable 类型修复）
 
 **提交 `bc44514e`**：8 文件，121 行新增，50 行删除
 
-| 类别        | 已修复                  | 说明                                                                                                     |
-| ----------- | ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| Medium 边界 | M-26, M-27, M-29 (3/10) | 端口范围验证、主机名格式验证、SSH resize 上限                                                            |
-| Medium 代码 | M-3, M-4 (2/20)         | useWebSocketConnection/useSshTerminal composable 拆分已在前期完成                                        |
+| 类别        | 已修复                  | 说明                                                                                                              |
+| ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Medium 边界 | M-26, M-27, M-29 (3/10) | 端口范围验证、主机名格式验证、SSH resize 上限                                                                     |
+| Medium 代码 | M-3, M-4 (2/20)         | useWebSocketConnection/useSshTerminal composable 拆分已在前期完成                                                 |
 | High 代码   | H-6 部分, H-7 部分      | ipWhitelist/metrics 替换 `as Error` 为 pino 结构化日志；ssh.handler .catch() 类型化；H-6 剩余 31 处已在本批次修复 |
-| 事件监听    | M-2 部分                | Terminal.vue wheel zoom 提取为命名函数；useResizable.ts mouseleave 修复                                  |
-| TS 类型修复 | —                       | bufferManager 补充 3 个缺失方法导出；useWebSocketConnection 修复 scheduleReconnect/parseWebSocketMessage |
+| 事件监听    | M-2 部分                | Terminal.vue wheel zoom 提取为命名函数；useResizable.ts mouseleave 修复                                           |
+| TS 类型修复 | —                       | bufferManager 补充 3 个缺失方法导出；useWebSocketConnection 修复 scheduleReconnect/parseWebSocketMessage          |
 
 ### 2026-05-02（84 项全面修复 + Codex 审查补漏）
 
@@ -544,4 +544,4 @@
 ---
 
 **文档维护者**：工程治理
-**最后更新**：2026-05-03（第四轮：常量提取 + catch 审计 + encrypt 辅助函数，累计 58/84 已修复，收敛率 69%）
+**最后更新**：2026-05-03（第五轮：事件监听清理 + utils 测试覆盖，累计 59/84 已修复，收敛率 70%）

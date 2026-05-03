@@ -271,7 +271,7 @@ describe('SSH WebSocket Handler', () => {
           // 不调用回调，模拟 shell 挂起
         });
 
-        const connectPromise = handleSshConnect(mockWs, mockRequest, { connectionId: 1 });
+        void handleSshConnect(mockWs, mockRequest, { connectionId: 1 });
 
         // 推进时间到超时 (SHELL_READY_TIMEOUT_MS = 10_000)
         vi.advanceTimersByTime(10_000);
@@ -285,7 +285,7 @@ describe('SSH WebSocket Handler', () => {
           try {
             const parsed = JSON.parse(call[0] as string);
             return parsed.type === 'ssh:error' && parsed.payload.includes('Shell 就绪超时');
-          } catch (_parseError: unknown) {
+          } catch {
             return false;
           }
         });
