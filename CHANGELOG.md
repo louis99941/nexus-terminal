@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **终端输入增强**：ESC 键转义序列与 Bracketed Paste Mode 支持
+  - **ESC 键支持**：在 CommandInputBar 中按 ESC 键发送 `\x1b` 转义序列到终端，支持退出 vi/nano 等编辑器模式
+  - **Bracketed Paste Mode**：优化右键菜单粘贴功能，使用 `\x1b[200~` 和 `\x1b[201~` 包裹粘贴内容，确保编辑器正确识别粘贴内容
+  - **统一粘贴逻辑**：Ctrl+Shift+V 与右键粘贴均采用 Bracketed Paste Mode 实现
+  - **代码位置**：
+    - `packages/frontend/src/components/CommandInputBar.vue`：ESC 键处理（第 285-288 行）
+    - `packages/frontend/src/features/terminal/Terminal.vue`：Bracketed Paste Mode 实现（第 233-237 行、第 516-521 行）
+
 ### Changed
 
 - **技术债务治理（2026-04-15 最新）**：（续下）

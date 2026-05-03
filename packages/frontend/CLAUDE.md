@@ -254,10 +254,10 @@ packages/frontend/
 
 | 组件                     | 描述                       |
 | ------------------------ | -------------------------- |
-| `Terminal.vue`           | 基于 Xterm.js 的终端模拟器 |
+| `Terminal.vue`           | 基于 Xterm.js 的终端模拟器，支持 Bracketed Paste Mode（`\x1b[200~`/`\x1b[201~`） |
 | `TerminalTabBar.vue`     | 终端标签栏                 |
 | `VirtualKeyboard.vue`    | 移动端虚拟键盘             |
-| `CommandInputBar.vue`    | 命令输入栏（支持同步输入） |
+| `CommandInputBar.vue`    | 命令输入栏（支持同步输入、ESC 键转义序列、Ctrl+C 中断） |
 | `CommandHistoryMenu.vue` | 命令历史菜单               |
 
 ### 文件管理
