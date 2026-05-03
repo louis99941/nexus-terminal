@@ -801,6 +801,25 @@ describe('SSH Service', () => {
 
       await expect(openShell(mockClient as any)).rejects.toThrow('打开 Shell 失败: Shell error');
     });
+
+    it('Shell 回调未响应时应超时并抛出错误', async () => {
+      vi.useFakeTimers();
+      try {
+        // 模拟 shell 回调永不触发
+        mockClient.shell.mockImplementation((_optsOrCb: unknown, _callback?: unknown) => {
+          // 什么都不做，不调用回调
+        });
+
+        const shellPromise = openShell(mockClient as any, 5000);
+
+        // 推进时间到超时
+        vi.advanceTimersByTime(5000);
+
+        await expect(shellPromise).rejects.toThrow('打开 Shell 超时（5000ms）。');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('testConnection', () => {

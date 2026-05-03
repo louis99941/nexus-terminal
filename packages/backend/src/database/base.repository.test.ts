@@ -53,7 +53,7 @@ describe('RepositoryUtils', () => {
       try {
         RepositoryUtils.validateLastId(result, '自定义错误');
         expect.fail('应该抛出错误');
-      } catch (err) {
+      } catch (err: unknown) {
         expect(err).toBeInstanceOf(AppError);
         expect((err as AppError).message).toBe('自定义错误');
       }
@@ -147,7 +147,7 @@ describe('RepositoryUtils', () => {
           customHandler
         );
         expect.fail('应该抛出错误');
-      } catch (err) {
+      } catch (err: unknown) {
         expect(err).toBeInstanceOf(AppError);
         expect((err as AppError).code).toBe(ErrorCode.DATABASE_ERROR);
       }

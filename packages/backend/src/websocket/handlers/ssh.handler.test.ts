@@ -260,6 +260,41 @@ describe('SSH WebSocket Handler', () => {
       );
     });
 
+    it('Shell 回调未响应时应超时并发送错误消息', async () => {
+      vi.useFakeTimers();
+      try {
+        (SshService.getConnectionDetails as any).mockResolvedValue(mockConnectionDetails);
+        (SshService.establishSshConnection as any).mockResolvedValue(mockSshClient);
+
+        // 模拟 shell 回调永不触发
+        mockSshClient.shell.mockImplementation((_opts: unknown, _callback: unknown) => {
+          // 不调用回调，模拟 shell 挂起
+        });
+
+        const connectPromise = handleSshConnect(mockWs, mockRequest, { connectionId: 1 });
+
+        // 推进时间到超时 (SHELL_READY_TIMEOUT_MS = 10_000)
+        vi.advanceTimersByTime(10_000);
+
+        // 等待异步清理完成
+        await vi.runOnlyPendingTimersAsync();
+
+        // 验证发送了超时错误消息
+        const sendCalls = (mockWs.send as any).mock.calls;
+        const errorCall = sendCalls.find((call: unknown[]) => {
+          try {
+            const parsed = JSON.parse(call[0] as string);
+            return parsed.type === 'ssh:error' && parsed.payload.includes('Shell 就绪超时');
+          } catch {
+            return false;
+          }
+        });
+        expect(errorCall).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('SSH 连接失败时应发送错误', async () => {
       (SshService.getConnectionDetails as any).mockResolvedValue(mockConnectionDetails);
       (SshService.establishSshConnection as any).mockRejectedValue(new Error('Connection refused'));
