@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import router from './index';
 
-// Mock auth store
+// 使用 vi.hoisted 创建 mock，确保在 vi.mock 之前执行
+const { mockUseAuthStore, mockAuthState } = vi.hoisted(() => {
+  const state = { isInitCompleted: true, needsSetup: false, isAuthenticated: false };
+  return { mockUseAuthStore: vi.fn(() => state), mockAuthState: state };
+});
+
 vi.mock('../stores/auth.store', () => ({
-  useAuthStore: vi.fn(),
+  useAuthStore: mockUseAuthStore,
 }));
+
+import router from './index';
 
 // Mock views to avoid actual component loading
 vi.mock('../views/DashboardView.vue', () => ({ default: { template: '<div />' } }));
@@ -18,21 +24,14 @@ vi.mock('../views/NotificationsView.vue', () => ({ default: { template: '<div />
 vi.mock('../views/AuditLogView.vue', () => ({ default: { template: '<div />' } }));
 
 describe('路由守卫', () => {
-  let mockAuthStore: {
-    isInitCompleted: boolean;
-    needsSetup: boolean;
-    isAuthenticated: boolean;
-  };
-
   beforeEach(async () => {
-    vi.clearAllMocks();
-    mockAuthStore = {
-      isInitCompleted: true,
-      needsSetup: false,
-      isAuthenticated: false,
-    };
-    const { useAuthStore } = await import('../stores/auth.store');
-    vi.mocked(useAuthStore).mockReturnValue(mockAuthStore as any);
+    // 重置 mock 状态
+    mockAuthState.isInitCompleted = true;
+    mockAuthState.needsSetup = false;
+    mockAuthState.isAuthenticated = false;
+    // 导航到 /login 作为干净的起始点（公共路由，不会被重定向）
+    await router.push('/login');
+    await router.isReady();
   });
 
   describe('路由定义', () => {
@@ -57,14 +56,60 @@ describe('路由守卫', () => {
 
     it('应该有 9 个路由定义', () => {
       const routes = router.getRoutes();
-      // 注意: getRoutes() 返回扁平化路由，包含嵌套路由
       expect(routes.length).toBeGreaterThanOrEqual(9);
     });
   });
 
-  describe('守卫逻辑', () => {
+  describe('守卫行为', () => {
     it('应该定义 beforeEach 守卫', () => {
       expect(router.beforeEach).toBeDefined();
+    });
+
+    it('需要设置时应重定向到 Setup', async () => {
+      mockAuthState.needsSetup = true;
+      await router.push('/workspace');
+      await router.isReady();
+      expect(router.currentRoute.value.name).toBe('Setup');
+    });
+
+    it('不需要设置时访问 Setup 应重定向到 Dashboard（已登录）', async () => {
+      mockAuthState.needsSetup = false;
+      mockAuthState.isAuthenticated = true;
+      await router.push('/setup');
+      await router.isReady();
+      expect(router.currentRoute.value.name).toBe('Dashboard');
+    });
+
+    it('不需要设置时访问 Setup 应重定向到 Login（未登录）', async () => {
+      mockAuthState.needsSetup = false;
+      mockAuthState.isAuthenticated = false;
+      await router.push('/setup');
+      await router.isReady();
+      expect(router.currentRoute.value.name).toBe('Login');
+    });
+
+    it('未登录时应重定向到 Login', async () => {
+      mockAuthState.isAuthenticated = false;
+      await router.push('/workspace');
+      await router.isReady();
+      expect(router.currentRoute.value.name).toBe('Login');
+    });
+
+    it('已登录时访问 Login 应重定向到 Dashboard', async () => {
+      mockAuthState.isAuthenticated = true;
+      // 先导航到其他路由，避免同路由跳转时守卫不触发
+      await router.push('/');
+      await router.isReady();
+      await router.push('/login');
+      await router.isReady();
+      expect(router.currentRoute.value.name).toBe('Dashboard');
+    });
+
+    it('已登录时应允许访问受保护路由', async () => {
+      mockAuthState.isAuthenticated = true;
+      await router.push('/workspace');
+      await router.isReady();
+      expect(router.currentRoute.value.name).toBe('Workspace');
     });
   });
 });

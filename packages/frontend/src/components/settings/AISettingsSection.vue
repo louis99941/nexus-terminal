@@ -239,8 +239,8 @@ const localSettings = ref<AISettings>({
   provider: 'openai',
   baseUrl: DEFAULT_OPENAI_BASE_URL,
   apiKey: '',
-  model: 'gpt-4o-mini',
-  openaiEndpoint: 'chat/completions',
+  model: AI_PROVIDER_DEFAULTS.openai.model,
+  openaiEndpoint: AI_PROVIDER_DEFAULTS.openai.endpoint,
   rateLimitEnabled: true,
   streamingEnabled: false,
 });

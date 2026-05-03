@@ -42,7 +42,7 @@ describe('Settings Service', () => {
         { key: 'key1', value: 'value1' },
         { key: 'key2', value: 'value2' },
       ];
-      (settingsRepository.getAllSettings as any).mockResolvedValueOnce(mockSettings);
+      vi.mocked(settingsRepository.getAllSettings).mockResolvedValueOnce(mockSettings);
 
       const result = await settingsService.getAllSettings();
 
@@ -50,7 +50,7 @@ describe('Settings Service', () => {
     });
 
     it('无设置时应返回空对象', async () => {
-      (settingsRepository.getAllSettings as any).mockResolvedValueOnce([]);
+      vi.mocked(settingsRepository.getAllSettings).mockResolvedValueOnce([]);
 
       const result = await settingsService.getAllSettings();
 
@@ -60,7 +60,7 @@ describe('Settings Service', () => {
 
   describe('getSetting', () => {
     it('应返回单个设置值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('test-value');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('test-value');
 
       const result = await settingsService.getSetting('testKey');
 
@@ -97,7 +97,7 @@ describe('Settings Service', () => {
 
   describe('getIpWhitelistSettings', () => {
     it('应返回 IP 白名单设置', async () => {
-      (settingsRepository.getSetting as any)
+      vi.mocked(settingsRepository.getSetting)
         .mockResolvedValueOnce('true')
         .mockResolvedValueOnce('192.168.1.1,10.0.0.0/8');
 
@@ -108,7 +108,7 @@ describe('Settings Service', () => {
     });
 
     it('未启用时应返回 enabled: false', async () => {
-      (settingsRepository.getSetting as any)
+      vi.mocked(settingsRepository.getSetting)
         .mockResolvedValueOnce('false')
         .mockResolvedValueOnce('');
 
@@ -118,7 +118,7 @@ describe('Settings Service', () => {
     });
 
     it('白名单为 null 时应返回空字符串', async () => {
-      (settingsRepository.getSetting as any)
+      vi.mocked(settingsRepository.getSetting)
         .mockResolvedValueOnce('true')
         .mockResolvedValueOnce(null);
 
@@ -140,7 +140,7 @@ describe('Settings Service', () => {
 
   describe('isIpBlacklistEnabled', () => {
     it('值为 false 时应返回 false', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('false');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('false');
 
       const result = await settingsService.isIpBlacklistEnabled();
 
@@ -148,7 +148,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 true 时应返回 true', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('true');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('true');
 
       const result = await settingsService.isIpBlacklistEnabled();
 
@@ -156,7 +156,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 null 时应返回 true (默认启用)', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.isIpBlacklistEnabled();
 
@@ -164,7 +164,7 @@ describe('Settings Service', () => {
     });
 
     it('出错时应返回 true (默认启用)', async () => {
-      (settingsRepository.getSetting as any).mockRejectedValueOnce(new Error('Database error'));
+      vi.mocked(settingsRepository.getSetting).mockRejectedValueOnce(new Error('Database error'));
 
       const result = await settingsService.isIpBlacklistEnabled();
 
@@ -178,7 +178,7 @@ describe('Settings Service', () => {
         sequence: ['quickCommandsSearch', 'commandInput'],
         shortcuts: { quickCommandsSearch: { shortcut: 'Ctrl+Q' } },
       };
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(JSON.stringify(mockConfig));
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(JSON.stringify(mockConfig));
 
       const result = await settingsService.getFocusSwitcherSequence();
 
@@ -187,7 +187,7 @@ describe('Settings Service', () => {
     });
 
     it('无配置时应返回默认值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getFocusSwitcherSequence();
 
@@ -195,7 +195,7 @@ describe('Settings Service', () => {
     });
 
     it('配置格式无效时应返回默认值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('invalid-json');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('invalid-json');
 
       const result = await settingsService.getFocusSwitcherSequence();
 
@@ -224,7 +224,7 @@ describe('Settings Service', () => {
 
   describe('getNavBarVisibility', () => {
     it('值为 false 时应返回 false', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('false');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('false');
 
       const result = await settingsService.getNavBarVisibility();
 
@@ -232,7 +232,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 null 时应返回 true (默认可见)', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getNavBarVisibility();
 
@@ -251,7 +251,7 @@ describe('Settings Service', () => {
   describe('getLayoutTree', () => {
     it('应返回布局树 JSON', async () => {
       const mockLayout = JSON.stringify({ type: 'container', children: [] });
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(mockLayout);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(mockLayout);
 
       const result = await settingsService.getLayoutTree();
 
@@ -259,7 +259,7 @@ describe('Settings Service', () => {
     });
 
     it('无布局时应返回 null', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getLayoutTree();
 
@@ -285,7 +285,7 @@ describe('Settings Service', () => {
 
   describe('getAutoCopyOnSelect', () => {
     it('值为 true 时应返回 true', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('true');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('true');
 
       const result = await settingsService.getAutoCopyOnSelect();
 
@@ -293,7 +293,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 null 时应返回 false (默认禁用)', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getAutoCopyOnSelect();
 
@@ -311,7 +311,7 @@ describe('Settings Service', () => {
 
   describe('getStatusMonitorIntervalSeconds', () => {
     it('应返回存储的间隔值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('10');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('10');
 
       const result = await settingsService.getStatusMonitorIntervalSeconds();
 
@@ -319,7 +319,7 @@ describe('Settings Service', () => {
     });
 
     it('无效值时应返回默认值 3', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('invalid');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('invalid');
 
       const result = await settingsService.getStatusMonitorIntervalSeconds();
 
@@ -327,7 +327,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 null 时应返回默认值 3', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getStatusMonitorIntervalSeconds();
 
@@ -361,7 +361,7 @@ describe('Settings Service', () => {
   describe('getSidebarConfig', () => {
     it('应调用 repository 获取侧栏配置', async () => {
       const mockConfig = { left: ['connections'], right: [] };
-      (getSidebarConfig as any).mockResolvedValueOnce(mockConfig);
+      vi.mocked(getSidebarConfig).mockResolvedValueOnce(mockConfig);
 
       const result = await settingsService.getSidebarConfig();
 
@@ -373,7 +373,7 @@ describe('Settings Service', () => {
   describe('setSidebarConfig', () => {
     it('应验证并保存侧栏配置', async () => {
       const configDto = { left: ['connections'], right: ['dockerManager'] };
-      (getCaptchaConfig as any).mockResolvedValueOnce({
+      vi.mocked(getCaptchaConfig).mockResolvedValueOnce({
         enabled: false,
         provider: 'none',
       });
@@ -399,7 +399,7 @@ describe('Settings Service', () => {
   describe('getCaptchaConfig', () => {
     it('应调用 repository 获取 CAPTCHA 配置', async () => {
       const mockConfig = { enabled: true, provider: 'hcaptcha' };
-      (getCaptchaConfig as any).mockResolvedValueOnce(mockConfig);
+      vi.mocked(getCaptchaConfig).mockResolvedValueOnce(mockConfig);
 
       const result = await settingsService.getCaptchaConfig();
 
@@ -418,7 +418,7 @@ describe('Settings Service', () => {
         recaptchaSiteKey: '',
         recaptchaSecretKey: '',
       };
-      (getCaptchaConfig as any).mockResolvedValueOnce(currentConfig);
+      vi.mocked(getCaptchaConfig).mockResolvedValueOnce(currentConfig);
 
       await settingsService.setCaptchaConfig({ enabled: true, provider: 'hcaptcha' });
 
@@ -426,7 +426,7 @@ describe('Settings Service', () => {
     });
 
     it('enabled 非布尔值时应抛出异常', async () => {
-      (getCaptchaConfig as any).mockResolvedValueOnce({
+      vi.mocked(getCaptchaConfig).mockResolvedValueOnce({
         enabled: false,
         provider: 'none',
       });
@@ -437,7 +437,7 @@ describe('Settings Service', () => {
     });
 
     it('provider 无效时应抛出异常', async () => {
-      (getCaptchaConfig as any).mockResolvedValueOnce({
+      vi.mocked(getCaptchaConfig).mockResolvedValueOnce({
         enabled: false,
         provider: 'none',
       });
@@ -450,7 +450,7 @@ describe('Settings Service', () => {
 
   describe('getShowConnectionTags', () => {
     it('值为 false 时应返回 false', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('false');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('false');
 
       const result = await settingsService.getShowConnectionTags();
 
@@ -458,7 +458,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 null 时应返回 true (默认显示)', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getShowConnectionTags();
 
@@ -476,7 +476,7 @@ describe('Settings Service', () => {
 
   describe('getShowQuickCommandTags', () => {
     it('值为 false 时应返回 false', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('false');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('false');
 
       const result = await settingsService.getShowQuickCommandTags();
 
@@ -494,7 +494,7 @@ describe('Settings Service', () => {
 
   describe('getShowStatusMonitorIpAddress', () => {
     it('值为 false 时应返回 false', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('false');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('false');
 
       const result = await settingsService.getShowStatusMonitorIpAddress();
 
@@ -502,7 +502,7 @@ describe('Settings Service', () => {
     });
 
     it('值为 null 时应返回 true (默认显示)', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
 
       const result = await settingsService.getShowStatusMonitorIpAddress();
 
@@ -523,20 +523,20 @@ describe('Settings Service', () => {
 
   describe('getLogLevel', () => {
     it('存储值为有效日志等级时应原样返回', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('warn');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('warn');
       const result = await settingsService.getLogLevel();
       expect(result).toBe('warn');
       expect(settingsRepository.getSetting).toHaveBeenCalledWith('logLevel');
     });
 
     it('存储值为无效字符串时应回退到 info', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('verbose');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('verbose');
       const result = await settingsService.getLogLevel();
       expect(result).toBe('info');
     });
 
     it('读取失败时应回退到 info', async () => {
-      (settingsRepository.getSetting as any).mockRejectedValueOnce(new Error('boom'));
+      vi.mocked(settingsRepository.getSetting).mockRejectedValueOnce(new Error('boom'));
       const result = await settingsService.getLogLevel();
       expect(result).toBe('info');
     });
@@ -555,20 +555,20 @@ describe('Settings Service', () => {
 
   describe('getAuditLogMaxEntries', () => {
     it('存储值为有效整数时应返回该数值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('1234');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('1234');
       const result = await settingsService.getAuditLogMaxEntries();
       expect(result).toBe(1234);
       expect(settingsRepository.getSetting).toHaveBeenCalledWith('auditLogMaxEntries');
     });
 
     it('存储值为空时应回退到默认值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce(null);
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce(null);
       const result = await settingsService.getAuditLogMaxEntries();
       expect(result).toBe(DEFAULT_AUDIT_LOG_MAX_ENTRIES);
     });
 
     it('存储值为无效数字时应回退到默认值', async () => {
-      (settingsRepository.getSetting as any).mockResolvedValueOnce('not-a-number');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValueOnce('not-a-number');
       const result = await settingsService.getAuditLogMaxEntries();
       expect(result).toBe(DEFAULT_AUDIT_LOG_MAX_ENTRIES);
     });
