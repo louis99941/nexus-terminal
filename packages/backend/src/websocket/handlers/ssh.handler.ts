@@ -271,8 +271,8 @@ const startSilentExecAttempt = (sessionId: string): void => {
       if (currentState?.sshShellStream) {
         currentState.sshShellStream.write('\x03');
       }
-    } catch {
-      /* 忽略写入错误 */
+    } catch (ctrlcError: unknown) {
+      console.debug(`[SSH Handler] 发送 Ctrl+C 失败 (会话: ${sessionId}):`, ctrlcError instanceof Error ? ctrlcError.message : ctrlcError);
     }
     // 等待 500ms 让 Ctrl+C 生效后再启动下一尝试
     request.timeoutId = setTimeout(() => {
@@ -635,7 +635,9 @@ export async function handleSshConnect(
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ssh:error', payload: 'Shell 就绪超时，请重试。' }));
           }
-          cleanupClientConnection(newSessionId).catch(() => {});
+          cleanupClientConnection(newSessionId).catch((error: unknown) => {
+            console.debug('[WebSocket] Shell 就绪超时清理连接失败:', error instanceof Error ? error.message : error);
+          });
         }
       }, SHELL_READY_TIMEOUT_MS);
 
@@ -673,7 +675,9 @@ export async function handleSshConnect(
                 JSON.stringify({ type: 'ssh:error', payload: `打开 Shell 失败: ${err.message}` })
               );
             }
-            cleanupClientConnection(newSessionId).catch(() => {});
+            cleanupClientConnection(newSessionId).catch((error: unknown) => {
+              console.debug('[WebSocket] Shell 打开失败后清理连接失败:', error instanceof Error ? error.message : error);
+            });
             return;
           }
 
@@ -759,7 +763,9 @@ export async function handleSshConnect(
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'Shell 通道已关闭。' }));
             }
-            cleanupClientConnection(newSessionId).catch(() => {});
+            cleanupClientConnection(newSessionId).catch((error: unknown) => {
+              console.debug('[WebSocket] Shell 通道关闭后清理连接失败:', error instanceof Error ? error.message : error);
+            });
           });
 
           if (ws.readyState === WebSocket.OPEN)
@@ -812,7 +818,9 @@ export async function handleSshConnect(
           })
         );
       }
-      cleanupClientConnection(newSessionId).catch(() => {});
+      cleanupClientConnection(newSessionId).catch((error: unknown) => {
+        console.debug('[WebSocket] Shell 打开异常后清理连接失败:', error instanceof Error ? error.message : error);
+      });
     }
 
     sshClient.on('close', () => {
@@ -821,7 +829,9 @@ export async function handleSshConnect(
         'SSH connection closed before silent command completed.'
       );
       console.debug(`SSH: 会话 ${newSessionId} 的客户端连接已关闭。`);
-      cleanupClientConnection(newSessionId).catch(() => {});
+      cleanupClientConnection(newSessionId).catch((error: unknown) => {
+        console.debug('[WebSocket] SSH 客户端关闭后清理连接失败:', error instanceof Error ? error.message : error);
+      });
     });
     sshClient.on('error', (err: Error) => {
       finalizeSilentExecWithError(
@@ -832,7 +842,9 @@ export async function handleSshConnect(
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'ssh:error', payload: `SSH 连接错误: ${err.message}` }));
       }
-      cleanupClientConnection(newSessionId).catch(() => {});
+      cleanupClientConnection(newSessionId).catch((error: unknown) => {
+        console.debug('[WebSocket] SSH 客户端错误后清理连接失败:', error instanceof Error ? error.message : error);
+      });
     });
   } catch (connectError: unknown) {
     const connectErrMsg = getErrorMessage(connectError);

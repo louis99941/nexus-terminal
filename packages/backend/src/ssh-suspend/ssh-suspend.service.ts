@@ -150,13 +150,15 @@ export class SshSuspendService extends EventEmitter {
       this.handleUnexpectedDisconnection(userId, suspendSessionId, reason);
       try {
         session.channel?.close();
-      } catch {
-        /* ignore */
+      } catch (error: unknown) {
+        /* ignore - 通道可能已关闭 */
+        console.debug('[SshSuspend] 关闭通道失败 (可能已关闭):', error instanceof Error ? error.message : error);
       }
       try {
         session.sshClient?.end();
-      } catch {
-        /* ignore */
+      } catch (error: unknown) {
+        /* ignore - SSH 客户端可能已断开 */
+        console.debug('[SshSuspend] 关闭 SSH 客户端失败 (可能已断开):', error instanceof Error ? error.message : error);
       }
     }, timeoutMs);
 
@@ -209,13 +211,15 @@ export class SshSuspendService extends EventEmitter {
       // SshSuspendService 不会管理这个"已经断开"的会话，但日志保留供用户清理。
       try {
         channel?.end();
-      } catch {
-        /* ignore */
+      } catch (error: unknown) {
+        /* ignore - 通道可能已关闭 */
+        console.debug('[SshSuspend] 关闭通道失败 (通道不可用):', error instanceof Error ? error.message : error);
       }
       try {
         sshClient?.end();
-      } catch {
-        /* ignore */
+      } catch (error: unknown) {
+        /* ignore - SSH 客户端可能已断开 */
+        console.debug('[SshSuspend] 关闭 SSH 客户端失败 (通道不可用):', error instanceof Error ? error.message : error);
       }
       return null; // 无法接管
     }
@@ -456,9 +460,9 @@ export class SshSuspendService extends EventEmitter {
       console.debug(
         `[SshSuspendService][用户: ${userId}] resumeSession: 已读取挂起会话 ${suspendSessionId} (日志: ${session.tempLogPath}) 的数据，长度: ${logData.length}`
       );
-    } catch {
-      // console.error(`[SshSuspendService][用户: ${userId}] resumeSession: 读取挂起会话 ${suspendSessionId} (日志: ${session.tempLogPath}) 失败:`, error);
+    } catch (error: unknown) {
       // 根据策略，读取日志失败可能也应该导致恢复失败
+      console.warn(`[SshSuspend] resumeSession: 读取挂起会话日志失败 (会话: ${suspendSessionId}, 日志: ${session.tempLogPath}):`, error instanceof Error ? error.message : error);
       return null;
     }
 

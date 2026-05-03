@@ -52,7 +52,9 @@ export const initializeWebSocket = async (
     clearInterval(heartbeatTimer); // Clear heartbeat started by this function
 
     clientStates.forEach((_state, sessionId) => {
-      cleanupClientConnection(sessionId).catch(() => {});
+      cleanupClientConnection(sessionId).catch((error: unknown) => {
+        console.debug('[WebSocket] 服务器关闭时清理会话失败:', error instanceof Error ? error.message : error);
+      });
     });
     logger.info('所有活动会话已清理。');
   });

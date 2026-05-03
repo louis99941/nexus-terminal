@@ -161,8 +161,8 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
             try {
               const textError = await response.text();
               if (textError) errorMsg = textError;
-            } catch {
-              /* ignore */
+            } catch (textParseError: unknown) {
+              console.debug('[FileManager] 读取错误响应文本失败:', textParseError instanceof Error ? textParseError.message : textParseError);
             }
           }
           showError(errorMsg);

@@ -442,6 +442,23 @@ export const setupAdmin = async (
     });
     return;
   }
+  // M-28: 用户名长度与格式验证
+  if (username.length < 3 || username.length > 64) {
+    res.status(400).json({
+      success: false,
+      error: '用户名长度必须在 3 到 64 个字符之间。',
+      code: ErrorCode.VALIDATION_ERROR,
+    });
+    return;
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    res.status(400).json({
+      success: false,
+      error: '用户名只能包含字母、数字、下划线和连字符。',
+      code: ErrorCode.VALIDATION_ERROR,
+    });
+    return;
+  }
   if (password !== confirmPassword) {
     res
       .status(400)
@@ -453,6 +470,15 @@ export const setupAdmin = async (
       success: false,
       error: '密码长度至少需要 8 位。',
       code: ErrorCode.PASSWORD_TOO_SHORT,
+    });
+    return;
+  }
+  // M-28: 密码复杂度验证（至少包含字母和数字）
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    res.status(400).json({
+      success: false,
+      error: '密码必须同时包含字母和数字。',
+      code: ErrorCode.VALIDATION_ERROR,
     });
     return;
   }

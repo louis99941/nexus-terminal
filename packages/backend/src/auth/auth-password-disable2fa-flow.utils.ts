@@ -119,6 +119,17 @@ export const resolveChangePasswordInputValidation = (payload: {
     };
   }
 
+  // M-28: 密码复杂度验证（至少包含字母和数字）
+  if (!/[a-zA-Z]/.test(next) || !/[0-9]/.test(next)) {
+    return {
+      ok: false,
+      failure: {
+        statusCode: 400,
+        body: { message: '新密码必须同时包含字母和数字。' },
+      },
+    };
+  }
+
   return {
     ok: true,
     input: {

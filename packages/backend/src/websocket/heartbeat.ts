@@ -102,7 +102,9 @@ export function initializeHeartbeat(
             `WebSocket 心跳检测：${clientType} 客户端 ${extWs.username} (会话: ${extWs.sessionId}) ` +
               `连续 ${extWs.missedPongCount} 次无响应（阈值: ${maxMissed}），正在终止...`
           );
-          cleanupClientConnection(extWs.sessionId).catch(() => {});
+          cleanupClientConnection(extWs.sessionId).catch((error: unknown) => {
+            console.debug('[WebSocket] 心跳超时清理连接失败:', error instanceof Error ? error.message : error);
+          });
           lastPingTime.delete(extWs);
           return extWs.terminate();
         }

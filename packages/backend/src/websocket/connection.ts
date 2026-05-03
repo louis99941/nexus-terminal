@@ -339,7 +339,9 @@ export function initializeConnectionHandler(
                         })
                       );
                     }
-                    cleanupClientConnection(newFrontendSessionId).catch(() => {});
+                    cleanupClientConnection(newFrontendSessionId).catch((error: unknown) => {
+                      console.debug('[WebSocket] 恢复会话 channel 关闭后清理失败:', error instanceof Error ? error.message : error);
+                    });
                   });
                   result.sshClient.on('error', (err: Error) => {
                     console.error(
@@ -353,7 +355,9 @@ export function initializeConnectionHandler(
                           payload: { sessionId: newFrontendSessionId, error: err.message },
                         })
                       );
-                    cleanupClientConnection(newFrontendSessionId).catch(() => {});
+                    cleanupClientConnection(newFrontendSessionId).catch((error: unknown) => {
+                      console.debug('[WebSocket] 恢复会话 SSH 客户端错误后清理失败:', error instanceof Error ? error.message : error);
+                    });
                   });
                   // console.info(`[WebSocket Handler][${type}] 已为恢复的会话 ${newFrontendSessionId} 设置事件监听器。`);
 
@@ -836,7 +840,9 @@ export function initializeConnectionHandler(
         // 清理心跳状态
         cleanupHeartbeat(ws);
 
-        cleanupClientConnection(ws.sessionId).catch(() => {});
+        cleanupClientConnection(ws.sessionId).catch((error: unknown) => {
+          console.debug('[WebSocket] 连接关闭后清理失败:', error instanceof Error ? error.message : error);
+        });
       });
 
       ws.on('error', (error) => {
@@ -850,7 +856,9 @@ export function initializeConnectionHandler(
         // 清理心跳状态
         cleanupHeartbeat(ws);
 
-        cleanupClientConnection(ws.sessionId).catch(() => {}); // Ensure cleanup on error too
+        cleanupClientConnection(ws.sessionId).catch((cleanupError: unknown) => {
+          console.debug('[WebSocket] 连接错误后清理失败:', cleanupError instanceof Error ? cleanupError.message : cleanupError);
+        });
       });
     }
   });
