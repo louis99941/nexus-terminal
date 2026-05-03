@@ -1,6 +1,6 @@
 # 星枢终端 - 技术债务报告
 
-> **状态**：🟡 收敛中 | **更新时间**：2026-05-03 | **收敛率**：41/84 已修复（49%）
+> **状态**：🟡 收敛中 | **更新时间**：2026-05-03 | **收敛率**：44/84 已修复（52%）
 
 ---
 
@@ -128,14 +128,14 @@
 | ~~M-7~~     | ~~`settings.controller.ts` 30 个重复 try-catch 块~~       | ~~后端 controller~~           | ✅ 已全部使用 asyncHandler 包装（5 个保留错误转换逻辑）          |
 | M-8     | `auth/` 模块 26 个扁平工具文件                        | 后端 auth/                | 按功能分组到子目录：flows / actions / utils                      |
 | M-9     | 前端 `router/` 目录零测试                             | `frontend/src/router/`    | 为路由守卫添加单元测试                                           |
-| M-10    | `metrics/` 模块有 routes+service 但无 controller      | 后端 metrics/             | 添加 controller 或文档说明跳过原因                               |
-| M-11    | `passkey/` 模块有 service+repository 但无 routes      | 后端 passkey/             | 移入 auth/ 或文档说明跨模块依赖                                  |
+| ~~M-10~~    | ~~`metrics/` 模块有 routes+service 但无 controller~~      | ~~后端 metrics/~~             | ✅ 已有完整 module: controller + service + routes + middleware   |
+| ~~M-11~~    | ~~`passkey/` 模块有 service+repository 但无 routes~~      | ~~后端 passkey/~~             | ✅ 已有完整 module: controller + service + repository + routes  |
 | M-12    | `connection.service.ts` 61 处 encrypt/decrypt 调用    | 后端 connections/         | 创建 `encryptConnectionCredentials()` 辅助函数                   |
 | ~~M-13~~    | ~~46 个 catch 块使用短变量名 `catch (e)`~~                | ~~全局~~                      | ✅ 已确认全部 507 个 catch 块使用规范变量名                      |
 | M-14    | 硬编码 OpenAI API base URL                            | 前端 aiSettings           | 提取为共享常量 `AI_PROVIDER_DEFAULTS`                            |
 | M-15    | `useFileUploader.ts` 495 行                           | 前端 composable           | 提取分块管理和重试逻辑                                           |
 | M-16    | 硬编码 `50000` 作为审计日志最大条目                   | `settings.service.ts:806` | 定义 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量                        |
-| M-17    | `index.ts` 后端入口 598 行单体文件                    | `backend/src/index.ts`    | 提取中间件配置、路由注册、服务器启动                             |
+| ~~M-17~~    | ~~`index.ts` 后端入口 598 行单体文件~~                    | ~~`backend/src/index.ts`~~    | ✅ 已精简至 379 行（提取中间件/路由/启动逻辑）                   |
 | M-18    | Catch 块仅 `console.warn/error` 不传播错误            | 多处                      | 评估是否应传播 / 设置 UI 状态 / 记录理由注释                     |
 | ~~M-19~~    | ~~`SuspendedSshSessionsView.vue` 模板嵌套 13 层~~         | ~~前端 view~~                 | ✅ 已提取 SuspendedSessionItem 子组件，模板仅 25 行              |
 | M-20    | 后端 `logging/` 和 `middleware/` 模块零测试           | 后端                      | 为中间件行为和日志配置添加测试                                   |
@@ -147,7 +147,7 @@
 | ~~M-21~~ | ~~前端 WebSocket 重连无 jitter（惊群效应）~~              | ~~`useWebSocketConnection.ts:42`~~        | ✅ 已添加随机抖动                                            |
 | ~~M-22~~ | ~~SFTP 上传 `activeUploads` 在流未触发 close 时可能泄漏~~ | ~~`sftp-upload.manager.ts:47`~~           | ✅ 已有 5s 超时回退 `stream.destroy()`                       |
 | ~~M-23~~ | ~~SSH 挂起日志轮转丢弃全部历史~~                          | ~~`temporary-log-storage.service.ts:75`~~ | ✅ 已实现环形缓冲（100MB 上限，保留 80MB）                   |
-| M-24     | 多设备会话状态不一致                                      | `websocket/state.ts:15`                   | 文档说明行为，考虑添加会话列表端点                           |
+| ~~M-24~~     | ~~多设备会话状态不一致~~                                      | ~~`websocket/state.ts:15`~~                   | ✅ 已有详细注释说明行为 + ssh-suspend/list 查询方案          |
 | ~~M-25~~     | ~~SFTP 操作 payload 使用 `z.any()` 绕过 Zod 验证~~            | ~~`websocket/schemas.ts`~~                    | ✅ 已为每个 SFTP 操作定义专用 Zod schema（10+ 个 schema）     |
 | ~~M-26~~ | ~~无端口范围验证（1-65535）~~                             | ~~`connections.controller.ts`~~           | ✅ 已添加 `port >= 1 && port <= 65535` 校验（create/update） |
 | ~~M-27~~ | ~~无主机名格式验证~~                                      | ~~`connections.controller.ts`~~           | ✅ 已添加最大 253 字符 + 合法域名/IPv6 正则校验              |
@@ -421,6 +421,14 @@
 
 ## 收敛记录
 
+### 2026-05-03（Codex 审查补漏 + 模块完整性验证）
+
+| 类别        | 已修复                  | 说明                                                                                         |
+| ----------- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| Codex 补漏  | —                       | setupAdmin 类型收敛（防非字符串 500）；ssh.handler.test.ts catch 类型补漏                      |
+| Medium 代码 | M-10, M-11, M-17, M-19, M-24 | metrics/passkey 模块已完整；index.ts 精简至 379 行；SuspendedSshSessions 已拆分组件；多设备行为已文档化 |
+| 已确认存在  | L-1                     | Swagger 已有 NODE_ENV 生产环境保护                                                            |
+
 ### 2026-05-03（代码质量批量验证 + 测试补充）
 
 | 类别        | 已修复                  | 说明                                                                                         |
@@ -526,4 +534,4 @@
 ---
 
 **文档维护者**：工程治理
-**最后更新**：2026-05-03（M-25 SFTP Zod schemas 已确认，累计 41/84 已修复，收敛率 49%）
+**最后更新**：2026-05-03（M-10/M-11/M-17/M-19/M-24 已确认 + Codex 审查补漏，累计 44/84 已修复，收敛率 52%）
