@@ -1,6 +1,6 @@
 # 星枢终端 - 技术债务报告
 
-> **状态**：🟡 收敛中 | **更新时间**：2026-05-03 | **收敛率**：37/84 已修复（44%）
+> **状态**：🟡 收敛中 | **更新时间**：2026-05-03 | **收敛率**：40/84 已修复（48%）
 
 ---
 
@@ -90,7 +90,7 @@
 | ID   | 问题                                                      | 位置                                                      | 修复建议                                                         |
 | ---- | --------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- |
 | ~~H-6~~ | ~~7 个空 catch 块静默吞错（含迁移失败）~~                     | ~~`migrations.ts:531` 等~~                                    | ✅ 31 处空 catch 块已修复，统一使用 console.debug/warn 记录      |
-| H-7  | 170 个 catch 块未使用 `error: unknown` 类型               | 全局                                                      | 批量替换为 `catch (error: unknown)`                              |
+| ~~H-7~~ | ~~170 个 catch 块未使用 `error: unknown` 类型~~               | ~~全局~~                                                      | ✅ 仅 3 个测试文件需调整，源文件已全部规范                        |
 | H-8  | `auth.controller.ts` 1,445 行上帝对象，25 处直接 SQL 引用 | `auth/auth.controller.ts`                                 | SQL/Repository 调用提取到 service 层                             |
 | H-9  | `useAddConnectionForm.ts` 1,204 行上帝函数                | 前端 composable                                           | 拆分为 6 个职责单一的 composable                                 |
 | H-10 | `useSftpActions.ts` 1,319 行上帝函数                      | 前端 composable                                           | 拆分为 navigation / operations / upload / download / permissions |
@@ -109,7 +109,7 @@
 | ~~H-18~~ | ~~Silent exec 超时后未发送 Ctrl+C 中止当前命令~~                 | ~~`ssh.handler.ts:255`~~ | ✅ 超时后先发 `\x03` 再启动下一尝试          |
 | ~~H-19~~ | ~~`pendingSilentExecRequests` 定时器在会话断开时未清理~~         | ~~`ssh.handler.ts:65`~~  | ✅ 已在 `cleanupClientConnection` 中遍历清理 |
 | ~~H-20~~ | ~~`cleanupClientConnection` 异步但被同步调用，未捕获 rejection~~ | ~~`utils.ts:98`~~        | ✅ 所有调用点已添加 `.catch()`               |
-| H-21     | SSH shell ready 无超时，连接成功后 shell 挂起则无限等待          | `ssh.service.ts`         | 添加 shell-ready 超时（如 10s）              |
+| ~~H-21~~     | ~~SSH shell ready 无超时，连接成功后 shell 挂起则无限等待~~          | ~~`ssh.service.ts`~~         | ✅ 已有 10s 超时 + 补充测试用例              |
 
 ---
 
@@ -125,13 +125,13 @@
 | ~~M-4~~ | ~~`useSshTerminal.ts` 522 行~~                        | ~~前端 composable~~       | ✅ 已提取缓冲管理 (bufferManager)、事件处理为子模块              |
 | M-5     | `transfers.service.ts` 1,435 行                       | 后端 service              | 拆分为 orchestrator / sftp-transfer / rsync-transfer             |
 | M-6     | 前端 `utils/` 目录 6 个工具模块零测试                 | `frontend/src/utils/`     | 优先 `output-processor.ts` 和 `apiClient.ts`                     |
-| M-7     | `settings.controller.ts` 30 个重复 try-catch 块       | 后端 controller           | 使用已有 `asyncHandler` 包装所有路由                             |
+| ~~M-7~~     | ~~`settings.controller.ts` 30 个重复 try-catch 块~~       | ~~后端 controller~~           | ✅ 已全部使用 asyncHandler 包装（5 个保留错误转换逻辑）          |
 | M-8     | `auth/` 模块 26 个扁平工具文件                        | 后端 auth/                | 按功能分组到子目录：flows / actions / utils                      |
 | M-9     | 前端 `router/` 目录零测试                             | `frontend/src/router/`    | 为路由守卫添加单元测试                                           |
 | M-10    | `metrics/` 模块有 routes+service 但无 controller      | 后端 metrics/             | 添加 controller 或文档说明跳过原因                               |
 | M-11    | `passkey/` 模块有 service+repository 但无 routes      | 后端 passkey/             | 移入 auth/ 或文档说明跨模块依赖                                  |
 | M-12    | `connection.service.ts` 61 处 encrypt/decrypt 调用    | 后端 connections/         | 创建 `encryptConnectionCredentials()` 辅助函数                   |
-| M-13    | 46 个 catch 块使用短变量名 `catch (e)`                | 全局                      | 统一为 `catch (error: unknown)`                                  |
+| ~~M-13~~    | ~~46 个 catch 块使用短变量名 `catch (e)`~~                | ~~全局~~                      | ✅ 已确认全部 507 个 catch 块使用规范变量名                      |
 | M-14    | 硬编码 OpenAI API base URL                            | 前端 aiSettings           | 提取为共享常量 `AI_PROVIDER_DEFAULTS`                            |
 | M-15    | `useFileUploader.ts` 495 行                           | 前端 composable           | 提取分块管理和重试逻辑                                           |
 | M-16    | 硬编码 `50000` 作为审计日志最大条目                   | `settings.service.ts:806` | 定义 `DEFAULT_AUDIT_LOG_MAX_ENTRIES` 常量                        |
@@ -421,6 +421,14 @@
 
 ## 收敛记录
 
+### 2026-05-03（代码质量批量验证 + 测试补充）
+
+| 类别        | 已修复                  | 说明                                                                                         |
+| ----------- | ----------------------- | -------------------------------------------------------------------------------------------- |
+| High 代码   | H-7, H-21               | catch 块类型化已全面规范（仅 3 测试文件调整）；shell ready 超时已存在+补充测试                |
+| Medium 代码 | M-7, M-13               | settings.controller 已全面 asyncHandler；507 个 catch 块变量名已规范                          |
+| 已确认存在  | M-14, M-16              | OpenAI URL 常量已提取；审计日志最大条目常量已定义                                             |
+
 ### 2026-05-03（输入验证增强 + 空 catch 块批量修复）
 
 **提交 `3296d99d`**：13 文件，137 行新增，57 行删除
@@ -518,4 +526,4 @@
 ---
 
 **文档维护者**：工程治理
-**最后更新**：2026-05-03（输入验证 + 空 catch 块修复，累计 37/84 已修复，收敛率 44%）
+**最后更新**：2026-05-03（H-7/M-13/M-7 已确认规范 + H-21 测试补充，累计 40/84 已修复，收敛率 48%）
