@@ -6,6 +6,15 @@
 
 ## 变更记录 (Changelog)
 
+### 2026-05-03 (仪表盘增强)
+
+- **仪表盘组件新增**：
+  - `components/dashboard/SessionDurationChart.vue`：会话时长图表（Bar，基于 Chart.js）
+  - `components/dashboard/SystemResourcesHistoryChart.vue`：系统资源历史图表（Line，基于 Chart.js）
+  - `stores/dashboard.store.ts`：仪表盘数据状态管理（统计、时间线、资产健康）
+- **路由精简**：移除 `/tags`、`/quick-commands`、`/suspended-sessions`、`/command-history` 路由（功能已集成到其他页面），当前 9 个视图路由
+- **DashboardView 增强**：集成 Chart.js 图表、实时系统资源监控
+
 ### 2026-05-03 (技术债务全面治理与文档更新)
 
 - **文件统计更新**：
@@ -54,6 +63,7 @@
 - 远程桌面查看器（RDP/VNC via Guacamole）
 - 高度可定制的主题与布局
 - PWA 支持
+- 仪表盘统计与实时监控图表
 
 ---
 
@@ -101,10 +111,11 @@ packages/frontend/
 │   │   ├── quickCommands.store.ts  # 快捷指令
 │   │   ├── notifications.store.ts  # 通知配置
 │   │   ├── audit.store.ts          # 审计日志
+│   │   ├── dashboard.store.ts      # 仪表盘数据（统计、时间线、资产健康）
 │   │   └── ...                     # 其他 stores
 │   │
 │   ├── views/                      # 页面视图
-│   │   ├── DashboardView.vue       # 仪表盘
+│   │   ├── DashboardView.vue       # 仪表盘（含图表统计）
 │   │   ├── LoginView.vue           # 登录页
 │   │   ├── SetupView.vue           # 初始设置
 │   │   ├── WorkspaceView.vue       # 工作区（核心）
@@ -126,6 +137,9 @@ packages/frontend/
 │   │   ├── DockerManager.vue       # Docker 管理面板
 │   │   ├── RemoteDesktopModal.vue  # RDP 远程桌面
 │   │   ├── VncModal.vue            # VNC 连接
+│   │   ├── dashboard/              # 仪表盘图表组件
+│   │   │   ├── SessionDurationChart.vue        # 会话时长图表
+│   │   │   └── SystemResourcesHistoryChart.vue # 系统资源历史图表
 │   │   ├── common/                 # 通用组件
 │   │   ├── settings/               # 设置相关组件
 │   │   └── style-customizer/       # 样式定制相关
@@ -150,6 +164,9 @@ packages/frontend/
 │   │   └── ...
 │   │
 │   ├── utils/                      # 工具函数
+│   │   ├── cacheManager.ts         # 统一缓存管理器
+│   │   ├── errorExtractor.ts       # 统一错误消息提取器
+│   │   ├── apiClient.ts            # API 客户端（axios 封装）
 │   │   └── ...
 │   │
 │   ├── assets/                     # 静态资源
@@ -174,17 +191,17 @@ packages/frontend/
 
 ## 路由配置
 
-| 路径             | 名称          | 视图组件              | 描述                       |
-| ---------------- | ------------- | --------------------- | -------------------------- |
-| `/`              | Dashboard     | DashboardView.vue     | 仪表盘/首页                |
-| `/login`         | Login         | LoginView.vue         | 用户登录                   |
-| `/setup`         | Setup         | SetupView.vue         | 初始设置（首次使用）       |
-| `/workspace`     | Workspace     | WorkspaceView.vue     | 工作区（终端+文件+编辑器） |
-| `/connections`   | Connections   | ConnectionsView.vue   | 连接配置管理               |
-| `/proxies`       | Proxies       | ProxiesView.vue       | 代理配置管理               |
-| `/settings`      | Settings      | SettingsView.vue      | 系统设置                   |
+| 路径           | 名称          | 视图组件              | 描述                       |
+| -------------- | ------------- | --------------------- | -------------------------- |
+| `/`            | Dashboard     | DashboardView.vue     | 仪表盘/首页（含图表统计）  |
+| `/login`       | Login         | LoginView.vue         | 用户登录                   |
+| `/setup`       | Setup         | SetupView.vue         | 初始设置（首次使用）       |
+| `/workspace`   | Workspace     | WorkspaceView.vue     | 工作区（终端+文件+编辑器） |
+| `/connections` | Connections   | ConnectionsView.vue   | 连接配置管理               |
+| `/proxies`     | Proxies       | ProxiesView.vue       | 代理配置管理               |
+| `/settings`    | Settings      | SettingsView.vue      | 系统设置                   |
 | `/notifications` | Notifications | NotificationsView.vue | 通知渠道配置               |
-| `/audit-logs`    | AuditLogs     | AuditLogView.vue      | 审计日志查看               |
+| `/audit-logs`  | AuditLogs     | AuditLogView.vue      | 审计日志查看               |
 
 ### 路由守卫
 
@@ -206,6 +223,7 @@ packages/frontend/
 | `useSettingsStore`    | settings.store.ts    | 系统设置读写                         |
 | `useAppearanceStore`  | appearance.store.ts  | 外观/主题设置                        |
 | `useLayoutStore`      | layout.store.ts      | 工作区布局配置                       |
+| `useDashboardStore`   | dashboard.store.ts   | 仪表盘统计、时间线、资产健康         |
 
 ### 功能 Stores
 
@@ -289,6 +307,13 @@ packages/frontend/
 | `RemoteDesktopModal.vue` | RDP 远程桌面模态框 |
 | `VncModal.vue`           | VNC 连接模态框     |
 
+### 仪表盘图表
+
+| 组件                                | 描述                          |
+| ----------------------------------- | ----------------------------- |
+| `SessionDurationChart.vue`          | 会话时长统计图表（Bar）       |
+| `SystemResourcesHistoryChart.vue`   | 系统资源历史图表（Line）      |
+
 ### 其他功能
 
 | 组件                            | 描述                |
@@ -321,7 +346,7 @@ packages/frontend/
 ### 核心视图
 
 - `src/views/WorkspaceView.vue` - 工作区（最核心的页面）
-- `src/views/DashboardView.vue` - 仪表盘
+- `src/views/DashboardView.vue` - 仪表盘（含图表统计）
 - `src/views/LoginView.vue` - 登录页
 
 ### 状态管理
@@ -330,8 +355,15 @@ packages/frontend/
 - `src/stores/session.store.ts` - 会话管理
 - `src/stores/connections.store.ts` - 连接管理
 - `src/stores/appearance.store.ts` - 外观主题
+- `src/stores/dashboard.store.ts` - 仪表盘数据（统计、时间线、资产健康）
 - `src/stores/ai.store.ts` - AI 会话与消息管理（Phase 5）
 - `src/stores/batch.store.ts` - 批量任务状态管理（Phase 4）
+
+### 工具函数
+
+- `src/utils/cacheManager.ts` - 统一缓存管理器
+- `src/utils/errorExtractor.ts` - 统一错误消息提取器
+- `src/utils/apiClient.ts` - API 客户端（axios 封装）
 
 ### 样式
 
@@ -360,7 +392,7 @@ npm run preview
 ### 组件命名
 
 - 使用 PascalCase 命名组件文件（如 `Terminal.vue`）
-- 功能模块相关组件放在对应目录下（如 `settings/`、`style-customizer/`）
+- 功能模块相关组件放在对应目录下（如 `settings/`、`style-customizer/`、`dashboard/`）
 
 ### Composition API
 
@@ -477,10 +509,11 @@ npm run typecheck
 
 ### Q: 如何与后端 API 交互？
 
-- 使用 axios 发起请求
+- 使用 `src/utils/apiClient.ts` 中封装的 axios 实例发起请求
 - API 调用逻辑放在对应的 store actions 中
 - 类型定义放在 `src/types/`
+- 错误消息使用 `src/utils/errorExtractor.ts` 统一提取
 
 ---
 
-**文档生成时间**：2026-05-03（技术债务全面治理与文档更新）
+**文档生成时间**：2026-05-03（仪表盘增强更新）

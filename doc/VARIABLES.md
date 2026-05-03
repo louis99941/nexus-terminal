@@ -417,7 +417,7 @@
 
 | 设置键                              | 类型                     | 默认值   | 描述           |
 | ----------------------------------- | ------------------------ | -------- | -------------- |
-| `fileManagerShowDeleteConfirmation` | `string`                 | `'true'` | 删除确认提示   |
+| `fileManagerShowDeleteConfirmation` | `string`                 | `'true'` | 删除确认提示（见 8.3 界面设置） |
 | `parsedFileManagerColWidths`        | `Record<string, number>` | `{}`     | 文件管理器列宽 |
 
 ### 8.8 CAPTCHA 设置

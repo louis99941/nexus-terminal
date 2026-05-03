@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **技术债务治理（2026-04-15 最新）**：
+- **技术债务治理（2026-04-15 最新）**：（续下）
   - ESLint 全仓告警已清零：`TOTAL_WARNINGS = 0`（`npm run -s lint -- --format json`）
   - 本轮采用“子代理并行 + 主线程复核 + 分批提交”的持续收敛模式，已完成长尾文件治理
   - `doc/TECHNICAL_DEBT_REPORT.md` 已同步为最新口径，仅保留最终汇总，不记录批次流水
@@ -30,8 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **依赖安全债务（最新口径）**：
   - 全量与运行时审计均已清零（`critical/high/moderate/low = 0`）
   - 维持月度审计与版本漂移监控策略
-
-### Changed
 
 - **应用启动性能优化**：统一初始化 API 并优化前端加载流程
   - 后端新增统一初始化端点 `GET /api/v1/auth/init`，合并 needsSetup、isAuthenticated、captchaConfig 检查
@@ -186,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 国际化支持：zh-CN、en-US、ja-JP 三种语言
   - 测试覆盖：后端 45 个测试、前端 36 个测试全部通过
 
-## 2026-05-03 (文档与技术债务全面治理)
+## 2026-05-03（文档与技术债务全面治理）
 
 ### Changed
 
@@ -205,6 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backend: 127 个测试文件（+9）
   - Frontend: 62 个测试文件（+23）
   - 总计: 190 个测试文件
+  - E2E: 8 个 Playwright 测试规范
 
 ---
 

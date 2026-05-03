@@ -1,6 +1,6 @@
 # 星枢终端 Docker 环境变量配置
 
-> 本文档整理可通过 Docker/Docker Compose 配置的环境变量。
+> 本文档整理可通过 Docker/Docker Compose 配置的环境变量。完整的变量参考请查看 [VARIABLES.md](./VARIABLES.md)。
 
 ---
 
@@ -28,8 +28,8 @@
 
 | 变量名      | 默认值                  | 必填   | 描述                                                                |
 | ----------- | ----------------------- | ------ | ------------------------------------------------------------------- |
-| `RP_ID`     | `localhost`             | **是** | WebAuthn RP ID。可单值（跨域共享 Passkey 推荐）或多值（按顺序映射） |
-| `RP_ORIGIN` | `http://localhost:5173` | **是** | WebAuthn RP Origin。支持逗号分隔多值（完整 URL）                    |
+| `RP_ID`     | `localhost`             | 否（Passkey 功能启用时必填） | WebAuthn RP ID。可单值（跨域共享 Passkey 推荐）或多值（按顺序映射） |
+| `RP_ORIGIN` | `http://localhost:5173` | 否（Passkey 功能启用时必填） | WebAuthn RP Origin。支持逗号分隔多值（完整 URL）                    |
 
 > 若要实现“一个 Passkey 跨多个完全不同域名”，请使用单一 `RP_ID` + 多个 `RP_ORIGIN`，并确保 RP_ID 域名可访问 `/.well-known/webauthn`。
 
@@ -182,7 +182,7 @@ SETTINGS_RATE_LIMIT_MAX=500
 ```yaml
 services:
   frontend:
-    image: heavrnl/nexus-terminal-frontend:latest
+    image: ghcr.io/silentely/nexus-terminal-frontend:latest
     container_name: nexus-terminal-frontend
     ports:
       - '18111:80'
@@ -193,7 +193,7 @@ services:
       - nexus-terminal-network
 
   backend:
-    image: heavrnl/nexus-terminal-backend:latest
+    image: ghcr.io/silentely/nexus-terminal-backend:latest
     container_name: nexus-terminal-backend
     env_file:
       - .env
@@ -206,7 +206,7 @@ services:
       - nexus-terminal-network
 
   remote-gateway:
-    image: heavrnl/nexus-terminal-remote-gateway:latest
+    image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
     environment:
       GUACD_HOST: guacd

@@ -239,9 +239,9 @@ $ git commit -m "✨ feat(connections): 添加连接分组功能"
 
 ## 常见问题 (FAQ)
 
-### Q: 可以使用 Emoji 吗？
+### Q: 必须使用 Emoji 吗？
 
-必须使用。提交信息开头必须包含一个 Emoji 或 Gitmoji，例如：
+是的。提交信息开头必须包含一个 Emoji 或 Gitmoji，例如：
 
 ```text
 ✨ feat(websocket): 增加静默执行路径同步

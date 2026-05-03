@@ -6,6 +6,30 @@
 
 ## 变更记录 (Changelog)
 
+### 2026-05-03 (仪表盘与监控模块新增)
+
+- **新增 dashboard 模块**：
+  - `services/dashboard.service.ts`：仪表盘统计数据服务（CPU、内存、存储、时间线分析）
+  - `services/dashboard.controller.ts`：HTTP 请求处理器
+  - `services/dashboard.routes.ts`：API 路由定义（5 个端点）
+  - 前端组件：`SessionDurationChart.vue`、`SystemResourcesHistoryChart.vue`（Chart.js）
+- **新增 metrics 模块**（Prometheus 监控）：
+  - `metrics/metrics.service.ts`：prom-client 初始化与自定义指标（HTTP 延迟、WebSocket 连接数）
+  - `metrics/metrics.controller.ts`：指标数据端点
+  - `metrics/metrics.routes.ts`：路由定义（受 `ENABLE_METRICS` 环境变量控制）
+- **新增日志与错误处理**：
+  - `logging/logger.ts`：容器日志等级控制 + 敏感信息自动脱敏（P1-5）
+  - `middleware/error.middleware.ts`：全局错误处理中间件，标准化错误响应（P1-6）
+  - `types/error.types.ts`：ErrorCode 枚举与 ErrorResponse 类型定义
+  - `utils/AppError.ts`：自定义应用错误类
+- **新增配置模块**：
+  - `config/env.validator.ts`：环境变量验证与启动检查
+  - `config/app.config.ts`：应用配置（Passkey RP 等）
+  - `config/middleware.ts`：安全中间件（Helmet、CORS、限流）
+  - `config/routes.ts`：集中式路由注册
+- **API 路由更新**：新增 `/api/v1/dashboard`（5 端点）和 `/api/v1/metrics`（1 端点），总计 22 个路由模块
+- **技术债务清零**：Backend 模块所有技术债务已全部修复
+
 ### 2026-05-03 (技术债务全面治理与文档更新)
 
 - **文件统计更新**：
@@ -77,6 +101,8 @@
 - 审计日志与通知系统
 - Docker 容器管理
 - IP 访问控制
+- 仪表盘统计与系统资源监控
+- Prometheus 指标暴露
 
 ---
 
@@ -93,6 +119,8 @@
 | 认证       | bcrypt, speakeasy (2FA), @simplewebauthn/server (Passkey) |
 | 会话存储   | session-file-store                                        |
 | 国际化     | i18next                                                   |
+| 监控       | prom-client (Prometheus)                                   |
+| 日志       | pino, 自定义 console 重写（含敏感信息脱敏）                |
 
 ---
 
@@ -161,30 +189,48 @@ packages/backend/
 │   │   ├── ai.controller.ts        # HTTP 请求处理器
 │   │   └── ai.routes.ts            # API 路由定义
 │   │
-│   ├── database/                   # 数据库层
-│   │   ├── connection.ts           # SQLite 连接管理
-│   │   ├── schema.ts               # 表结构定义
-│   │   └── migrations.ts           # 数据库迁移
-│   │
 │   ├── services/                   # 共享服务
 │   │   ├── event.service.ts        # 事件总线
 │   │   ├── crypto.service.ts       # 加密服务
-│   │   └── ...
+│   │   ├── dashboard.service.ts    # 仪表盘统计服务
+│   │   ├── dashboard.controller.ts # 仪表盘控制器
+│   │   └── dashboard.routes.ts     # 仪表盘 API 路由
+│   │
+│   ├── metrics/                    # Prometheus 监控模块
+│   │   ├── metrics.service.ts      # prom-client 初始化与自定义指标
+│   │   ├── metrics.controller.ts   # 指标数据端点
+│   │   └── metrics.routes.ts       # 路由定义（受 ENABLE_METRICS 控制）
 │   │
 │   ├── websocket/                  # WebSocket 模块
 │   │   ├── handlers/               # 消息处理器
-│   │   └── ...
+│   │   └── state.ts                # 客户端连接状态管理
 │   │
 │   ├── config/                     # 配置文件
-│   │   ├── security.config.ts      # 安全配置常量（2025-12-24 新增）
-│   │   └── default-themes.ts       # 预设终端主题
+│   │   ├── security.config.ts      # 安全配置常量
+│   │   ├── default-themes.ts       # 预设终端主题
+│   │   ├── env.validator.ts        # 环境变量验证
+│   │   ├── app.config.ts           # 应用配置（Passkey RP 等）
+│   │   ├── middleware.ts           # 安全中间件（Helmet、CORS、限流）
+│   │   ├── routes.ts               # 集中式路由注册
+│   │   └── swagger.config.ts       # OpenAPI/Swagger 配置
+│   │
+│   ├── logging/                    # 日志模块
+│   │   └── logger.ts               # 控制台日志等级 + 敏感信息脱敏
+│   │
+│   ├── middleware/                  # 中间件
+│   │   └── error.middleware.ts     # 全局错误处理（标准化错误响应）
 │   │
 │   ├── types/                      # TypeScript 类型定义
 │   │   ├── connection.types.ts
 │   │   ├── settings.types.ts
+│   │   ├── error.types.ts          # ErrorCode 枚举与 ErrorResponse
 │   │   └── ...
 │   │
 │   └── utils/                      # 工具函数
+│       ├── crypto.ts               # 加密模块（支持密钥轮换）
+│       ├── logger.ts               # Pino 日志
+│       ├── AppError.ts             # 自定义应用错误类
+│       └── ...
 │
 ├── html-presets/                   # HTML 预设模板
 ├── Dockerfile                      # Docker 构建配置
@@ -216,8 +262,11 @@ packages/backend/
 | `/api/v1/transfers`          | transfers          | 文件传输状态                          |
 | `/api/v1/path-history`       | path-history       | 路径浏览历史                          |
 | `/api/v1/favorite-paths`     | favorite-paths     | 收藏路径管理                          |
+| `/api/v1/passkey`            | passkey            | Passkey 注册/认证                     |
 | `/api/v1/batch`              | batch              | 批量命令执行、任务状态查询、取消/删除 |
 | `/api/v1/ai`                 | ai-ops             | AI 会话管理、智能分析查询             |
+| `/api/v1/dashboard`          | services           | 仪表盘统计、时间线、资产健康、系统资源 |
+| `/api/v1/metrics`            | metrics            | Prometheus 指标（受环境变量控制）     |
 | `/api/v1/health`             | (内置)             | 健康检查（含 SQLite 连通性检测）      |
 
 ---
@@ -268,6 +317,11 @@ packages/backend/
 - `src/database/connection.ts` - SQLite 数据库连接管理
 - `src/database/schema.ts` - 所有数据表 DDL 定义
 - `src/config/security.config.ts` - 安全配置常量（bcrypt轮次、会话超时等）
+- `src/config/env.validator.ts` - 环境变量验证与启动检查
+- `src/config/app.config.ts` - 应用配置（Passkey RP 等）
+- `src/config/middleware.ts` - 安全中间件（Helmet、CORS、限流）
+- `src/config/routes.ts` - 集中式路由注册
+- `src/config/swagger.config.ts` - OpenAPI/Swagger 文档配置
 
 ### 安全与加密
 
@@ -294,8 +348,19 @@ packages/backend/
 
 - `src/services/event.service.ts` - 事件发布订阅
 - `src/services/crypto.service.ts` - 数据加解密
+- `src/services/dashboard.service.ts` - 仪表盘统计（CPU/内存/存储/时间线）
 - `src/notifications/notification.processor.service.ts` - 通知处理
 - `src/notifications/notification.dispatcher.service.ts` - 通知分发
+
+### 监控与日志
+
+- `src/metrics/metrics.service.ts` - Prometheus 指标采集（HTTP 延迟、WebSocket 连接数）
+- `src/metrics/metrics.controller.ts` - 指标数据端点
+- `src/metrics/metrics.routes.ts` - 路由定义
+- `src/logging/logger.ts` - 控制台日志等级 + 敏感信息自动脱敏
+- `src/middleware/error.middleware.ts` - 全局错误处理中间件
+- `src/types/error.types.ts` - ErrorCode 枚举与 ErrorResponse 类型
+- `src/utils/AppError.ts` - 自定义应用错误类
 
 ---
 
@@ -316,16 +381,18 @@ npm start
 
 ## 环境变量
 
-| 变量名           | 默认值      | 描述                                                               |
-| ---------------- | ----------- | ------------------------------------------------------------------ |
-| `PORT`           | 3001        | API 服务端口                                                       |
-| `NODE_ENV`       | development | 运行环境                                                           |
-| `ENCRYPTION_KEY` | (自动生成)  | 数据库敏感信息加密密钥（32字节 hex，支持轮换）                     |
-| `SESSION_SECRET` | (自动生成)  | 会话密钥                                                           |
-| `GUACD_HOST`     | localhost   | Guacamole daemon 地址                                              |
-| `GUACD_PORT`     | 4822        | Guacamole daemon 端口                                              |
-| `RP_ID`          | -           | Passkey RP ID。可单值（跨域共享 Passkey 推荐）或多值（按顺序映射） |
-| `RP_ORIGIN`      | -           | Passkey Origin，支持逗号分隔多值（完整 URL）                       |
+| 变量名              | 默认值      | 描述                                                               |
+| ------------------- | ----------- | ------------------------------------------------------------------ |
+| `PORT`              | 3001        | API 服务端口                                                       |
+| `NODE_ENV`          | development | 运行环境                                                           |
+| `ENCRYPTION_KEY`    | (自动生成)  | 数据库敏感信息加密密钥（32字节 hex，支持轮换）                     |
+| `SESSION_SECRET`    | (自动生成)  | 会话密钥                                                           |
+| `GUACD_HOST`        | localhost   | Guacamole daemon 地址                                              |
+| `GUACD_PORT`        | 4822        | Guacamole daemon 端口                                              |
+| `RP_ID`             | -           | Passkey RP ID。可单值（跨域共享 Passkey 推荐）或多值（按顺序映射） |
+| `RP_ORIGIN`         | -           | Passkey Origin，支持逗号分隔多值（完整 URL）                       |
+| `ENABLE_METRICS`    | false       | 启用 Prometheus 指标端点（/api/v1/metrics）                       |
+| `LOG_LEVEL`         | info        | 运行时日志等级（debug/info/warn/error/silent）                     |
 
 ### 安全配置常量（`src/config/security.config.ts`）
 
@@ -336,7 +403,7 @@ npm start
 | `TEMP_TOKEN_LENGTH`      | 32 字节          | 临时令牌长度                         |
 | `SESSION_COOKIE_MAX_AGE` | 30 天            | Session Cookie 最大存活时间          |
 | `BCRYPT_SALT_ROUNDS`     | 12               | bcrypt 盐轮次（2025年推荐值：12-14） |
-| `ALLOWED_WS_ORIGINS`     | localhost:5173等 | WebSocket 允许的 Origin 白名单       |
+| `ALLOWED_WS_ORIGINS`     | localhost:5173等 | WebSocket 允许的 Origin 白名单（逗号分隔，含端口号） |
 
 ---
 
@@ -357,7 +424,7 @@ repository.ts → 数据访问与 SQL 操作
 2. 在 `src/database/schema.ts` 添加表定义（如需）
 3. 创建新目录 `src/{feature-name}/`
 4. 实现 `*.repository.ts` → `*.service.ts` → `*.controller.ts` → `*.routes.ts`
-5. 在 `src/index.ts` 中注册路由
+5. 在 `src/config/routes.ts` 中注册路由
 6. 更新本文档的 API 端点索引
 
 ---
@@ -366,7 +433,7 @@ repository.ts → 数据访问与 SQL 操作
 
 ### Q: 如何添加新的 API 端点？
 
-参照现有模块（如 `tags/`）的结构，创建对应的四层文件，并在 `index.ts` 中注册路由。
+参照现有模块（如 `tags/`）的结构，创建对应的四层文件，并在 `src/config/routes.ts` 中注册路由。
 
 ### Q: 如何添加新的数据库表？
 
@@ -380,6 +447,16 @@ repository.ts → 数据访问与 SQL 操作
 - 实际 SSH 会话通过 WebSocket 建立，处理逻辑在 `src/websocket/` 下
 - 会话挂起功能由 `ssh-suspend` 模块管理
 
+### Q: 如何启用 Prometheus 监控？
+
+设置环境变量 `ENABLE_METRICS=true`，即可通过 `/api/v1/metrics` 端点获取 Prometheus 格式的指标数据。
+
+### Q: 错误处理机制是什么？
+
+- 全局错误处理中间件 `middleware/error.middleware.ts` 捕获所有未处理错误
+- 使用 `AppError` 类抛出业务错误，自动映射到 HTTP 状态码
+- 敏感信息自动脱敏（`logging/logger.ts` 中的 redact 功能）
+
 ---
 
-**文档生成时间**：2026-05-03（技术债务全面治理与文档更新）
+**文档生成时间**：2026-05-03（仪表盘与监控模块新增）

@@ -774,9 +774,9 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Strict-Transport-Security "max-age=31536000" always;
 
-    # 前端
+    # 前端（Docker 部署时前端容器监听 80 端口，通过 upstream 名称访问）
     location / {
-        proxy_pass http://nexus_backend;
+        proxy_pass http://nexus_frontend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -784,7 +784,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # API
+    # API（转发到后端服务）
     location /api/ {
         limit_req zone=api_limit burst=20 nodelay;
         proxy_pass http://nexus_backend;

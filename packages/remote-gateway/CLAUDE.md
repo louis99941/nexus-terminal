@@ -195,7 +195,7 @@ packages/remote-gateway/
 | `GUACD_HOST`              | localhost             | Guacd 服务地址           |
 | `GUACD_PORT`              | 4822                  | Guacd 服务端口           |
 | `FRONTEND_URL`            | http://localhost:5173 | 前端 URL（CORS 白名单）  |
-| `MAIN_BACKEND_URL`        | http://localhost:3000 | 后端 URL（CORS 白名单）  |
+| `MAIN_BACKEND_URL`        | http://localhost:3001 | 后端 URL（CORS 白名单）  |
 
 ---
 

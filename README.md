@@ -1,4 +1,4 @@
-## ![banner.png](https://lsky.tuyu.me/i/2025/04/30/681209e053db7.png)
+![banner.png](https://lsky.tuyu.me/i/2025/04/30/681209e053db7.png)
 
 <div align="center">
 
@@ -238,7 +238,7 @@ docker compose up -d
 
 ### 终端组件
 
-1.  Ctrl + Shift + C 复制，Ctrl + Shift + V 粘贴
+1.  Ctrl + Shift + C 复制，Ctrl + Shift + V 粘贴（需通过 HTTPS 或 localhost 访问，否则浏览器会阻止剪贴板操作）
 
 ### 历史命令组件
 

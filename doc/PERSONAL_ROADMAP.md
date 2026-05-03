@@ -1346,15 +1346,17 @@ notes/
 
 #### 代码块执行功能
 
-````vue
+```vue
 <!-- 在 Markdown 中标记可执行代码块 -->
-```bash {runnable} df -h
-````
-
 <!-- 前端检测到 {runnable} 标记，显示"运行"按钮 -->
-
 <button @click="runCodeBlock(codeBlock)">▶ 运行</button>
+```
 
+对应的 Markdown 语法：
+
+````
+```bash {runnable} df -h
+```
 ````
 
 **快捷键**：
