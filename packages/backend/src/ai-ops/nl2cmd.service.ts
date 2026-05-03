@@ -26,6 +26,7 @@ import {
 import { NL2CMD_CONFIG, safeBaseUrlForLog, shouldLogTiming } from './nl2cmd.constants';
 import { settingsRepository } from '../settings/settings.repository';
 import { encrypt, decrypt } from '../utils/crypto';
+import { ErrorFactory } from '../utils/AppError';
 
 const AI_SETTINGS_KEY = 'aiProviderConfig';
 
@@ -84,7 +85,7 @@ export async function getAISettings(): Promise<AISettings | null> {
     return config;
   } catch (error: unknown) {
     console.error('[NL2CMD] 获取 AI 配置失败:', error);
-    throw new Error('获取 AI 配置失败');
+    throw ErrorFactory.serviceUnavailable('获取 AI 配置失败，请稍后重试');
   }
 }
 

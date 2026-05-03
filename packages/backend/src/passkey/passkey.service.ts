@@ -21,7 +21,7 @@ import { passkeyRepository, Passkey, NewPasskey } from './passkey.repository';
 import { userRepository } from '../user/user.repository';
 import { config, type PasskeyRpConfig } from '../config/app.config';
 import { SECURITY_CONFIG } from '../config/security.config';
-import { getErrorMessage } from '../utils/AppError';
+import { getErrorMessage, ErrorFactory } from '../utils/AppError';
 import { getHostnameFromOrigin, normalizeOrigin } from '../utils/url';
 
 const RP_NAME = config.appName;
@@ -316,7 +316,7 @@ export class PasskeyService {
           '[PasskeyService] Error decoding authenticatorData from client response:',
           getErrorMessage(error)
         );
-        throw new Error('Failed to decode authenticatorData from client response.');
+        throw ErrorFactory.badRequest('authenticatorData 解码失败，请求体可能已损坏');
       }
     } else {
       console.warn('[PasskeyService] authenticatorData is missing in the client response.');
