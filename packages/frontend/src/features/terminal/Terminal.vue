@@ -230,7 +230,11 @@ const handleContextMenuPaste = async (event: MouseEvent) => {
     const text = await navigator.clipboard.readText();
     if (text) {
       const processedText = text.replace(/\r\n?/g, '\n');
-      emitWorkspaceEvent('terminal:input', { sessionId: props.sessionId, data: processedText });
+      // 使用 Bracketed Paste Mode 包裹，同 Ctrl+Shift+V 粘贴逻辑
+      emitWorkspaceEvent('terminal:input', {
+        sessionId: props.sessionId,
+        data: `\x1b[200~${processedText}\x1b[201~`,
+      });
     }
   } catch (err: unknown) {
     console.error('[Terminal] Failed to paste via Right Click:', err);
@@ -509,9 +513,11 @@ onMounted(() => {
             .then((text) => {
               if (text) {
                 const processedText = text.replace(/\r\n?/g, '\n');
+                // 使用 Bracketed Paste Mode 包裹，告知远端编辑器这是粘贴内容
+                // 不可逐行解释（解决 nano 等编辑器粘贴失败问题）
                 emitWorkspaceEvent('terminal:input', {
                   sessionId: props.sessionId,
-                  data: processedText,
+                  data: `\x1b[200~${processedText}\x1b[201~`,
                 });
               }
             })

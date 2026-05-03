@@ -282,6 +282,10 @@ const handleCommandInputKeydown = (event: KeyboardEvent) => {
     event.preventDefault();
     console.info('[CommandInputBar] Ctrl+C detected with empty input. Sending SIGINT.');
     emitWorkspaceEvent('terminal:sendCommand', { command: '\x03' }); // Send ETX character (Ctrl+C)
+  } else if (event.key === 'Escape') {
+    // ESC 键：发送转义序列到终端（如退出 vi/nano 编辑模式）
+    event.preventDefault();
+    emitWorkspaceEvent('terminal:sendCommand', { command: '\x1b' });
   } else if (!event.altKey && event.key === 'Enter') {
     // Handle regular Enter key press - send current input (empty or not)
     event.preventDefault(); // Prevent default if needed, e.g., form submission
