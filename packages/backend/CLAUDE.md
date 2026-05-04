@@ -25,6 +25,12 @@
   - `backup/backup.routes.ts`：3 个 API 端点
 - **Docker standalone 镜像**：`Dockerfile.standalone` + `entrypoint-standalone.sh`
 - **API 端点更新**：新增 `/api/v1/backup`（3 端点），总计 23 个路由模块
+- **Codex 审查修复**：
+  - `auth/ip-geo.service.ts`：修复 IP 私有地址判定（172.x 改为 RFC 1918 的 172.16-31 范围）
+  - `auth/ip-geo.service.ts`：添加缓存上限（10000 条）防止内存泄漏
+  - `backup/backup.service.ts`：导入事务区分约束冲突与致命错误，致命错误触发回滚
+  - `backup/backup.routes.ts`：导入端点添加 5mb body size 限制
+  - `auth/auth-main-flow.utils.ts`：审计日志改用 `.catch().finally()` 模式确保不丢失
 
 ### 2026-05-03 (仪表盘与监控模块新增)
 
