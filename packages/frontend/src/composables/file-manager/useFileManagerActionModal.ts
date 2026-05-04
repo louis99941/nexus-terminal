@@ -4,18 +4,22 @@
  */
 
 import { ref, computed, type Ref, type ComputedRef } from 'vue';
-import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
+import type { useSessionStore } from '../../stores/session.store';
+import { getWsDepsFromSession } from './fileManagerWsUtils';
+import type { SftpManagerInstance } from '../../composables/useSftpActions';
 import type { FileListItem } from '../../types/sftp.types';
+
+type SessionStore = ReturnType<typeof useSessionStore>;
 
 export interface UseFileManagerActionModalOptions {
   /** SFTP 管理器实例（响应式） */
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
-  /** WebSocket 依赖项 */
-  wsDeps: WebSocketDependencies;
   /** 会话 ID（响应式，session:remapped 后自动更新） */
   sessionId: ComputedRef<string>;
   /** 实例 ID */
   instanceId: string;
+  /** 会话 Store */
+  sessionStore: SessionStore;
   /** 选中项集合 */
   selectedItems: Ref<Set<string>>;
   /** 是否显示删除确认（响应式） */
@@ -27,9 +31,9 @@ export interface UseFileManagerActionModalOptions {
 export function useFileManagerActionModal(options: UseFileManagerActionModalOptions) {
   const {
     currentSftpManager,
-    wsDeps,
     sessionId,
     instanceId,
+    sessionStore,
     selectedItems,
     fileManagerShowDeleteConfirmationBoolean,
     showError,
@@ -131,7 +135,8 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
   const handleDeleteSelectedClick = () => {
     const manager = currentSftpManager.value;
     if (!manager) return;
-    if (!wsDeps.isConnected.value || selectedItems.value.size === 0) return;
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value || selectedItems.value.size === 0) return;
 
     const itemsToDelete = Array.from(selectedItems.value)
       .map((filename) => manager.fileList.value.find((f: FileListItem) => f.filename === filename))
@@ -148,14 +153,16 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
 
   /** 重命名（从右键菜单触发） */
   const handleRenameContextMenuClick = (item: FileListItem) => {
-    if (!wsDeps.isConnected.value || !item) return;
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value || !item) return;
     if (!currentSftpManager.value) return;
     openActionModal('rename', item, undefined, item.filename);
   };
 
   /** 修改权限（从右键菜单触发） */
   const handleChangePermissionsContextMenuClick = (item: FileListItem) => {
-    if (!wsDeps.isConnected.value || !item) return;
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value || !item) return;
     if (!currentSftpManager.value) return;
     const currentModeOctal = (item.attrs.mode & 0o7777).toString(8).padStart(4, '0');
     openActionModal('chmod', item, undefined, currentModeOctal);
@@ -163,14 +170,16 @@ export function useFileManagerActionModal(options: UseFileManagerActionModalOpti
 
   /** 新建文件夹（从右键菜单触发） */
   const handleNewFolderContextMenuClick = () => {
-    if (!wsDeps.isConnected.value) return;
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value) return;
     if (!currentSftpManager.value) return;
     openActionModal('newFolder');
   };
 
   /** 新建文件（从右键菜单触发） */
   const handleNewFileContextMenuClick = () => {
-    if (!wsDeps.isConnected.value) return;
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value) return;
     if (!currentSftpManager.value) return;
     openActionModal('newFile');
   };

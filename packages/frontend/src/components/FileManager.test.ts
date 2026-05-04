@@ -75,6 +75,7 @@ const {
     },
     mockSessionStore: {
       activeSessionId: 'session-1',
+      sessions: new Map(),
       getOrCreateSftpManager: vi.fn(),
       removeSftpManager: vi.fn(),
       openFileInSession: vi.fn(),
@@ -329,6 +330,7 @@ describe('FileManager.vue', () => {
     mockUseFileManagerSelection.mockReturnValue(mockSelectionState);
     mockSessionStore.getOrCreateSftpManager.mockReturnValue(mockSftpManager);
     mockSettingsState.fileManagerSingleClickOpenFileBoolean.value = false;
+    mockSessionStore.sessions.clear();
   });
 
   afterEach(() => {
@@ -635,6 +637,7 @@ describe('FileManager.vue', () => {
 
     it('同步终端路径按钮应发送 ssh:exec_silent 请求并注册监听器', async () => {
       const wsDeps = createMockWsDeps();
+      mockSessionStore.sessions.set('session-1', { wsManager: wsDeps });
       const wrapper = mount(FileManager, {
         props: {
           sessionId: 'session-1',
@@ -682,6 +685,7 @@ describe('FileManager.vue', () => {
         isConnected: computed(() => true),
         isSftpReady: ref(true),
       };
+      mockSessionStore.sessions.set('session-1', { wsManager: wsDeps });
       const wrapper = mount(FileManager, {
         props: {
           sessionId: 'session-1',
@@ -719,6 +723,7 @@ describe('FileManager.vue', () => {
         isConnected: computed(() => true),
         isSftpReady: ref(true),
       };
+      mockSessionStore.sessions.set('session-1', { wsManager: wsDeps });
       const wrapper = mount(FileManager, {
         props: {
           sessionId: 'session-1',

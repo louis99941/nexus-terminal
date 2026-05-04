@@ -4,11 +4,12 @@
  */
 
 import { ref, computed, type Ref, type ComputedRef } from 'vue';
-import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
+import type { SftpManagerInstance } from '../../composables/useSftpActions';
 import type { WebSocketMessage, MessagePayload } from '../../types/websocket.types';
 import type { FileListItem } from '../../types/sftp.types';
 import type { useFileEditorStore, FileInfo } from '../../stores/fileEditor.store';
 import type { useSessionStore } from '../../stores/session.store';
+import { getWsDepsFromSession } from './fileManagerWsUtils';
 
 type FileEditorStore = ReturnType<typeof useFileEditorStore>;
 type SessionStore = ReturnType<typeof useSessionStore>;
@@ -26,8 +27,6 @@ const generateRequestId = (): string =>
 export interface UseFileManagerItemActionsOptions {
   /** SFTP 管理器实例（响应式） */
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
-  /** WebSocket 依赖项 */
-  wsDeps: WebSocketDependencies;
   /** 会话 ID（响应式，session:remapped 后自动更新） */
   sessionId: ComputedRef<string>;
   /** 实例 ID */
@@ -53,14 +52,13 @@ export interface UseFileManagerItemActionsOptions {
 export function useFileManagerItemActions(options: UseFileManagerItemActionsOptions) {
   const {
     currentSftpManager,
-    wsDeps,
     sessionId,
     instanceId,
+    sessionStore,
     isMobile,
     showPopupFileEditorBoolean,
     shareFileEditorTabsBoolean,
     fileEditorStore,
-    sessionStore,
     getSelectedItems,
     getClearSelection,
     showError,
@@ -101,6 +99,8 @@ export function useFileManagerItemActions(options: UseFileManagerItemActionsOpti
         `${logPrefix.value} Symbolic link clicked: ${itemPath}. Attempting to resolve with sftp:realpath...`
       );
 
+      const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+      if (!wsDeps) return;
       const { sendMessage: wsSend, onMessage: wsOnMessage } = wsDeps;
       const requestId = generateRequestId();
 

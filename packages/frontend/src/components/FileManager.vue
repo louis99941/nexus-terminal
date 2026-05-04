@@ -260,7 +260,6 @@ const {
   cleanupSilentExecRequest,
 } = useFileManagerTerminalSync({
   currentSftpManager: computed(() => currentSftpManager.value),
-  wsDeps: props.wsDeps,
   sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
   t,
@@ -320,7 +319,6 @@ const {
   setItemActionSelectionDeps,
 } = useFileManagerItemActions({
   currentSftpManager: computed(() => currentSftpManager.value),
-  wsDeps: props.wsDeps,
   sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
   isMobile: computed(() => props.isMobile),
@@ -407,9 +405,9 @@ const {
   handleNewFileContextMenuClick,
 } = useFileManagerActionModal({
   currentSftpManager: computed(() => currentSftpManager.value),
-  wsDeps: props.wsDeps,
   sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
+  sessionStore,
   selectedItems,
   fileManagerShowDeleteConfirmationBoolean,
   showError: uiNotificationsStore.showError,
@@ -443,10 +441,10 @@ const triggerFolderUpload = () => {
 // --- 下载 Composable ---
 const { triggerDownload, triggerDownloadDirectory } = useFileManagerDownload({
   currentSftpManager: computed(() => currentSftpManager.value),
-  wsDeps: props.wsDeps,
   dbConnectionId: props.dbConnectionId,
   sessionId: computed(() => effectiveSessionId.value),
   instanceId: props.instanceId,
+  sessionStore,
   showError: uiNotificationsStore.showError,
   recoverManager: () => {
     // 尝试重新初始化 SFTP 管理器

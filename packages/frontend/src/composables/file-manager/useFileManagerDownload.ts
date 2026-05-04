@@ -4,20 +4,24 @@
  */
 
 import { computed, type ComputedRef } from 'vue';
-import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
+import type { useSessionStore } from '../../stores/session.store';
+import { getWsDepsFromSession } from './fileManagerWsUtils';
+import type { SftpManagerInstance } from '../../composables/useSftpActions';
 import type { FileListItem } from '../../types/sftp.types';
+
+type SessionStore = ReturnType<typeof useSessionStore>;
 
 export interface UseFileManagerDownloadOptions {
   /** SFTP 管理器实例（响应式） */
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
-  /** WebSocket 依赖项 */
-  wsDeps: WebSocketDependencies;
   /** 数据库连接 ID */
   dbConnectionId: string;
   /** 会话 ID（响应式，session:remapped 后自动更新） */
   sessionId: ComputedRef<string>;
   /** 实例 ID */
   instanceId: string;
+  /** 会话 Store */
+  sessionStore: SessionStore;
   /** 显示错误通知的函数 */
   showError: (message: string) => void;
   /** 尝试恢复 SFTP 管理器的回调（可选），返回是否恢复成功 */
@@ -27,10 +31,10 @@ export interface UseFileManagerDownloadOptions {
 export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
   const {
     currentSftpManager,
-    wsDeps,
     dbConnectionId,
     sessionId,
     instanceId,
+    sessionStore,
     showError,
     recoverManager,
   } = options;
@@ -39,7 +43,8 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
 
   /** 触发文件下载（支持多文件） */
   const triggerDownload = (items: FileListItem[]) => {
-    if (!wsDeps.isConnected.value) {
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value) {
       return;
     }
     if (!dbConnectionId) {
@@ -89,7 +94,8 @@ export function useFileManagerDownload(options: UseFileManagerDownloadOptions) {
 
   /** 触发目录下载（通过后端压缩后下载） */
   const triggerDownloadDirectory = (item: FileListItem) => {
-    if (!wsDeps.isConnected.value) {
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!wsDeps?.isConnected.value) {
       return;
     }
     if (!dbConnectionId) {

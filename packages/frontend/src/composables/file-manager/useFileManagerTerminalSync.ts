@@ -5,11 +5,12 @@
 
 import { ref, computed, type ComputedRef } from 'vue';
 import type { useI18n } from 'vue-i18n';
-import type { SftpManagerInstance, WebSocketDependencies } from '../../composables/useSftpActions';
+import type { SftpManagerInstance } from '../../composables/useSftpActions';
 import type { WebSocketMessage, MessagePayload } from '../../types/websocket.types';
 import type { useSessionStore } from '../../stores/session.store';
 import type { useUiNotificationsStore } from '../../stores/uiNotifications.store';
 import { SILENT_PWD_PREFIX, parsePathFromSilentOutput } from './fileManagerTerminalPathUtils';
+import { getWsDepsFromSession } from './fileManagerWsUtils';
 
 type SessionStore = ReturnType<typeof useSessionStore>;
 type UiNotificationsStore = ReturnType<typeof useUiNotificationsStore>;
@@ -25,8 +26,6 @@ const generateRequestId = (): string =>
 export interface UseFileManagerTerminalSyncOptions {
   /** SFTP 管理器实例（响应式） */
   currentSftpManager: ComputedRef<SftpManagerInstance | null>;
-  /** WebSocket 依赖项 */
-  wsDeps: WebSocketDependencies;
   /** 会话 ID（响应式，session:remapped 后自动更新） */
   sessionId: ComputedRef<string>;
   /** 实例 ID */
@@ -40,15 +39,8 @@ export interface UseFileManagerTerminalSyncOptions {
 }
 
 export function useFileManagerTerminalSync(options: UseFileManagerTerminalSyncOptions) {
-  const {
-    currentSftpManager,
-    wsDeps,
-    sessionId,
-    instanceId,
-    t,
-    uiNotificationsStore,
-    sessionStore,
-  } = options;
+  const { currentSftpManager, sessionId, instanceId, t, uiNotificationsStore, sessionStore } =
+    options;
 
   const logPrefix = computed(() => `[FileManager ${sessionId.value}-${instanceId}]`);
 
@@ -81,7 +73,8 @@ export function useFileManagerTerminalSync(options: UseFileManagerTerminalSyncOp
   /** 发送 cd 命令到当前终端 */
   const sendCdCommandToTerminal = () => {
     const manager = currentSftpManager.value;
-    if (!manager || !wsDeps.isConnected.value) {
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
+    if (!manager || !wsDeps?.isConnected.value) {
       console.warn(
         `${logPrefix.value} Cannot send CD command: SFTP manager not ready or not connected.`
       );
@@ -119,8 +112,9 @@ export function useFileManagerTerminalSync(options: UseFileManagerTerminalSyncOp
 
   /** 同步当前路径到终端工作目录（通过静默执行 pwd 命令） */
   const syncCurrentPathToTerminalDirectory = () => {
+    const wsDeps = getWsDepsFromSession(sessionStore, sessionId.value);
     const manager = currentSftpManager.value;
-    if (!manager || !wsDeps.isConnected.value || isSyncingPathFromTerminal.value) {
+    if (!manager || !wsDeps?.isConnected.value || isSyncingPathFromTerminal.value) {
       return;
     }
 
