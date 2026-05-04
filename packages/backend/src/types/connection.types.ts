@@ -84,3 +84,19 @@ export interface DecryptedConnectionCredentials {
   decryptedPrivateKey?: string;
   decryptedPassphrase?: string;
 }
+
+/** 路由跳点信息 */
+export interface RouteHop {
+  host: string;
+  port: number;
+  username: string;
+  name?: string;
+  latencyMs?: number;
+}
+
+/** SSH 连接路由规划信息 */
+export interface ConnectionRoutePlan {
+  hops: RouteHop[];
+  totalLatencyMs: number;
+  directConnection: boolean;
+}

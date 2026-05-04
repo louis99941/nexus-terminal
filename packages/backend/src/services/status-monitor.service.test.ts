@@ -57,6 +57,37 @@ function createMockStream(output: string, code: number = 0) {
   return stream;
 }
 
+// 构造批量采集格式输出（含分段标识符）
+function buildBatchOutput(overrides: Record<string, string> = {}) {
+  const defaults: Record<string, string> = {
+    OS_RELEASE: '',
+    CPU_MODEL: '',
+    FREE: '',
+    DF: '',
+    UPTIME: '',
+    PROC_NET_DEV: '',
+    PROC_STAT: '',
+  };
+  const sections = { ...defaults, ...overrides };
+  const delimiters = [
+    '__END_OS_RELEASE__',
+    '__END_CPU_MODEL__',
+    '__END_FREE__',
+    '__END_DF__',
+    '__END_UPTIME__',
+    '__END_PROC_NET_DEV__',
+    '__END_PROC_STAT__',
+  ];
+  const keys = ['OS_RELEASE', 'CPU_MODEL', 'FREE', 'DF', 'UPTIME', 'PROC_NET_DEV', 'PROC_STAT'];
+
+  let output = '';
+  for (let i = 0; i < keys.length; i++) {
+    output += sections[keys[i]];
+    output += '\n' + delimiters[i] + '\n';
+  }
+  return output;
+}
+
 describe('StatusMonitorService', () => {
   let service: StatusMonitorService;
   let clientStates: Map<string, any>;
@@ -300,15 +331,14 @@ describe('StatusMonitorService', () => {
     });
 
     it('应正确解析 OS 名称', async () => {
-      const execResults: Record<string, string> = {
-        'cat /etc/os-release': 'PRETTY_NAME="Ubuntu 22.04 LTS"',
-      };
+      const batchOutput = buildBatchOutput({
+        OS_RELEASE: 'PRETTY_NAME="Ubuntu 22.04 LTS"\nNAME="Ubuntu"',
+      });
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          const output = Object.entries(execResults).find(([key]) => cmd.includes(key))?.[1] || '';
-          const stream = createMockStream(output);
+          const stream = createMockStream(batchOutput);
           cb(null, stream);
         }
       );
@@ -329,24 +359,14 @@ describe('StatusMonitorService', () => {
     });
 
     it('应正确解析内存使用率', async () => {
-      const execResults: Record<string, string> = {
-        'free -m':
-          'Mem:           16000       8000       8000          0        500       7500\nSwap:           2048        512       1536',
-        'cat /etc/os-release': '',
-        'cat /proc/cpuinfo': '',
-        df: '',
-        'cat /proc/stat': '',
-        uptime: '',
-        'cat /proc/net/dev': '',
-        'ip route': '',
-        busybox: '',
-      };
+      const batchOutput = buildBatchOutput({
+        FREE: '              total        used        free      shared  buff/cache   available\nMem:          16000        8000        8000          0        500       7500\nSwap:          2048         512        1536',
+      });
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          const output = Object.entries(execResults).find(([key]) => cmd.includes(key))?.[1] || '';
-          const stream = createMockStream(output);
+          const stream = createMockStream(batchOutput);
           cb(null, stream);
         }
       );
@@ -369,24 +389,14 @@ describe('StatusMonitorService', () => {
     });
 
     it('应正确解析磁盘使用率', async () => {
-      const execResults: Record<string, string> = {
-        'df -kP /':
-          'Filesystem     1K-blocks    Used Available Use% Mounted on\n/dev/sda1      100000000 40000000  60000000  40% /',
-        'cat /etc/os-release': '',
-        free: '',
-        'cat /proc/cpuinfo': '',
-        'cat /proc/stat': '',
-        uptime: '',
-        'cat /proc/net/dev': '',
-        'ip route': '',
-        busybox: '',
-      };
+      const batchOutput = buildBatchOutput({
+        DF: 'Filesystem     1K-blocks    Used Available Use% Mounted on\n/dev/sda1      100000000 40000000  60000000  40% /',
+      });
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          const output = Object.entries(execResults).find(([key]) => cmd.includes(key))?.[1] || '';
-          const stream = createMockStream(output);
+          const stream = createMockStream(batchOutput);
           cb(null, stream);
         }
       );
@@ -416,14 +426,10 @@ describe('StatusMonitorService', () => {
       ];
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          let output = '';
-
-          if (cmd.includes('cat /proc/stat')) {
-            output = cpuStats[Math.min(callCount++, cpuStats.length - 1)];
-          }
-
+          const idx = Math.min(callCount++, cpuStats.length - 1);
+          const output = buildBatchOutput({ PROC_STAT: cpuStats[idx] });
           const stream = createMockStream(output);
           cb(null, stream);
         }
@@ -450,23 +456,14 @@ describe('StatusMonitorService', () => {
     });
 
     it('应正确解析系统负载', async () => {
-      const execResults: Record<string, string> = {
-        uptime: ' 14:30:01 up 10 days,  5:30,  2 users,  load average: 1.50, 2.00, 1.75',
-        'cat /etc/os-release': '',
-        free: '',
-        'cat /proc/cpuinfo': '',
-        df: '',
-        'cat /proc/stat': '',
-        'cat /proc/net/dev': '',
-        'ip route': '',
-        busybox: '',
-      };
+      const batchOutput = buildBatchOutput({
+        UPTIME: ' 14:30:01 up 10 days,  5:30,  2 users,  load average: 1.50, 2.00, 1.75',
+      });
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          const output = Object.entries(execResults).find(([key]) => cmd.includes(key))?.[1] || '';
-          const stream = createMockStream(output);
+          const stream = createMockStream(batchOutput);
           cb(null, stream);
         }
       );
@@ -490,23 +487,15 @@ describe('StatusMonitorService', () => {
   describe('边界条件', () => {
     it('BusyBox 系统应正确解析内存（单位转换）', async () => {
       const mockClient = createMockSshClient();
-      const execResults: Record<string, string> = {
-        'busybox --help': 'BusyBox v1.35.0',
-        free: 'Mem:         16384000    8192000    8192000          0      512000    7680000\nSwap:         2097152     524288    1572864',
-        'cat /etc/os-release': '',
-        'cat /proc/cpuinfo': '',
-        df: '',
-        'cat /proc/stat': '',
-        uptime: '',
-        'cat /proc/net/dev': '',
-        'ip route': '',
-      };
+      // BusyBox 的 free 命令不输出表头行，且单位为 KB
+      const batchOutput = buildBatchOutput({
+        FREE: 'Mem:         16384000    8192000    8192000          0      512000    7680000\nSwap:         2097152     524288    1572864',
+      });
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          const output = Object.entries(execResults).find(([key]) => cmd.includes(key))?.[1] || '';
-          const stream = createMockStream(output);
+          const stream = createMockStream(batchOutput);
           cb(null, stream);
         }
       );
@@ -551,24 +540,15 @@ describe('StatusMonitorService', () => {
 
     it('无 swap 分区时应返回 0', async () => {
       const mockClient = createMockSshClient();
-      const execResults: Record<string, string> = {
-        'free -m': 'Mem:           16000       8000       8000          0        500       7500',
-        // 没有 Swap 行
-        'cat /etc/os-release': '',
-        'cat /proc/cpuinfo': '',
-        df: '',
-        'cat /proc/stat': '',
-        uptime: '',
-        'cat /proc/net/dev': '',
-        'ip route': '',
-        busybox: '',
-      };
+      // free 输出中没有 Swap 行
+      const batchOutput = buildBatchOutput({
+        FREE: '              total        used        free      shared  buff/cache   available\nMem:          16000        8000        8000          0        500       7500',
+      });
 
       mockClient.exec.mockImplementation(
-        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
           const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-          const output = Object.entries(execResults).find(([key]) => cmd.includes(key))?.[1] || '';
-          const stream = createMockStream(output);
+          const stream = createMockStream(batchOutput);
           cb(null, stream);
         }
       );
@@ -588,6 +568,157 @@ describe('StatusMonitorService', () => {
       expect(sentData.payload.status.swapTotal).toBe(0);
       expect(sentData.payload.status.swapUsed).toBe(0);
       expect(sentData.payload.status.swapPercent).toBe(0);
+    });
+  });
+
+  describe('批量采集模式', () => {
+    // 构造模拟批量采集输出（包含所有分段标识符）
+    function buildBatchOutput(overrides: Record<string, string> = {}) {
+      const defaults: Record<string, string> = {
+        OS_RELEASE: 'PRETTY_NAME="Ubuntu 22.04 LTS"\nNAME="Ubuntu"',
+        CPU_MODEL: 'model name\t: Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz',
+        FREE: '              total        used        free      shared  buff/cache   available\nMem:          16000        8000        6000         500        2000        7500\nSwap:          2048         512        1536',
+        DF: 'Filesystem     1K-blocks    Used Available Use% Mounted on\n/dev/sda1      100000000 40000000  60000000  40% /',
+        UPTIME: ' 14:30:01 up 10 days,  5:30,  2 users,  load average: 1.50, 2.00, 1.75',
+        PROC_NET_DEV:
+          'Inter-|   Receive                                                |  Transmit\n face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo frame compressed\n    lo: 1000    10    0    0    0     0          0         0    1000    10    0    0    0     0          0         0\n  eth0: 5000000  5000    0    0    0     0          0         0 3000000  3000    0    0    0     0          0         0',
+        PROC_STAT: 'cpu  1000 100 500 5000 50 0 10 0 0 0\ncpu0 250 25 125 1250 12 0 2 0 0 0',
+      };
+
+      const sections = { ...defaults, ...overrides };
+      const delimiters = [
+        '__END_OS_RELEASE__',
+        '__END_CPU_MODEL__',
+        '__END_FREE__',
+        '__END_DF__',
+        '__END_UPTIME__',
+        '__END_PROC_NET_DEV__',
+        '__END_PROC_STAT__',
+      ];
+      const keys = ['OS_RELEASE', 'CPU_MODEL', 'FREE', 'DF', 'UPTIME', 'PROC_NET_DEV', 'PROC_STAT'];
+
+      let output = '';
+      for (let i = 0; i < keys.length; i++) {
+        output += sections[keys[i]];
+        if (i < delimiters.length) {
+          output += '\n' + delimiters[i] + '\n';
+        }
+      }
+      return output;
+    }
+
+    it('应通过单次 SSH exec 获取所有状态数据', async () => {
+      const mockClient = createMockSshClient();
+      const batchOutput = buildBatchOutput();
+
+      mockClient.exec.mockImplementation(
+        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+          const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+          const stream = createMockStream(batchOutput);
+          cb(null, stream);
+        }
+      );
+
+      const mockWs = createMockWebSocket(1);
+      clientStates.set('session-batch', {
+        sshClient: mockClient,
+        ws: mockWs,
+        dbConnectionId: 1,
+        statusIntervalId: undefined,
+      });
+
+      await service.startStatusPolling('session-batch');
+      await vi.advanceTimersByTimeAsync(3000);
+
+      // 应只调用一次 exec（批量命令）
+      expect(mockClient.exec).toHaveBeenCalledTimes(1);
+      const sentData = JSON.parse(mockWs.send.mock.calls[0][0]);
+      expect(sentData.payload.status.osName).toBe('Ubuntu 22.04 LTS');
+      expect(sentData.payload.status.cpuModel).toContain('Intel');
+      expect(sentData.payload.status.memTotal).toBe(16000);
+      expect(sentData.payload.status.memUsed).toBe(8000);
+      expect(sentData.payload.status.memPercent).toBe(50);
+      expect(sentData.payload.status.diskTotal).toBe(100000000);
+      expect(sentData.payload.status.diskPercent).toBe(40);
+      expect(sentData.payload.status.loadAvg).toEqual([1.5, 2.0, 1.75]);
+    });
+
+    it('批量采集失败时应降级到逐项采集', async () => {
+      const mockClient = createMockSshClient();
+      let callCount = 0;
+
+      mockClient.exec.mockImplementation(
+        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+          const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+          callCount++;
+          if (callCount === 1) {
+            // 第一次调用（批量命令）失败
+            cb(new Error('Command not found'), null);
+          } else {
+            // 后续调用（降级路径）成功
+            const stream = createMockStream('');
+            cb(null, stream);
+          }
+        }
+      );
+
+      const mockWs = createMockWebSocket(1);
+      clientStates.set('session-fallback', {
+        sshClient: mockClient,
+        ws: mockWs,
+        dbConnectionId: 1,
+        statusIntervalId: undefined,
+      });
+
+      await service.startStatusPolling('session-fallback');
+      await vi.advanceTimersByTimeAsync(3000);
+
+      // 降级后应调用多次 exec（逐项采集）
+      expect(mockClient.exec.mock.calls.length).toBeGreaterThan(1);
+      expect(mockWs.send).toHaveBeenCalledWith(expect.stringContaining('"type":"status_update"'));
+    });
+
+    it('应正确解析网络速率（需要两次采样）', async () => {
+      const mockClient = createMockSshClient();
+      let callCount = 0;
+      const netBytes = [
+        { rx: 5000000, tx: 3000000 },
+        { rx: 6000000, tx: 3500000 },
+      ];
+
+      mockClient.exec.mockImplementation(
+        (cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+          const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+          const idx = Math.min(callCount++, netBytes.length - 1);
+          const { rx, tx } = netBytes[idx];
+          const output = buildBatchOutput({
+            PROC_NET_DEV: `Inter-|   Receive                                                |  Transmit\n face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo frame compressed\n    lo: 1000    10    0    0    0     0          0         0    1000    10    0    0    0     0          0         0\n  eth0: ${rx}  5000    0    0    0     0          0         0 ${tx}  3000    0    0    0     0          0         0`,
+          });
+          const stream = createMockStream(output);
+          cb(null, stream);
+        }
+      );
+
+      const mockWs = createMockWebSocket(1);
+      clientStates.set('session-net', {
+        sshClient: mockClient,
+        ws: mockWs,
+        dbConnectionId: 1,
+        statusIntervalId: undefined,
+      });
+
+      await service.startStatusPolling('session-net');
+
+      // 第一次采样
+      await vi.advanceTimersByTimeAsync(3000);
+      // 第二次采样
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(mockWs.send).toHaveBeenCalledTimes(2);
+      const secondData = JSON.parse(mockWs.send.mock.calls[1][0]);
+      // 网络速率应大于 0（第二次采样有增量）
+      expect(secondData.payload.status.netRxRate).toBeGreaterThan(0);
+      expect(secondData.payload.status.netTxRate).toBeGreaterThan(0);
     });
   });
 });

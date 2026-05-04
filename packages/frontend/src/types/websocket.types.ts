@@ -598,6 +598,25 @@ export interface SshStatusMessage extends TypedWebSocketMessage<{
   type: 'ssh:status';
 }
 
+/** SSH 路由规划信息（跳板链路可视化） */
+export interface RouteHop {
+  host: string;
+  port: number;
+  username: string;
+  name?: string;
+  latencyMs?: number;
+}
+
+export interface ConnectionRoutePlan {
+  hops: RouteHop[];
+  totalLatencyMs: number;
+  directConnection: boolean;
+}
+
+export interface SshRoutePlanMessage extends TypedWebSocketMessage<ConnectionRoutePlan> {
+  type: 'ssh:route_plan';
+}
+
 // SFTP 补充消息
 export interface SftpReadyMessage extends TypedWebSocketMessage<{ ready: boolean }> {
   type: 'sftp:ready';

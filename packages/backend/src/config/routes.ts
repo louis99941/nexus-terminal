@@ -28,6 +28,7 @@ import aiRoutes from '../ai-ops/ai.routes';
 import passkeyRoutes from '../passkey/passkey.routes';
 import dashboardRoutes from '../services/dashboard.routes';
 import metricsRoutes from '../metrics/metrics.routes';
+import backupRoutes from '../backup/backup.routes';
 import { errorHandler, notFoundHandler } from '../middleware/error.middleware';
 
 type RateLimiter = ReturnType<typeof import('express-rate-limit').default>;
@@ -68,6 +69,7 @@ export const registerRoutes = (
   app.use('/api/v1/batch', apiLimiter, batchRoutes);
   app.use('/api/v1/ai', apiLimiter, aiRoutes);
   app.use('/api/v1/dashboard', apiLimiter, dashboardRoutes);
+  app.use('/api/v1/backup', apiLimiter, backupRoutes);
 
   // Prometheus 指标端点（受 ENABLE_METRICS 环境变量控制）
   if (process.env.ENABLE_METRICS === 'true') {

@@ -1,6 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Request, Response } from 'express';
 import { SECURITY_CONFIG } from '../config/security.config';
+
+// Mock 地理定位服务，使 lookup 立即返回 null 避免异步延迟
+vi.mock('./ip-geo.service', () => ({
+  ipGeoService: {
+    lookup: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 import {
   completeAuthenticatedSession,
   destroySessionAndRespondLogout,
@@ -36,7 +44,7 @@ describe('auth-main-flow.utils', () => {
   });
 
   describe('recordLoginFailureAttempt', () => {
-    it('应写入失败次数、审计与通知', () => {
+    it('应写入失败次数、审计与通知', async () => {
       const services = {
         ipBlacklistService: { recordFailedAttempt: vi.fn() },
         auditLogService: { logAction: vi.fn() },
@@ -49,6 +57,7 @@ describe('auth-main-flow.utils', () => {
         clientIp: '10.0.0.1',
         userId: 7,
       });
+      await new Promise(process.nextTick);
 
       expect(services.ipBlacklistService.recordFailedAttempt).toHaveBeenCalledWith('10.0.0.1');
       expect(services.auditLogService.logAction).toHaveBeenCalledWith('LOGIN_FAILURE', {
@@ -65,7 +74,7 @@ describe('auth-main-flow.utils', () => {
       });
     });
 
-    it('未提供 userId 时不应写入 userId 字段', () => {
+    it('未提供 userId 时不应写入 userId 字段', async () => {
       const services = {
         ipBlacklistService: { recordFailedAttempt: vi.fn() },
         auditLogService: { logAction: vi.fn() },
@@ -77,6 +86,7 @@ describe('auth-main-flow.utils', () => {
         reason: 'User not found',
         clientIp: '10.0.0.2',
       });
+      await new Promise(process.nextTick);
 
       expect(services.auditLogService.logAction).toHaveBeenCalledWith('LOGIN_FAILURE', {
         username: 'bob',
@@ -87,7 +97,7 @@ describe('auth-main-flow.utils', () => {
   });
 
   describe('recordLoginSuccessAttempt', () => {
-    it('应重置失败次数并记录成功审计/通知', () => {
+    it('应重置失败次数并记录成功审计/通知', async () => {
       const services = {
         ipBlacklistService: { resetAttempts: vi.fn() },
         auditLogService: { logAction: vi.fn() },
@@ -99,6 +109,7 @@ describe('auth-main-flow.utils', () => {
         username: 'alice',
         clientIp: '10.0.0.1',
       });
+      await new Promise(process.nextTick);
 
       expect(services.ipBlacklistService.resetAttempts).toHaveBeenCalledWith('10.0.0.1');
       expect(services.auditLogService.logAction).toHaveBeenCalledWith('LOGIN_SUCCESS', {
@@ -113,7 +124,7 @@ describe('auth-main-flow.utils', () => {
       });
     });
 
-    it('twoFactor=true 时应携带 twoFactor 标记', () => {
+    it('twoFactor=true 时应携带 twoFactor 标记', async () => {
       const services = {
         ipBlacklistService: { resetAttempts: vi.fn() },
         auditLogService: { logAction: vi.fn() },
@@ -126,6 +137,7 @@ describe('auth-main-flow.utils', () => {
         clientIp: '10.0.0.1',
         twoFactor: true,
       });
+      await new Promise(process.nextTick);
 
       expect(services.auditLogService.logAction).toHaveBeenCalledWith('LOGIN_SUCCESS', {
         userId: 1,

@@ -203,6 +203,38 @@
       :server-status="currentServerStatus"
       :active-session-id="activeSessionId"
     />
+
+    <!-- SSH 路由规划（跳板链路可视化） -->
+    <div
+      v-if="currentRoutePlan && currentRoutePlan.hops.length > 0"
+      class="route-plan mt-4 p-3 rounded-lg border border-border bg-background-secondary"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-semibold text-text-secondary text-sm">
+          <i class="fas fa-route mr-1"></i>
+          {{ t('statusMonitor.routePlan', '路由路径') }}
+        </span>
+        <span class="text-xs text-text-secondary font-mono">
+          {{ currentRoutePlan.totalLatencyMs }}ms · {{ currentRoutePlan.hops.length
+          }}{{ t('statusMonitor.hops', '跳') }}
+        </span>
+      </div>
+      <div class="flex items-center flex-wrap gap-1 text-xs">
+        <template v-for="(hop, index) in currentRoutePlan.hops" :key="index">
+          <span
+            class="hop-node px-2 py-1 rounded bg-background border border-border font-mono"
+            :title="`${hop.username}@${hop.host}:${hop.port} (${hop.latencyMs ?? 0}ms)`"
+          >
+            {{ hop.name || hop.host }}
+            <span class="text-text-secondary ml-1">{{ hop.latencyMs ?? 0 }}ms</span>
+          </span>
+          <i
+            v-if="index < currentRoutePlan.hops.length - 1"
+            class="fas fa-arrow-right text-text-secondary text-[10px]"
+          ></i>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -261,6 +293,10 @@ const currentSessionState = computed(() => {
 
 const currentServerStatus = computed<ServerStatus | null>(() => {
   return currentSessionState.value?.statusMonitorManager?.serverStatus?.value ?? null;
+});
+
+const currentRoutePlan = computed(() => {
+  return currentSessionState.value?.statusMonitorManager?.routePlan?.value ?? null;
 });
 
 // --- 计算属性，用于绑定到进度条宽度 ---

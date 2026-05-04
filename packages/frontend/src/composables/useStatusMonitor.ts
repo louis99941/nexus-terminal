@@ -1,7 +1,7 @@
 import { ref, readonly, watch, type Ref, ComputedRef } from 'vue'; // 修正导入，移除大写 Readonly, 添加 watch
 // import { useWebSocketConnection } from './useWebSocketConnection'; // 移除全局导入
 import type { ServerStatus } from '../types/server.types';
-import type { WebSocketMessage } from '../types/websocket.types';
+import type { WebSocketMessage, ConnectionRoutePlan } from '../types/websocket.types';
 import { useLayoutStore } from '../stores/layout.store';
 
 // 定义与 WebSocket 相关的依赖接口
@@ -25,6 +25,7 @@ export function createStatusMonitorManager(sessionId: string, wsDeps: StatusMoni
 
   const serverStatus = ref<ServerStatus | null>(null);
   const statusError = ref<string | null>(null); // 存储状态获取错误
+  const routePlan = ref<ConnectionRoutePlan | null>(null); // SSH 路由规划信息
 
   // --- 历史数据存储 ---
   // 初始化为包含60个 null 或 0 的数组，这样图表初始时有占位
@@ -82,13 +83,25 @@ export function createStatusMonitorManager(sessionId: string, wsDeps: StatusMoni
     serverStatus.value = null; // 出错时清除状态数据
   };
 
+  // 处理 SSH 路由规划消息（跳板链路可视化）
+  const handleRoutePlan = (payload: unknown, message?: WebSocketMessage) => {
+    if (message?.sessionId && message.sessionId !== sessionId) {
+      return;
+    }
+    routePlan.value = payload as ConnectionRoutePlan;
+    console.info(
+      `[会话 ${sessionId}][状态监控模块] 收到路由规划: ${routePlan.value.hops.length} 跳`
+    );
+  };
+
   // --- 注册 WebSocket 消息处理器 ---
   let unregisterUpdate: (() => void) | null = null;
   let unregisterErrorCurrent: (() => void) | null = null;
+  let unregisterRoutePlan: (() => void) | null = null;
 
   const registerStatusHandlers = () => {
     // 防止重复注册
-    if (unregisterUpdate || unregisterErrorCurrent) {
+    if (unregisterUpdate || unregisterErrorCurrent || unregisterRoutePlan) {
       console.info(`[会话 ${sessionId}][状态监控模块] 处理器已注册，跳过。`);
       return;
     }
@@ -96,18 +109,21 @@ export function createStatusMonitorManager(sessionId: string, wsDeps: StatusMoni
       console.info(`[会话 ${sessionId}][状态监控模块] 注册状态消息处理器。`);
       unregisterUpdate = onMessage('status_update', handleStatusUpdate);
       unregisterErrorCurrent = onMessage('status:error', handleStatusError);
+      unregisterRoutePlan = onMessage('ssh:route_plan', handleRoutePlan);
     } else {
       console.warn(`[会话 ${sessionId}][状态监控模块] WebSocket 未连接，无法注册状态处理器。`);
     }
   };
 
   const unregisterAllStatusHandlers = () => {
-    if (unregisterUpdate || unregisterErrorCurrent) {
+    if (unregisterUpdate || unregisterErrorCurrent || unregisterRoutePlan) {
       console.info(`[会话 ${sessionId}][状态监控模块] 注销状态消息处理器。`);
       unregisterUpdate?.();
       unregisterErrorCurrent?.();
+      unregisterRoutePlan?.();
       unregisterUpdate = null;
       unregisterErrorCurrent = null;
+      unregisterRoutePlan = null;
     }
   };
 
@@ -145,6 +161,7 @@ export function createStatusMonitorManager(sessionId: string, wsDeps: StatusMoni
   return {
     serverStatus: readonly(serverStatus), // 当前状态
     statusError: readonly(statusError), // 错误状态
+    routePlan: readonly(routePlan), // SSH 路由规划信息
     // --- 暴露历史数据 ---
     cpuHistory: readonly(cpuHistory),
     memUsedHistory: readonly(memUsedHistory),

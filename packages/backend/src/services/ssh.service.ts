@@ -7,6 +7,12 @@ import * as ProxyRepository from '../proxies/proxy.repository';
 import { decrypt } from '../utils/crypto';
 import * as SshKeyService from '../ssh-keys/ssh-keys.service';
 import { getErrorMessage } from '../utils/AppError';
+import type { ConnectionRoutePlan, RouteHop } from '../types/connection.types';
+
+// 扩展 Client 类型，附着路由规划信息
+interface ClientWithRoute extends Client {
+  _routePlan?: ConnectionRoutePlan;
+}
 
 const CONNECT_TIMEOUT = 20000; // 连接超时时间 (毫秒)
 const TEST_TIMEOUT = 15000; // 测试连接超时时间 (毫秒)
@@ -692,7 +698,8 @@ function _forwardOutAndRecurse(
   activeClients: Client[],
   timeoutPerHop: number,
   resolveOuter: (client: Client) => void,
-  rejectOuter: (error: Error) => void
+  rejectOuter: (error: Error) => void,
+  collectedHops: RouteHop[] = []
 ): void {
   const isLastJumpHost = hopIndex === jumpChainDetails.length - 1;
   const nextTargetHost = isLastJumpHost
@@ -721,7 +728,8 @@ function _forwardOutAndRecurse(
       jumpChainDetails,
       finalTargetDetails,
       activeClients,
-      timeoutPerHop
+      timeoutPerHop,
+      collectedHops
     )
       .then(resolveOuter)
       .catch(rejectOuter);
@@ -735,7 +743,8 @@ async function _establishConnectionViaJumpChainRecursive(
   jumpChainDetails: JumpHostDetail[],
   finalTargetDetails: DecryptedConnectionDetails,
   activeClients: Client[],
-  timeoutPerHop: number
+  timeoutPerHop: number,
+  collectedHops: RouteHop[] = []
 ): Promise<Client> {
   return new Promise<Client>((resolveOuter, rejectOuter) => {
     const hopLogPrefix = `SshService: JumpHop[${hopIndex + 1}/${jumpChainDetails.length}]`;
@@ -749,8 +758,35 @@ async function _establishConnectionViaJumpChainRecursive(
         rejectOuter(new Error('SshService: 跳板链耗尽但无可用流到最终目标，内部逻辑错误。'));
         return;
       }
+      const finalStartTime = Date.now();
       _connectToFinalTarget(previousStream, finalTargetDetails, timeoutPerHop)
-        .then(resolveOuter)
+        .then((client) => {
+          // 记录最终目标跳点
+          collectedHops.push({
+            host: finalTargetDetails.host,
+            port: finalTargetDetails.port,
+            username: finalTargetDetails.username,
+            name: finalTargetDetails.name,
+            latencyMs: Date.now() - finalStartTime,
+          });
+
+          // 构建路由规划并附着到 Client
+          const routePlan: ConnectionRoutePlan = {
+            hops: collectedHops,
+            totalLatencyMs: collectedHops.reduce((sum, h) => sum + (h.latencyMs || 0), 0),
+            directConnection: false,
+          };
+          const clientWithRoute = client as ClientWithRoute;
+          clientWithRoute._routePlan = routePlan;
+
+          // 输出结构化路由规划日志
+          const routeStr = collectedHops.map((h) => `${h.name || h.host}:${h.port}`).join(' -> ');
+          console.info(
+            `[RoutePlan] ${finalTargetDetails.name}: ${routeStr} | 总延迟: ${routePlan.totalLatencyMs}ms | ${collectedHops.length} 跳`
+          );
+
+          resolveOuter(client);
+        })
         .catch(rejectOuter);
       return;
     }
@@ -776,11 +812,23 @@ async function _establishConnectionViaJumpChainRecursive(
       rejectOuter(error);
     };
 
+    const hopStartTime = Date.now();
     const readyHandler = () => {
+      const hopLatency = Date.now() - hopStartTime;
       currentHopClient.removeListener('error', errorHandler);
       currentHopClient.removeListener('close', closeHandler);
       activeClients.push(currentHopClient);
-      console.debug(`${currentHopLogPrefix}连接成功。`);
+
+      // 记录跳点信息
+      collectedHops.push({
+        host: currentJumpHostDetails.host,
+        port: currentJumpHostDetails.port,
+        username: currentJumpHostDetails.username,
+        name: currentJumpHostDetails.name,
+        latencyMs: hopLatency,
+      });
+
+      console.debug(`${currentHopLogPrefix}连接成功（${hopLatency}ms）。`);
       _forwardOutAndRecurse(
         currentHopClient,
         currentHopLogPrefix,
@@ -790,7 +838,8 @@ async function _establishConnectionViaJumpChainRecursive(
         activeClients,
         timeoutPerHop,
         resolveOuter,
-        cleanupAndReject
+        cleanupAndReject,
+        collectedHops
       );
     };
 

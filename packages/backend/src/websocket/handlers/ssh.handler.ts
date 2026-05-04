@@ -622,6 +622,12 @@ export async function handleSshConnect(
       `WebSocket: 为用户 ${ws.username} (IP: ${clientIp}) 创建新会话 ${newSessionId} (DB ID: ${dbConnectionIdAsNumber}, 连接名称: ${newState.connectionName})`
     );
 
+    // 发送路由规划信息（跳板链路可视化）
+    const routePlan = (sshClient as any)._routePlan;
+    if (routePlan && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'ssh:route_plan', payload: routePlan }));
+    }
+
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: 'ssh:status', payload: 'SSH 连接成功，正在打开 Shell...' }));
     try {

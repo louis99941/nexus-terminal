@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { SECURITY_CONFIG } from '../config/security.config';
 import { AuditLogActionType } from '../types/audit.types';
 import { NotificationEvent } from '../types/notification.types';
+import { ipGeoService } from './ip-geo.service';
 
 interface AuthEventServices {
   auditLogService: {
@@ -65,8 +66,15 @@ export const recordLoginFailureAttempt = (
   if (typeof userId === 'number') {
     eventPayload.userId = userId;
   }
-  services.auditLogService.logAction('LOGIN_FAILURE', eventPayload);
-  services.notificationService.sendNotification('LOGIN_FAILURE', eventPayload);
+
+  // 非阻塞查询 IP 地理位置，失败不影响登录流程
+  void ipGeoService.lookup(clientIp).then((geo) => {
+    if (geo) {
+      eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
+    }
+    services.auditLogService.logAction('LOGIN_FAILURE', eventPayload);
+    services.notificationService.sendNotification('LOGIN_FAILURE', eventPayload);
+  });
 };
 
 export const recordLoginSuccessAttempt = (
@@ -88,8 +96,15 @@ export const recordLoginSuccessAttempt = (
   if (twoFactor) {
     eventPayload.twoFactor = true;
   }
-  services.auditLogService.logAction('LOGIN_SUCCESS', eventPayload);
-  services.notificationService.sendNotification('LOGIN_SUCCESS', eventPayload);
+
+  // 非阻塞查询 IP 地理位置，失败不影响登录流程
+  void ipGeoService.lookup(clientIp).then((geo) => {
+    if (geo) {
+      eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
+    }
+    services.auditLogService.logAction('LOGIN_SUCCESS', eventPayload);
+    services.notificationService.sendNotification('LOGIN_SUCCESS', eventPayload);
+  });
 };
 
 export const startPendingTwoFactorSession = (
