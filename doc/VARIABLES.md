@@ -106,16 +106,17 @@
 | `LOG_TZ`    | `string`                                 | 否   | -      | 日志时间戳时区，优先级高于 `TZ`。                          |
 | `TZ`        | `string`                                 | 否   | `UTC`  | 进程默认时区，日志模块在未设置 `LOG_TZ` 时会回退使用此值。 |
 
-### 1.10 Prometheus 指标与代理配置
+### 1.10 Prometheus 指标、代理与地理定位配置
 
-> 定义位置：`packages/backend/src/config/routes.ts`、`packages/backend/src/config/middleware.ts`、`packages/backend/src/services/guacamole.service.ts`
+> 定义位置：`packages/backend/src/config/routes.ts`、`packages/backend/src/config/middleware.ts`、`packages/backend/src/services/guacamole.service.ts`、`packages/backend/src/auth/ip-geo.service.ts`
 
-| 变量名                      | 类型      | 必填 | 默认值  | 描述                                                                                           |
-| --------------------------- | --------- | ---- | ------- | ---------------------------------------------------------------------------------------------- |
-| `ENABLE_METRICS`            | `'true'`  | 否   | -       | 设为 `true` 时启用 `/api/v1/metrics` Prometheus 指标端点。未设置或非 `true` 则端点不注册。      |
-| `TRUST_PROXY`               | `string`  | 否   | `false` | Express `trust proxy` 配置。支持 `true`/`false`/跳层数/自定义值，用于正确获取客户端真实 IP。    |
-| `TRUST_PROXY_HOPS`          | `number`  | 否   | -       | 代理跳层数，当 `TRUST_PROXY` 未设置时作为备选。设为 `n` 表示信任前 `n` 层代理。                 |
-| `REMOTE_GATEWAY_API_TOKEN`  | `string`  | 否   | `''`    | 远程网关 API 认证令牌。设置后后端向 Remote Gateway 发起请求时会携带 `X-Remote-Gateway-Token` 头。 |
+| 变量名                     | 类型     | 必填 | 默认值  | 描述                                                                                              |
+| -------------------------- | -------- | ---- | ------- | ------------------------------------------------------------------------------------------------- |
+| `ENABLE_METRICS`           | `'true'` | 否   | -       | 设为 `true` 时启用 `/api/v1/metrics` Prometheus 指标端点。未设置或非 `true` 则端点不注册。        |
+| `ENABLE_GEO_LOOKUP`        | `string` | 否   | `true`  | 设为 `false` 时禁用登录事件 IP 地理位置查询。启用时使用 ip-api.com 查询，结果写入审计日志。       |
+| `TRUST_PROXY`              | `string` | 否   | `false` | Express `trust proxy` 配置。支持 `true`/`false`/跳层数/自定义值，用于正确获取客户端真实 IP。      |
+| `TRUST_PROXY_HOPS`         | `number` | 否   | -       | 代理跳层数，当 `TRUST_PROXY` 未设置时作为备选。设为 `n` 表示信任前 `n` 层代理。                   |
+| `REMOTE_GATEWAY_API_TOKEN` | `string` | 否   | `''`    | 远程网关 API 认证令牌。设置后后端向 Remote Gateway 发起请求时会携带 `X-Remote-Gateway-Token` 头。 |
 
 ### 1.11 API 限流覆盖配置
 
@@ -415,10 +416,10 @@
 
 ### 8.7 文件管理器设置
 
-| 设置键                              | 类型                     | 默认值   | 描述           |
-| ----------------------------------- | ------------------------ | -------- | -------------- |
+| 设置键                              | 类型                     | 默认值   | 描述                            |
+| ----------------------------------- | ------------------------ | -------- | ------------------------------- |
 | `fileManagerShowDeleteConfirmation` | `string`                 | `'true'` | 删除确认提示（见 8.3 界面设置） |
-| `parsedFileManagerColWidths`        | `Record<string, number>` | `{}`     | 文件管理器列宽 |
+| `parsedFileManagerColWidths`        | `Record<string, number>` | `{}`     | 文件管理器列宽                  |
 
 ### 8.8 CAPTCHA 设置
 
@@ -497,4 +498,4 @@
 
 ---
 
-**文档生成时间**：2025-12-26（初始）| **最后更新**：2026-05-03（补充 ENABLE_METRICS/TRUST_PROXY/REMOTE_GATEWAY_API_TOKEN 等缺失环境变量）
+**文档生成时间**：2025-12-26（初始）| **最后更新**：2026-05-04（新增 ENABLE_GEO_LOOKUP 地理定位开关变量）
