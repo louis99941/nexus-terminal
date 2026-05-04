@@ -7,6 +7,7 @@ import {
   settingsService,
 } from './state';
 import { sshSuspendService } from '../ssh-suspend/ssh-suspend.service';
+import { lookupGeoInfo } from '../auth/ip-geo.service';
 
 // H-19: 会话级清理回调注册表，避免模块间循环依赖
 type SessionCleanupCallback = (sessionId: string) => void;
@@ -167,14 +168,21 @@ export const cleanupClientConnection = async (sessionId: string | undefined) => 
           console.info(
             `WebSocket: 会话 ${sessionId} 已成功移交给 SshSuspendService，新的挂起ID: ${newSuspendId}。SSH 连接将由服务管理。`
           );
-          void auditLogService.logAction('SSH_SESSION_SUSPENDED', {
+          const suspendPayload: Record<string, unknown> = {
             userId: state.ws.userId,
             username: state.ws.username,
             connectionId: state.dbConnectionId,
             connectionName: state.connectionName,
             sessionId,
             ip: state.ipAddress,
-          });
+          };
+          void lookupGeoInfo(state.ipAddress)
+            .then((geoInfo) => {
+              if (geoInfo) suspendPayload.geoInfo = geoInfo;
+            })
+            .finally(() => {
+              void auditLogService.logAction('SSH_SESSION_SUSPENDED', suspendPayload);
+            });
           // SSH 资源已移交，不需要在这里关闭它们
         } else {
           console.warn(
@@ -197,7 +205,7 @@ export const cleanupClientConnection = async (sessionId: string | undefined) => 
       state.sshShellStream?.end();
       state.sshClient?.end();
       console.debug(`WebSocket: 会话 ${sessionId} 的 SSH 连接已关闭 (未标记挂起，未被服务接管)。`);
-      void auditLogService.logAction('SSH_DISCONNECT', {
+      const disconnectPayload: Record<string, unknown> = {
         userId: state.ws.userId,
         username: state.ws.username,
         connectionId: state.dbConnectionId,
@@ -205,7 +213,14 @@ export const cleanupClientConnection = async (sessionId: string | undefined) => 
         sessionId,
         ip: state.ipAddress,
         durationSeconds,
-      });
+      };
+      void lookupGeoInfo(state.ipAddress)
+        .then((geoInfo) => {
+          if (geoInfo) disconnectPayload.geoInfo = geoInfo;
+        })
+        .finally(() => {
+          void auditLogService.logAction('SSH_DISCONNECT', disconnectPayload);
+        });
     } else if (state.isSuspendedByService) {
       // 已被服务接管（例如通过旧的 startSuspend 流程，或成功移交后），不在此处关闭
       console.debug(`WebSocket: 会话 ${sessionId} 的 SSH 连接已由挂起服务管理，跳过关闭。`);

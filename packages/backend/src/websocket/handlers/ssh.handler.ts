@@ -14,6 +14,7 @@ import { cleanupClientConnection, registerSessionCleanup } from '../utils';
 import { temporaryLogStorageService } from '../../ssh-suspend/temporary-log-storage.service';
 import { startDockerStatusPolling } from './docker.handler';
 import { getErrorMessage } from '../../utils/AppError';
+import { lookupGeoInfo } from '../../auth/ip-geo.service';
 
 type SilentExecShellFlavor = 'posix' | 'powershell' | 'cmd' | 'fish';
 type SilentExecSuccessCriteria = 'any' | 'non_empty' | 'absolute_path';
@@ -665,7 +666,7 @@ export async function handleSshConnect(
           shellCallbackCalled = true;
           if (err) {
             console.error(`SSH: 会话 ${newSessionId} 打开 Shell 失败:`, err);
-            auditLogService.logAction('SSH_SHELL_FAILURE', {
+            const shellFailPayload: Record<string, unknown> = {
               connectionName: newState.connectionName,
               userId: ws.userId,
               username: ws.username,
@@ -673,15 +674,15 @@ export async function handleSshConnect(
               sessionId: newSessionId,
               ip: newState.ipAddress,
               reason: err.message,
-            });
-            notificationService.sendNotification('SSH_SHELL_FAILURE', {
-              userId: ws.userId,
-              username: ws.username,
-              connectionId: dbConnectionIdAsNumber,
-              sessionId: newSessionId,
-              ip: newState.ipAddress,
-              reason: err.message,
-            });
+            };
+            void lookupGeoInfo(newState.ipAddress)
+              .then((geoInfo) => {
+                if (geoInfo) shellFailPayload.geoInfo = geoInfo;
+              })
+              .finally(() => {
+                auditLogService.logAction('SSH_SHELL_FAILURE', shellFailPayload);
+                notificationService.sendNotification('SSH_SHELL_FAILURE', shellFailPayload);
+              });
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(
                 JSON.stringify({ type: 'ssh:error', payload: `打开 Shell 失败: ${err.message}` })
@@ -797,21 +798,22 @@ export async function handleSshConnect(
               })
             );
           console.info(`WebSocket: 会话 ${newSessionId} SSH 连接和 Shell 建立成功。`);
-          auditLogService.logAction('SSH_CONNECT_SUCCESS', {
+          const connectSuccessPayload: Record<string, unknown> = {
             userId: ws.userId,
             username: ws.username,
             connectionId: dbConnectionIdAsNumber,
             sessionId: newSessionId,
             ip: newState.ipAddress,
             connectionName: newState.connectionName,
-          });
-          notificationService.sendNotification('SSH_CONNECT_SUCCESS', {
-            userId: ws.userId,
-            username: ws.username,
-            connectionId: dbConnectionIdAsNumber,
-            sessionId: newSessionId,
-            ip: newState.ipAddress,
-          });
+          };
+          void lookupGeoInfo(newState.ipAddress)
+            .then((geoInfo) => {
+              if (geoInfo) connectSuccessPayload.geoInfo = geoInfo;
+            })
+            .finally(() => {
+              auditLogService.logAction('SSH_CONNECT_SUCCESS', connectSuccessPayload);
+              notificationService.sendNotification('SSH_CONNECT_SUCCESS', connectSuccessPayload);
+            });
 
           console.debug(`WebSocket: 会话 ${newSessionId} 正在异步初始化 SFTP...`);
           sftpService
@@ -879,21 +881,22 @@ export async function handleSshConnect(
       `WebSocket: 用户 ${ws.username} (IP: ${clientIp}) 连接到数据库 ID ${dbConnectionId} 失败:`,
       connectError
     );
-    auditLogService.logAction('SSH_CONNECT_FAILURE', {
+    const connectFailPayload: Record<string, unknown> = {
       userId: ws.userId,
       username: ws.username,
       connectionId: dbConnectionId,
       connectionName: connInfo?.name || 'Unknown',
       ip: clientIp,
       reason: connectErrMsg,
-    });
-    notificationService.sendNotification('SSH_CONNECT_FAILURE', {
-      userId: ws.userId,
-      username: ws.username,
-      connectionId: dbConnectionId,
-      ip: clientIp,
-      reason: connectErrMsg,
-    });
+    };
+    void lookupGeoInfo(clientIp)
+      .then((geoInfo) => {
+        if (geoInfo) connectFailPayload.geoInfo = geoInfo;
+      })
+      .finally(() => {
+        auditLogService.logAction('SSH_CONNECT_FAILURE', connectFailPayload);
+        notificationService.sendNotification('SSH_CONNECT_FAILURE', connectFailPayload);
+      });
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: 'ssh:error', payload: `连接失败: ${connectErrMsg}` }));
     ws.close(1011, `SSH Connection Failed: ${connectErrMsg}`);

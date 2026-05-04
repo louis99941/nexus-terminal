@@ -64,6 +64,7 @@ import {
   buildLoginUserNotFoundDebugLogAction,
 } from './auth-login-log-actions.utils';
 import { verifyTwoFactorTokenWithSkew } from './auth-two-factor-flow.utils';
+import { lookupGeoInfo } from './ip-geo.service';
 
 // 开发环境标志
 const isDev = process.env.NODE_ENV !== 'production';
@@ -529,16 +530,19 @@ export const setupAdmin = async (
 
     console.info(`初始账号 '${username}' (ID: ${newUser.id}) 已成功创建。`);
     const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
-    auditLogService.logAction('ADMIN_SETUP_COMPLETE', {
+    const setupPayload: Record<string, unknown> = {
       userId: newUser.id,
       username,
       ip: clientIp,
-    });
-    notificationService.sendNotification('ADMIN_SETUP_COMPLETE', {
-      userId: newUser.id,
-      username,
-      ip: clientIp,
-    });
+    };
+    void lookupGeoInfo(clientIp)
+      .then((geoInfo) => {
+        if (geoInfo) setupPayload.geoInfo = geoInfo;
+      })
+      .finally(() => {
+        auditLogService.logAction('ADMIN_SETUP_COMPLETE', setupPayload);
+        notificationService.sendNotification('ADMIN_SETUP_COMPLETE', setupPayload);
+      });
 
     res.status(201).json({ message: '初始账号创建成功！' });
   } catch (error: unknown) {
@@ -557,8 +561,15 @@ export const logout = (req: Request, res: Response): void => {
     userId,
     username,
     onLogoutSuccess: (clientIp) => {
-      auditLogService.logAction('LOGOUT', { userId, username, ip: clientIp });
-      notificationService.sendNotification('LOGOUT', { userId, username, ip: clientIp });
+      const logoutPayload: Record<string, unknown> = { userId, username, ip: clientIp };
+      void lookupGeoInfo(clientIp)
+        .then((geoInfo) => {
+          if (geoInfo) logoutPayload.geoInfo = geoInfo;
+        })
+        .finally(() => {
+          auditLogService.logAction('LOGOUT', logoutPayload);
+          notificationService.sendNotification('LOGOUT', logoutPayload);
+        });
     },
   });
 };

@@ -259,3 +259,20 @@ class IpGeoService {
 }
 
 export const ipGeoService = new IpGeoService();
+
+/**
+ * 查询 IP 地理位置信息，返回格式化字符串。
+ * 查询失败时静默忽略，返回 undefined。
+ */
+export async function lookupGeoInfo(ip: string | undefined | null): Promise<string | undefined> {
+  if (!ip) return undefined;
+  try {
+    const geo = await ipGeoService.lookup(ip);
+    if (geo) {
+      return `${geo.country} ${geo.city} ${geo.isp}`;
+    }
+  } catch {
+    /* 静默忽略 */
+  }
+  return undefined;
+}

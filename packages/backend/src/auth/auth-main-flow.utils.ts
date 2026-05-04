@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { SECURITY_CONFIG } from '../config/security.config';
 import { AuditLogActionType } from '../types/audit.types';
 import { NotificationEvent } from '../types/notification.types';
-import { ipGeoService } from './ip-geo.service';
+import { lookupGeoInfo } from './ip-geo.service';
 
 interface AuthEventServices {
   auditLogService: {
@@ -67,16 +67,10 @@ export const recordLoginFailureAttempt = (
     eventPayload.userId = userId;
   }
 
-  // 非阻塞查询 IP 地理位置，失败不影响登录流程；使用 .finally 确保审计事件不丢失
-  void ipGeoService
-    .lookup(clientIp)
-    .then((geo) => {
-      if (geo) {
-        eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
-      }
-    })
-    .catch(() => {
-      /* 地理定位失败，继续无 geoInfo 的审计 */
+  // 非阻塞查询 IP 地理位置，失败不影响登录流程
+  void lookupGeoInfo(clientIp)
+    .then((geoInfo) => {
+      if (geoInfo) eventPayload.geoInfo = geoInfo;
     })
     .finally(() => {
       services.auditLogService.logAction('LOGIN_FAILURE', eventPayload);
@@ -104,16 +98,10 @@ export const recordLoginSuccessAttempt = (
     eventPayload.twoFactor = true;
   }
 
-  // 非阻塞查询 IP 地理位置，失败不影响登录流程；使用 .finally 确保审计事件不丢失
-  void ipGeoService
-    .lookup(clientIp)
-    .then((geo) => {
-      if (geo) {
-        eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
-      }
-    })
-    .catch(() => {
-      /* 地理定位失败，继续无 geoInfo 的审计 */
+  // 非阻塞查询 IP 地理位置，失败不影响登录流程
+  void lookupGeoInfo(clientIp)
+    .then((geoInfo) => {
+      if (geoInfo) eventPayload.geoInfo = geoInfo;
     })
     .finally(() => {
       services.auditLogService.logAction('LOGIN_SUCCESS', eventPayload);
