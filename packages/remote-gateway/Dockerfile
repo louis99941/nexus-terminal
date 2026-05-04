@@ -19,9 +19,7 @@ RUN npm prune --production
 # --- Stage 2: 基于 guacd 镜像构建最终镜像 ---
 FROM guacamole/guacd:latest
 
-# 安装 Node.js 20.x（Alpine-based guacd 镜像）
-# guacd 镜像默认以非 root 运行，安装/构建阶段需要 root
-USER root
+# 安装 Node.js 20.x（Alpine-based guacd 镜像，以 root 运行）
 RUN apk add --no-cache nodejs npm curl ca-certificates bash netcat-openbsd
 
 WORKDIR /app
@@ -42,9 +40,8 @@ RUN npm install patch-package --no-save && \
 COPY packages/remote-gateway/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 设置目录权限并切回 guacamole 用户（entrypoint 中启动 guacd 需要该用户）
-RUN chown -R guacamole:guacamole /app
-USER guacamole
+# 移除构建缓存
+RUN rm -rf /root/.npm /tmp/*
 
 # 暴露端口：9090=API, 8080=WebSocket, 4822=guacd（可选，供外部调试）
 EXPOSE 9090 8080
