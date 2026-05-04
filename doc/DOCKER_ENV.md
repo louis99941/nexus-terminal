@@ -92,12 +92,12 @@
 
 > **配置方式**: 在 `docker-compose.yml` 的 `remote-gateway` 服务中配置
 
-| 变量名             | 默认值                | 必填 | 描述                                      |
-| ------------------ | --------------------- | ---- | ----------------------------------------- |
-| `GUACD_HOST`       | `guacd`               | 否   | Guacd 服务地址（Docker 内部网络用服务名） |
-| `GUACD_PORT`       | `4822`                | 否   | Guacd 服务端口                            |
-| `FRONTEND_URL`     | `http://frontend`     | 否   | 前端 URL（CORS 白名单）                   |
-| `MAIN_BACKEND_URL` | `http://backend:3001` | 否   | 后端 URL（CORS 白名单）                   |
+| 变量名             | 默认值                | 必填 | 描述                                             |
+| ------------------ | --------------------- | ---- | ------------------------------------------------ |
+| `GUACD_HOST`       | `localhost`           | 否   | Guacd 服务地址（内嵌于同一容器，默认 localhost） |
+| `GUACD_PORT`       | `4822`                | 否   | Guacd 服务端口                                   |
+| `FRONTEND_URL`     | `http://frontend`     | 否   | 前端 URL（CORS 白名单）                          |
+| `MAIN_BACKEND_URL` | `http://backend:3001` | 否   | 后端 URL（CORS 白名单）                          |
 
 ### 可选配置
 
@@ -212,7 +212,7 @@ services:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
     environment:
-      GUACD_HOST: guacd
+      GUACD_HOST: localhost
       GUACD_PORT: 4822
       REMOTE_GATEWAY_API_PORT: 9090
       REMOTE_GATEWAY_WS_PORT: 8080

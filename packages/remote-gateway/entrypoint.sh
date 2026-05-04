@@ -9,7 +9,13 @@ GUACD_PORT="${GUACD_PORT:-4822}"
 
 echo "[entrypoint] 启动 guacd 守护进程..."
 # guacd 默认在前台运行，改为后台运行
-guacd -b "$GUACD_HOST" -l "$GUACD_PORT" -f &
+# 官方 guacamole/guacd 镜像中 guacd 位于 /opt/guacamole/sbin/
+GUACD_BIN="/opt/guacamole/sbin/guacd"
+if [ ! -x "$GUACD_BIN" ]; then
+    # 回退：尝试 PATH 中的 guacd
+    GUACD_BIN="guacd"
+fi
+"$GUACD_BIN" -b "$GUACD_HOST" -l "$GUACD_PORT" -f &
 GUACD_PID=$!
 
 # 等待 guacd 就绪

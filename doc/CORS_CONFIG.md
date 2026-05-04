@@ -54,7 +54,7 @@ CORS_ALLOW_ALL=true  # ⚠️ 仅用于开发/测试
 remote-gateway:
   image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
   environment:
-    GUACD_HOST: guacd
+    GUACD_HOST: localhost
     GUACD_PORT: 4822
     FRONTEND_URL: http://frontend
     MAIN_BACKEND_URL: http://backend:3001

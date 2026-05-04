@@ -183,15 +183,15 @@
 
 ### Remote Gateway 服务
 
-| 变量/配置                 | 值                                                       | 描述                |
-| ------------------------- | -------------------------------------------------------- | ------------------- |
-| 镜像                      | `ghcr.io/silentely/nexus-terminal-remote-gateway:latest` | 远程网关容器镜像    |
-| `GUACD_HOST`              | `guacd`                                                  | 连接内部 guacd 服务 |
-| `GUACD_PORT`              | `4822`                                                   | Guacd 端口          |
-| `REMOTE_GATEWAY_API_PORT` | `9090`                                                   | API 端口            |
-| `REMOTE_GATEWAY_WS_PORT`  | `8080`                                                   | WebSocket 端口      |
-| `FRONTEND_URL`            | `http://frontend`                                        | 前端地址            |
-| `MAIN_BACKEND_URL`        | `http://backend:3001`                                    | 后端地址            |
+| 变量/配置                 | 值                                                       | 描述                               |
+| ------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| 镜像                      | `ghcr.io/silentely/nexus-terminal-remote-gateway:latest` | 远程网关容器镜像                   |
+| `GUACD_HOST`              | `localhost`                                              | 连接内嵌 guacd（同容器 localhost） |
+| `GUACD_PORT`              | `4822`                                                   | Guacd 端口                         |
+| `REMOTE_GATEWAY_API_PORT` | `9090`                                                   | API 端口                           |
+| `REMOTE_GATEWAY_WS_PORT`  | `8080`                                                   | WebSocket 端口                     |
+| `FRONTEND_URL`            | `http://frontend`                                        | 前端地址                           |
+| `MAIN_BACKEND_URL`        | `http://backend:3001`                                    | 后端地址                           |
 
 ### Guacd 服务
 
