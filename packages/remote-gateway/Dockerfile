@@ -19,13 +19,8 @@ RUN npm prune --production
 # --- Stage 2: 基于 guacd 镜像构建最终镜像 ---
 FROM guacamole/guacd:latest
 
-# 安装 Node.js 20.x（Debian-based guacd 镜像）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# 安装 Node.js 20.x（Alpine-based guacd 镜像）
+RUN apk add --no-cache nodejs npm curl ca-certificates bash netcat-openbsd
 
 WORKDIR /app
 
