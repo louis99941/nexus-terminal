@@ -1,3 +1,7 @@
+# 星枢终端 Docker Compose 配置
+# 3 容器部署：frontend + backend + remote-gateway（内嵌 guacd）
+# remote-gateway 镜像已内嵌 guacd 进程，无需单独部署 guacd 容器
+
 services:
   frontend:
     image: ghcr.io/silentely/nexus-terminal-frontend:latest
@@ -53,11 +57,13 @@ services:
         limits:
           memory: 512M
 
+  # Remote Gateway：内嵌 guacd，guacd 进程与 Node.js 共享同一容器
   remote-gateway:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
     environment:
-      GUACD_HOST: guacd
+      # guacd 已内嵌于本容器，使用 localhost 连接
+      GUACD_HOST: localhost
       GUACD_PORT: 4822
       REMOTE_GATEWAY_API_PORT: 9090
       REMOTE_GATEWAY_WS_PORT: 8080
@@ -75,7 +81,6 @@ services:
     networks:
       - nexus-terminal-network
     depends_on:
-      - guacd
       - backend
     restart: unless-stopped
     healthcheck:
@@ -91,28 +96,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-
-  guacd:
-    image: guacamole/guacd:latest
-    container_name: nexus-terminal-guacd
-    networks:
-      - nexus-terminal-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -x guacd || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+          memory: 768M
 
 networks:
   nexus-terminal-network:
