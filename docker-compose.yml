@@ -121,5 +121,5 @@ networks:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: fd01::/80    
-          gateway: fd01::1    
+        - subnet: fd01::/80
+          gateway: fd01::1

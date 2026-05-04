@@ -126,7 +126,7 @@ export async function exportData(): Promise<BackupPayload> {
   return result;
 }
 
-/** 从备份数据导入到数据库 */
+/** 从备份数据导入到数据库（事务性：失败时回滚） */
 export async function importData(
   payload: BackupPayload,
   options: ImportOptions = {}
@@ -138,43 +138,70 @@ export async function importData(
   const tablesToImport =
     tables || (Object.keys(IMPORT_TABLES) as (keyof Omit<BackupPayload, 'metadata'>)[]);
 
-  for (const key of tablesToImport) {
-    const config = IMPORT_TABLES[key];
-    if (!config) {
-      result.errors.push(`未知的表: ${key}`);
-      continue;
-    }
+  // 使用事务确保导入原子性：任何失败自动回滚
+  await runDb(db, 'BEGIN TRANSACTION');
 
-    const rows = (payload as unknown as Record<string, unknown[]>)[key];
-    if (!Array.isArray(rows) || rows.length === 0) {
-      result.imported[key] = 0;
-      result.skipped[key] = 0;
-      continue;
-    }
-
-    let imported = 0;
-    let skipped = 0;
-
-    const placeholders = config.columns.map(() => '?').join(', ');
-    const insertSql = overwrite
-      ? `INSERT OR REPLACE INTO ${config.table} (${config.columns.join(', ')}) VALUES (${placeholders})`
-      : `INSERT OR IGNORE INTO ${config.table} (${config.columns.join(', ')}) VALUES (${placeholders})`;
-
-    for (const row of rows) {
-      try {
-        const values = config.columns.map((col) => (row as Record<string, unknown>)[col] ?? null);
-        const { changes } = await runDb(db, insertSql, values);
-        if (changes > 0) imported++;
-        else skipped++;
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        result.errors.push(`${key} 导入失败: ${msg}`);
-        skipped++;
+  try {
+    for (const key of tablesToImport) {
+      const config = IMPORT_TABLES[key];
+      if (!config) {
+        result.errors.push(`未知的表: ${key}`);
+        continue;
       }
+
+      const rows = (payload as unknown as Record<string, unknown[]>)[key];
+      if (!Array.isArray(rows) || rows.length === 0) {
+        result.imported[key] = 0;
+        result.skipped[key] = 0;
+        continue;
+      }
+
+      let imported = 0;
+      let skipped = 0;
+
+      const placeholders = config.columns.map(() => '?').join(', ');
+      const insertSql = overwrite
+        ? `INSERT OR REPLACE INTO ${config.table} (${config.columns.join(', ')}) VALUES (${placeholders})`
+        : `INSERT OR IGNORE INTO ${config.table} (${config.columns.join(', ')}) VALUES (${placeholders})`;
+
+      for (const row of rows) {
+        try {
+          const values = config.columns.map((col) => (row as Record<string, unknown>)[col] ?? null);
+          const { changes } = await runDb(db, insertSql, values);
+          if (changes > 0) imported++;
+          else skipped++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          // 仅忽略约束冲突类错误，其余向上抛出触发回滚
+          if (msg.includes('UNIQUE') || msg.includes('constraint') || msg.includes('NOT NULL')) {
+            result.errors.push(`${key} 导入失败: ${msg}`);
+            skipped++;
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      result.imported[key] = imported;
+      result.skipped[key] = skipped;
     }
 
-    result.imported[key] = imported;
-    result.skipped[key] = skipped;
+    // 有错误时回滚，否则提交
+    if (result.errors.length > 0) {
+      await runDb(db, 'ROLLBACK');
+      const totalImported = Object.values(result.imported).reduce((a, b) => a + b, 0);
+      if (totalImported === 0) {
+        // 全部失败，清空结果标记
+        result.imported = {};
+        result.skipped = {};
+      }
+    } else {
+      await runDb(db, 'COMMIT');
+    }
+  } catch (err: unknown) {
+    await runDb(db, 'ROLLBACK').catch(() => {});
+    const msg = err instanceof Error ? err.message : String(err);
+    result.errors.push(`导入事务失败，已回滚: ${msg}`);
   }
 
   return result;

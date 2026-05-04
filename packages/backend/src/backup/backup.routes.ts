@@ -5,11 +5,14 @@
  * POST /api/v1/backup/validate 验证备份文件格式
  */
 
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import { exportData, importData, validateBackup } from './backup.service';
 import { isAuthenticated } from '../auth/auth.middleware';
 
 const router = Router();
+
+/** 导入端点专用的 body 解析器（备份文件可能超过全局 1mb 限制） */
+const importBodyParser = express.json({ limit: '5mb' });
 
 /**
  * 导出数据
@@ -35,7 +38,7 @@ router.post('/export', isAuthenticated, async (_req: Request, res: Response) => 
  * 导入数据
  * 请求体：{ data: BackupPayload, overwrite?: boolean, tables?: string[] }
  */
-router.post('/import', isAuthenticated, async (req: Request, res: Response) => {
+router.post('/import', isAuthenticated, importBodyParser, async (req: Request, res: Response) => {
   try {
     const { data, overwrite, tables } = req.body;
 

@@ -67,14 +67,21 @@ export const recordLoginFailureAttempt = (
     eventPayload.userId = userId;
   }
 
-  // 非阻塞查询 IP 地理位置，失败不影响登录流程
-  void ipGeoService.lookup(clientIp).then((geo) => {
-    if (geo) {
-      eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
-    }
-    services.auditLogService.logAction('LOGIN_FAILURE', eventPayload);
-    services.notificationService.sendNotification('LOGIN_FAILURE', eventPayload);
-  });
+  // 非阻塞查询 IP 地理位置，失败不影响登录流程；使用 .finally 确保审计事件不丢失
+  void ipGeoService
+    .lookup(clientIp)
+    .then((geo) => {
+      if (geo) {
+        eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
+      }
+    })
+    .catch(() => {
+      /* 地理定位失败，继续无 geoInfo 的审计 */
+    })
+    .finally(() => {
+      services.auditLogService.logAction('LOGIN_FAILURE', eventPayload);
+      services.notificationService.sendNotification('LOGIN_FAILURE', eventPayload);
+    });
 };
 
 export const recordLoginSuccessAttempt = (
@@ -97,14 +104,21 @@ export const recordLoginSuccessAttempt = (
     eventPayload.twoFactor = true;
   }
 
-  // 非阻塞查询 IP 地理位置，失败不影响登录流程
-  void ipGeoService.lookup(clientIp).then((geo) => {
-    if (geo) {
-      eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
-    }
-    services.auditLogService.logAction('LOGIN_SUCCESS', eventPayload);
-    services.notificationService.sendNotification('LOGIN_SUCCESS', eventPayload);
-  });
+  // 非阻塞查询 IP 地理位置，失败不影响登录流程；使用 .finally 确保审计事件不丢失
+  void ipGeoService
+    .lookup(clientIp)
+    .then((geo) => {
+      if (geo) {
+        eventPayload.geoInfo = `${geo.country} ${geo.city} ${geo.isp}`;
+      }
+    })
+    .catch(() => {
+      /* 地理定位失败，继续无 geoInfo 的审计 */
+    })
+    .finally(() => {
+      services.auditLogService.logAction('LOGIN_SUCCESS', eventPayload);
+      services.notificationService.sendNotification('LOGIN_SUCCESS', eventPayload);
+    });
 };
 
 export const startPendingTwoFactorSession = (

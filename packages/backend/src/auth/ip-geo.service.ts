@@ -19,6 +19,7 @@ interface CacheEntry {
 
 const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 缓存 24 小时
 const GEO_API_TIMEOUT_MS = 3000; // 3 秒超时
+const GEO_CACHE_MAX_SIZE = 10000; // 缓存上限，防止内存泄漏
 
 class IpGeoService {
   private cache = new Map<string, CacheEntry>();
@@ -67,8 +68,12 @@ class IpGeoService {
         query: data.query || ip,
       };
 
-      // 缓存结果
+      // 缓存结果，超出上限时淘汰最早条目
       this.cache.set(ip, { geo, expiresAt: Date.now() + GEO_CACHE_TTL_MS });
+      if (this.cache.size > GEO_CACHE_MAX_SIZE) {
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey) this.cache.delete(oldestKey);
+      }
 
       return geo;
     } catch (error: unknown) {
@@ -79,18 +84,19 @@ class IpGeoService {
   }
 
   /**
-   * 判断是否为内网/私有 IP
+   * 判断是否为内网/私有 IP（RFC 1918 + loopback + IPv6 ULA）
    */
   private isPrivateIp(ip: string): boolean {
-    return (
-      ip === '127.0.0.1' ||
-      ip === '::1' ||
-      ip.startsWith('10.') ||
-      ip.startsWith('172.') ||
-      ip.startsWith('192.168.') ||
-      ip.startsWith('fc') ||
-      ip.startsWith('fd')
-    );
+    if (ip === '127.0.0.1' || ip === '::1') return true;
+    if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
+    // RFC 1918: 172.16.0.0/12 (172.16.x.x ~ 172.31.x.x)
+    if (ip.startsWith('172.')) {
+      const second = parseInt(ip.split('.')[1], 10);
+      if (second >= 16 && second <= 31) return true;
+    }
+    // IPv6 ULA: fc00::/7
+    if (ip.startsWith('fc') || ip.startsWith('fd')) return true;
+    return false;
   }
 
   /**

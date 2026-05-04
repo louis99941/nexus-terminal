@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # Standalone 启动脚本：先启动 guacd，再启动 Node.js 远程网关
