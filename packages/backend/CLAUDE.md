@@ -6,6 +6,20 @@
 
 ## 变更记录 (Changelog)
 
+### 2026-05-04 (IP 地理定位持久化与多提供商适配)
+
+- **IP 地理定位 SQLite 持久化**：
+  - `database/schema.ts`：新增 `ip_geo_cache` 表定义（含索引）
+  - `database/schema.registry.ts`：注册 `ip_geo_cache` 表初始化
+  - `auth/ip-geo.service.ts`：重写为两级缓存（L1 内存 + L2 SQLite），重启后缓存不丢失
+- **多提供商适配器模式**：
+  - 内置 `ip-api`（默认）和 `ipinfo` 两个适配器
+  - 新增环境变量 `GEO_PROVIDER`：可选 `ip-api`（默认）或 `ipinfo`
+  - 新增环境变量 `IPINFO_TOKEN`：ipinfo.io API Token（可选）
+  - 适配器接口 `GeoProviderAdapter`：扩展新提供商只需实现 `buildUrl` + `parseResponse`
+- **审计日志同步清理**：
+  - `audit/audit.repository.ts`：`deleteAllLogs()` 删除所有审计日志时同步清理 `ip_geo_cache`
+
 ### 2026-05-04 (性能优化与数据备份)
 
 - **SSH 批量状态采集**：7+ 次独立 exec 合并为单次批量执行，高延迟场景提升 70-85%
@@ -328,6 +342,7 @@ packages/backend/
 | `quick_command_tags`             | 快捷指令标签              |
 | `quick_command_tag_associations` | 快捷指令-标签关联         |
 | `ip_blacklist`                   | IP 封禁记录               |
+| `ip_geo_cache`                   | IP 地理定位持久化缓存     |
 | `batch_tasks`                    | 批量任务主记录（Phase 4） |
 | `batch_subtasks`                 | 批量任务子任务（Phase 4） |
 | `ai_sessions`                    | AI 会话记录（Phase 5）    |
@@ -420,6 +435,8 @@ npm start
 | `RP_ORIGIN`         | -           | Passkey Origin，支持逗号分隔多值（完整 URL）                       |
 | `ENABLE_METRICS`    | false       | 启用 Prometheus 指标端点（/api/v1/metrics）                        |
 | `ENABLE_GEO_LOOKUP` | true        | 启用登录事件 IP 地理位置查询（设为 false 禁用）                    |
+| `GEO_PROVIDER`      | ip-api      | IP 地理定位提供商：`ip-api`（默认）或 `ipinfo`                     |
+| `IPINFO_TOKEN`      | -           | ipinfo.io API Token（可选，提升请求配额）                          |
 | `LOG_LEVEL`         | info        | 运行时日志等级（debug/info/warn/error/silent）                     |
 
 ### 安全配置常量（`src/config/security.config.ts`）

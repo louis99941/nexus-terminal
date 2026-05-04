@@ -110,13 +110,15 @@
 
 > 定义位置：`packages/backend/src/config/routes.ts`、`packages/backend/src/config/middleware.ts`、`packages/backend/src/services/guacamole.service.ts`、`packages/backend/src/auth/ip-geo.service.ts`
 
-| 变量名                     | 类型     | 必填 | 默认值  | 描述                                                                                              |
-| -------------------------- | -------- | ---- | ------- | ------------------------------------------------------------------------------------------------- |
-| `ENABLE_METRICS`           | `'true'` | 否   | -       | 设为 `true` 时启用 `/api/v1/metrics` Prometheus 指标端点。未设置或非 `true` 则端点不注册。        |
-| `ENABLE_GEO_LOOKUP`        | `string` | 否   | `true`  | 设为 `false` 时禁用登录事件 IP 地理位置查询。启用时使用 ip-api.com 查询，结果写入审计日志。       |
-| `TRUST_PROXY`              | `string` | 否   | `false` | Express `trust proxy` 配置。支持 `true`/`false`/跳层数/自定义值，用于正确获取客户端真实 IP。      |
-| `TRUST_PROXY_HOPS`         | `number` | 否   | -       | 代理跳层数，当 `TRUST_PROXY` 未设置时作为备选。设为 `n` 表示信任前 `n` 层代理。                   |
-| `REMOTE_GATEWAY_API_TOKEN` | `string` | 否   | `''`    | 远程网关 API 认证令牌。设置后后端向 Remote Gateway 发起请求时会携带 `X-Remote-Gateway-Token` 头。 |
+| 变量名                     | 类型     | 必填 | 默认值   | 描述                                                                                                               |
+| -------------------------- | -------- | ---- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `ENABLE_METRICS`           | `'true'` | 否   | -        | 设为 `true` 时启用 `/api/v1/metrics` Prometheus 指标端点。未设置或非 `true` 则端点不注册。                         |
+| `ENABLE_GEO_LOOKUP`        | `string` | 否   | `true`   | 设为 `false` 时禁用登录事件 IP 地理位置查询。启用时使用 ip-api.com 查询，结果写入审计日志。                        |
+| `GEO_PROVIDER`             | `string` | 否   | `ip-api` | IP 地理定位提供商。可选：`ip-api`（默认，免费 45 req/min）或 `ipinfo`（ipinfo.io）。扩展新提供商需实现适配器接口。 |
+| `IPINFO_TOKEN`             | `string` | 否   | -        | ipinfo.io API Token（可选，提升请求配额至 50k/月）。仅当 `GEO_PROVIDER=ipinfo` 时生效。                            |
+| `TRUST_PROXY`              | `string` | 否   | `false`  | Express `trust proxy` 配置。支持 `true`/`false`/跳层数/自定义值，用于正确获取客户端真实 IP。                       |
+| `TRUST_PROXY_HOPS`         | `number` | 否   | -        | 代理跳层数，当 `TRUST_PROXY` 未设置时作为备选。设为 `n` 表示信任前 `n` 层代理。                                    |
+| `REMOTE_GATEWAY_API_TOKEN` | `string` | 否   | `''`     | 远程网关 API 认证令牌。设置后后端向 Remote Gateway 发起请求时会携带 `X-Remote-Gateway-Token` 头。                  |
 
 ### 1.11 API 限流覆盖配置
 
@@ -498,4 +500,4 @@
 
 ---
 
-**文档生成时间**：2025-12-26（初始）| **最后更新**：2026-05-04（新增 ENABLE_GEO_LOOKUP 地理定位开关变量）
+**文档生成时间**：2025-12-26（初始）| **最后更新**：2026-05-04（新增 GEO_PROVIDER、IPINFO_TOKEN 地理定位提供商配置）

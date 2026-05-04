@@ -1,10 +1,15 @@
 /**
  * IP 地理定位服务
- * 使用 ip-api.com 查询 IP 地理位置信息，带内存缓存
+ * 支持多提供商适配器（ip-api、ipinfo 等）
+ * 两级缓存：内存 L1 + SQLite L2，持久化避免重启后重复查询
  * 用于登录事件审计日志增强
  */
 
-interface GeoInfo {
+import { getDbInstance, runDb, getDb as getDbRow } from '../database/connection';
+
+// ==================== 类型定义 ====================
+
+export interface GeoInfo {
   country: string;
   regionName: string;
   city: string;
@@ -17,15 +22,107 @@ interface CacheEntry {
   expiresAt: number;
 }
 
-const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 缓存 24 小时
-const GEO_API_TIMEOUT_MS = 3000; // 3 秒超时
-const GEO_CACHE_MAX_SIZE = 10000; // 缓存上限，防止内存泄漏
+interface DbCacheRow {
+  ip: string;
+  country: string;
+  region_name: string;
+  city: string;
+  isp: string;
+  provider: string;
+  queried_at: number;
+}
+
+/** 地理定位提供商适配器接口 */
+interface GeoProviderAdapter {
+  readonly name: string;
+  /** 从原始 API 响应中提取标准化 GeoInfo */
+  parseResponse(data: unknown, ip: string): GeoInfo | null;
+  /** 构造 API 请求 URL */
+  buildUrl(ip: string): string;
+}
+
+// ==================== 常量 ====================
+
+const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const GEO_API_TIMEOUT_MS = 3000;
+const GEO_CACHE_MAX_SIZE = 10000;
+const GEO_DB_CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 小时（秒）
+
+// ==================== 提供商适配器 ====================
+
+/** ip-api.com 适配器（免费，45 req/min，仅 HTTP） */
+const ipApiAdapter: GeoProviderAdapter = {
+  name: 'ip-api',
+
+  buildUrl(ip: string): string {
+    return `http://ip-api.com/json/${ip}?fields=country,regionName,city,isp,query`;
+  },
+
+  parseResponse(data: unknown, ip: string): GeoInfo | null {
+    const d = data as Record<string, unknown>;
+    if (d.status !== 'success') return null;
+    return {
+      country: (d.country as string) || '',
+      regionName: (d.regionName as string) || '',
+      city: (d.city as string) || '',
+      isp: (d.isp as string) || '',
+      query: (d.query as string) || ip,
+    };
+  },
+};
+
+/** ipinfo.io 适配器（免费 50k req/month，需 token 可选） */
+const ipinfoAdapter: GeoProviderAdapter = {
+  name: 'ipinfo',
+
+  buildUrl(ip: string): string {
+    const token = process.env.IPINFO_TOKEN;
+    return token ? `https://ipinfo.io/${ip}/json?token=${token}` : `https://ipinfo.io/${ip}/json`;
+  },
+
+  parseResponse(data: unknown, ip: string): GeoInfo | null {
+    const d = data as Record<string, unknown>;
+    if (d.bogon) return null;
+    // ipinfo 的 loc 字段格式为 "lat,lon"，不包含 regionName，用 region 代替
+    return {
+      country: (d.country as string) || '',
+      regionName: (d.region as string) || '',
+      city: (d.city as string) || '',
+      isp: (d.org as string) || '',
+      query: ip,
+    };
+  },
+};
+
+// ==================== 适配器注册表 ====================
+
+const PROVIDER_ADAPTERS: Record<string, GeoProviderAdapter> = {
+  'ip-api': ipApiAdapter,
+  ipinfo: ipinfoAdapter,
+};
+
+// ==================== 服务实现 ====================
 
 class IpGeoService {
-  private cache = new Map<string, CacheEntry>();
+  /** L1 内存缓存 */
+  private memCache = new Map<string, CacheEntry>();
+  /** 当前活跃的提供商适配器 */
+  private adapter: GeoProviderAdapter;
+
+  constructor() {
+    const providerName = (process.env.GEO_PROVIDER || 'ip-api').trim();
+    this.adapter = PROVIDER_ADAPTERS[providerName] || ipApiAdapter;
+    if (providerName !== 'ip-api' && !PROVIDER_ADAPTERS[providerName]) {
+      console.warn(
+        `[IpGeo] 未知提供商 "${providerName}"，可用: ${Object.keys(PROVIDER_ADAPTERS).join(', ')}。回退到 ip-api。`
+      );
+      this.adapter = ipApiAdapter;
+    }
+    console.info(`[IpGeo] 使用地理定位提供商: ${this.adapter.name}`);
+  }
 
   /**
-   * 查询 IP 地理位置（带缓存，失败返回 null）
+   * 查询 IP 地理位置（L1 内存 → L2 SQLite → API → 回写缓存）
    * 仅对公网 IP 查询，内网/未知 IP 直接返回 null
    * 可通过 ENABLE_GEO_LOOKUP=false 禁用
    */
@@ -37,55 +134,106 @@ class IpGeoService {
       return null;
     }
 
-    // 检查缓存
-    const cached = this.cache.get(ip);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.geo;
+    // L1: 内存缓存
+    const memCached = this.memCache.get(ip);
+    if (memCached && memCached.expiresAt > Date.now()) {
+      return memCached.geo;
     }
 
+    // L2: SQLite 持久化缓存
+    const dbCached = await this.loadFromDb(ip);
+    if (dbCached) {
+      this.setMemCache(ip, dbCached);
+      return dbCached;
+    }
+
+    // 缓存未命中，调用 API
+    const geo = await this.fetchFromApi(ip);
+    if (geo) {
+      // 回写两级缓存
+      this.setMemCache(ip, geo);
+      await this.saveToDb(ip, geo);
+    }
+
+    return geo;
+  }
+
+  /** 从 SQLite 加载缓存 */
+  private async loadFromDb(ip: string): Promise<GeoInfo | null> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), GEO_API_TIMEOUT_MS);
-
-      const response = await fetch(
-        `http://ip-api.com/json/${ip}?fields=country,regionName,city,isp,query`,
-        {
-          signal: controller.signal,
-        }
+      const db = await getDbInstance();
+      const cutoff = Math.floor(Date.now() / 1000) - GEO_DB_CACHE_TTL_SECONDS;
+      const row = await getDbRow<DbCacheRow>(
+        db,
+        'SELECT * FROM ip_geo_cache WHERE ip = ? AND queried_at > ?',
+        [ip, cutoff]
       );
-      clearTimeout(timeoutId);
-
-      if (!response.ok) return null;
-
-      const data = (await response.json()) as GeoInfo & { status: string };
-      if (data.status !== 'success') return null;
-
-      const geo: GeoInfo = {
-        country: data.country || '',
-        regionName: data.regionName || '',
-        city: data.city || '',
-        isp: data.isp || '',
-        query: data.query || ip,
+      if (!row) return null;
+      return {
+        country: row.country,
+        regionName: row.region_name,
+        city: row.city,
+        isp: row.isp,
+        query: row.ip,
       };
-
-      // 缓存结果，超出上限时淘汰最早条目
-      this.cache.set(ip, { geo, expiresAt: Date.now() + GEO_CACHE_TTL_MS });
-      if (this.cache.size > GEO_CACHE_MAX_SIZE) {
-        const oldestKey = this.cache.keys().next().value;
-        if (oldestKey) this.cache.delete(oldestKey);
-      }
-
-      return geo;
-    } catch (error: unknown) {
-      // 地理定位失败不阻塞登录流程
-      console.debug('[IpGeo] 查询失败:', error instanceof Error ? error.message : error);
+    } catch {
       return null;
     }
   }
 
-  /**
-   * 判断是否为内网/私有 IP（RFC 1918 + loopback + IPv6 ULA）
-   */
+  /** 写入 SQLite 缓存（UPSERT） */
+  private async saveToDb(ip: string, geo: GeoInfo): Promise<void> {
+    try {
+      const db = await getDbInstance();
+      const now = Math.floor(Date.now() / 1000);
+      await runDb(
+        db,
+        `INSERT INTO ip_geo_cache (ip, country, region_name, city, isp, provider, queried_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(ip) DO UPDATE SET
+           country = excluded.country,
+           region_name = excluded.region_name,
+           city = excluded.city,
+           isp = excluded.isp,
+           provider = excluded.provider,
+           queried_at = excluded.queried_at`,
+        [ip, geo.country, geo.regionName, geo.city, geo.isp, this.adapter.name, now]
+      );
+    } catch (err: unknown) {
+      console.debug('[IpGeo] 写入 SQLite 缓存失败:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  /** 调用外部 API 查询地理位置 */
+  private async fetchFromApi(ip: string): Promise<GeoInfo | null> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), GEO_API_TIMEOUT_MS);
+
+      const url = this.adapter.buildUrl(ip);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      return this.adapter.parseResponse(data, ip);
+    } catch (error: unknown) {
+      console.debug('[IpGeo] API 查询失败:', error instanceof Error ? error.message : error);
+      return null;
+    }
+  }
+
+  /** 设置内存缓存，超出上限时 FIFO 淘汰 */
+  private setMemCache(ip: string, geo: GeoInfo): void {
+    this.memCache.set(ip, { geo, expiresAt: Date.now() + GEO_CACHE_TTL_MS });
+    if (this.memCache.size > GEO_CACHE_MAX_SIZE) {
+      const oldestKey = this.memCache.keys().next().value;
+      if (oldestKey) this.memCache.delete(oldestKey);
+    }
+  }
+
+  /** 判断是否为内网/私有 IP（RFC 1918 + loopback + IPv6 ULA） */
   private isPrivateIp(ip: string): boolean {
     if (ip === '127.0.0.1' || ip === '::1') return true;
     if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
@@ -99,14 +247,12 @@ class IpGeoService {
     return false;
   }
 
-  /**
-   * 清理过期缓存
-   */
+  /** 清理内存过期缓存 */
   cleanup(): void {
     const now = Date.now();
-    for (const [key, entry] of this.cache) {
+    for (const [key, entry] of this.memCache) {
       if (entry.expiresAt <= now) {
-        this.cache.delete(key);
+        this.memCache.delete(key);
       }
     }
   }

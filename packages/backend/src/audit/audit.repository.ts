@@ -128,6 +128,15 @@ export class AuditLogRepository {
       const db = await getDbInstance();
       const result = await runDb(db, sql, []);
       console.info(`[审计日志] 已删除所有审计日志，共 ${result.changes} 条记录。`);
+
+      // 同步清理 IP 地理定位缓存（审计日志清除后缓存不再需要）
+      try {
+        await runDb(db, 'DELETE FROM ip_geo_cache', []);
+        console.info('[审计日志] 已同步清理 IP 地理定位缓存。');
+      } catch {
+        // 缓存清理失败不影响审计日志删除的主流程
+      }
+
       return result.changes;
     } catch (err: unknown) {
       console.error(`[审计日志] 删除所有日志时出错: ${getErrorMessage(err)}`);

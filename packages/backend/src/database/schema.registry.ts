@@ -182,4 +182,16 @@ export const tableDefinitions: TableDefinition[] = [
     sql: schemaSql.createAIMessagesTableSQL,
     init: initAIMessagesTable,
   },
+
+  // IP 地理定位缓存
+  {
+    name: 'ip_geo_cache',
+    sql: schemaSql.createIpGeoCacheTableSQL,
+    init: async (db: Database) => {
+      for (const indexSql of schemaSql.createIpGeoCacheIndexesSQL) {
+        await runDb(db, indexSql);
+      }
+      console.debug('[DB Init] IP 地理定位缓存索引创建完成。');
+    },
+  },
 ];

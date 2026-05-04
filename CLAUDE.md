@@ -42,7 +42,7 @@
   - Frontend: 187 个源文件（99 TS + 88 Vue），37 个测试文件，24 个 Pinia stores，22 个路由模块
   - Remote Gateway: 2 个源文件，1 个测试文件
   - 总计: 381 个源代码文件 + 164 个测试文件
-- **数据库 Schema**：23 个数据表（较上次 24 表减少 1 个）
+- **数据库 Schema**：24 个数据表（新增 ip_geo_cache）
 - **测试覆盖率**：
   - Backend: 118 个测试文件（单元测试 + 集成测试 + 性能测试）
   - Frontend: 37 个测试文件（组件、Store、Composables 测试）
@@ -141,7 +141,7 @@
 graph TD
     subgraph "Nexus Terminal Monorepo"
         A["nexus-terminal (根)"] --> B["packages"]
-        B --> C["backend<br/>Express + SQLite<br/>(207 TS文件, 23 数据表, 127 测试)"]
+        B --> C["backend<br/>Express + SQLite<br/>(207 TS文件, 24 数据表, 127 测试)"]
         B --> D["frontend<br/>Vue 3 + Vite<br/>(143 TS + 97 Vue, 24 Stores, 62 测试)"]
         B --> E["remote-gateway<br/>Guacamole Lite + 内嵌 guacd<br/>(2 源文件, 1 测试)"]
         A --> F["doc<br/>(技术债务、路线图)"]

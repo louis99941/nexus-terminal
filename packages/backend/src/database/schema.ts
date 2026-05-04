@@ -348,3 +348,21 @@ export const createAIMessagesIndexesSQL = [
   `CREATE INDEX IF NOT EXISTS idx_ai_messages_session ON ai_messages(session_id);`,
   `CREATE INDEX IF NOT EXISTS idx_ai_messages_session_time ON ai_messages(session_id, timestamp ASC);`,
 ];
+
+// ========== IP 地理定位缓存 ==========
+
+export const createIpGeoCacheTableSQL = `
+CREATE TABLE IF NOT EXISTS ip_geo_cache (
+    ip TEXT PRIMARY KEY NOT NULL,
+    country TEXT NOT NULL DEFAULT '',
+    region_name TEXT NOT NULL DEFAULT '',
+    city TEXT NOT NULL DEFAULT '',
+    isp TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL DEFAULT 'ip-api',
+    queried_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
+
+export const createIpGeoCacheIndexesSQL = [
+  `CREATE INDEX IF NOT EXISTS idx_ip_geo_cache_queried_at ON ip_geo_cache(queried_at);`,
+];
