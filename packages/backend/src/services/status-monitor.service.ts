@@ -716,11 +716,6 @@ export class StatusMonitorService {
       if (freeRaw && !freeRaw.includes('FREE_FAIL')) {
         // free 命令输出单位为 KB（BusyBox 和标准 Linux 均如此），需转换为 MB
         const memStats = collector.parseMemoryStats(freeRaw, false);
-        console.debug(
-          `[StatusMonitor] ${sessionId} parseMemoryStats 结果:`,
-          `memTotal=${memStats.memTotal}MB memUsed=${memStats.memUsed}MB`,
-          `swapTotal=${memStats.swapTotal}MB swapUsed=${memStats.swapUsed}MB`
-        );
         if (memStats.memTotal === undefined) {
           console.warn(
             `[StatusMonitor] ${sessionId} parseMemoryStats 返回无 memTotal，freeRaw 前 150 字符:`,
@@ -749,14 +744,7 @@ export class StatusMonitorService {
         const cpuTimes = collector.parseProcStat(procStatRaw);
         if (cpuTimes) {
           status.cpuPercent = this.dataAggregator.calculateCpuPercent(sessionId, cpuTimes);
-        } else {
-          console.debug(
-            `[StatusMonitor] ${sessionId} parseProcStat 返回 null，procStatRaw 前 150 字符:`,
-            procStatRaw.substring(0, 150)
-          );
         }
-      } else {
-        console.debug(`[StatusMonitor] ${sessionId} PROC_STAT 段落缺失`);
       }
 
       // 网络速率（需要历史数据差值计算）
