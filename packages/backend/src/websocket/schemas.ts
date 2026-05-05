@@ -70,46 +70,65 @@ export const dockerGetStatsSchema = z.object({
 // --- SFTP 基本操作 Schema ---
 
 // 为每个 SFTP 操作定义专用 payload schema，替换原来的 z.any()
-const sftpPathPayloadSchema = z.object({
-  path: z.string().min(1).max(4096),
-});
+// 所有 schema 必须使用 .strict() 防止 z.union 中的误匹配
+// （Zod 默认 strip 模式会静默丢弃未知字段，导致联合类型匹配到错误的 schema）
+const sftpPathPayloadSchema = z
+  .object({
+    path: z.string().min(1).max(4096),
+  })
+  .strict();
 
-const sftpReadfilePayloadSchema = z.object({
-  path: z.string().min(1).max(4096),
-  encoding: z.string().max(64).optional(),
-});
+const sftpReadfilePayloadSchema = z
+  .object({
+    path: z.string().min(1).max(4096),
+    encoding: z.string().max(64).optional(),
+  })
+  .strict();
 
-const sftpWritefilePayloadSchema = z.object({
-  path: z.string().min(1).max(4096),
-  content: z.string().max(10485760).optional(), // 最大 10MB
-  data: z.string().max(10485760).optional(),
-  encoding: z.string().max(64).optional(),
-});
+const sftpWritefilePayloadSchema = z
+  .object({
+    path: z.string().min(1).max(4096),
+    content: z.string().max(10485760).optional(), // 最大 10MB
+    data: z.string().max(10485760).optional(),
+    encoding: z.string().max(64).optional(),
+  })
+  .strict();
 
-const sftpRenamePayloadSchema = z.object({
-  oldPath: z.string().min(1).max(4096),
-  newPath: z.string().min(1).max(4096),
-});
+const sftpRenamePayloadSchema = z
+  .object({
+    oldPath: z.string().min(1).max(4096),
+    newPath: z.string().min(1).max(4096),
+  })
+  .strict();
 
-const sftpChmodPayloadSchema = z.object({
-  path: z.string().min(1).max(4096),
-  mode: z.number().int().min(0).max(0o7777),
-});
+const sftpChmodPayloadSchema = z
+  .object({
+    path: z.string().min(1).max(4096),
+    mode: z.number().int().min(0).max(0o7777),
+  })
+  .strict();
 
-const sftpCopyMovePayloadSchema = z.object({
-  sources: z.array(z.string().min(1).max(4096)).min(1).max(100),
-  destination: z.string().min(1).max(4096),
-});
+const sftpCopyMovePayloadSchema = z
+  .object({
+    sources: z.array(z.string().min(1).max(4096)).min(1).max(100),
+    destination: z.string().min(1).max(4096),
+  })
+  .strict();
 
-const sftpCompressPayloadSchema = z.object({
-  sources: z.array(z.string().min(1).max(4096)).min(1).max(100),
-  destination: z.string().min(1).max(4096),
-  format: z.enum(['zip', 'targz', 'tarbz2']),
-});
+const sftpCompressPayloadSchema = z
+  .object({
+    sources: z.array(z.string().min(1).max(4096)).min(1).max(100),
+    destination: z.string().min(1).max(4096),
+    format: z.enum(['zip', 'targz', 'tarbz2']),
+  })
+  .strict();
 
-const sftpDecompressPayloadSchema = z.object({
-  source: z.string().min(1).max(4096),
-});
+const sftpDecompressPayloadSchema = z
+  .object({
+    source: z.string().min(1).max(4096),
+    destination: z.string().max(4096).optional(), // 前端可能发送，后端当前未使用
+  })
+  .strict();
 
 /** SFTP 基本操作 payload 联合类型，按操作类型区分验证 */
 const sftpBasePayloadSchema = z.union([
