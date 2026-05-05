@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 
-// Mock TransfersService
+// Mock TransfersService（仅 mock 外部 I/O 依赖，不 mock 验证层）
 const mockTransfersService = vi.hoisted(() => ({
   initiateNewTransfer: vi.fn(),
   getAllTransferTasks: vi.fn(),
@@ -11,12 +11,6 @@ const mockTransfersService = vi.hoisted(() => ({
 
 vi.mock('./transfers.service', () => ({
   TransfersService: vi.fn(() => mockTransfersService),
-}));
-
-vi.mock('./transfers.schema', () => ({
-  initiateTransferPayloadSchema: {
-    safeParse: vi.fn(),
-  },
 }));
 
 import { TransfersController } from './transfers.controller';
@@ -59,14 +53,8 @@ describe('transfers.controller', () => {
       expect(res.json).toHaveBeenCalledWith({ message: '用户未认证或会话无效。' });
     });
 
-    it('Zod 验证失败应返回 400', async () => {
-      vi.mocked(initiateTransferPayloadSchema.safeParse).mockReturnValue({
-        success: false,
-        error: {
-          issues: [{ path: ['sourceConnectionId'], message: 'Required' }],
-        },
-      } as any);
-
+    it('Zod 验证失败应返回 400（使用真实 schema 校验）', async () => {
+      // 发送不满足 schema 要求的 body（缺少必填字段）
       const req = mockReq({ body: { invalid: true } });
       const res = mockRes();
 
@@ -78,33 +66,62 @@ describe('transfers.controller', () => {
       );
     });
 
-    it('创建成功应返回 202', async () => {
-      vi.mocked(initiateTransferPayloadSchema.safeParse).mockReturnValue({
-        success: true,
-        data: { sourceConnectionId: 1, connectionIds: [2] },
-      } as any);
+    it('部分字段缺失应返回 400', async () => {
+      // 只提供部分必填字段
+      const req = mockReq({
+        body: { sourceConnectionId: 1, connectionIds: [2] },
+      });
+      const res = mockRes();
+
+      await controller.initiateTransfer(req, res, mockNext);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('请求参数验证失败') })
+      );
+    });
+
+    it('创建成功应返回 202（使用真实 schema 校验）', async () => {
       const mockTask = { taskId: 'task-1', status: 'queued' };
       mockTransfersService.initiateNewTransfer.mockResolvedValue(mockTask);
 
-      const req = mockReq({ body: { sourceConnectionId: 1, connectionIds: [2] } });
+      // 提供完整的有效 payload（匹配 initiateTransferPayloadSchema）
+      const req = mockReq({
+        body: {
+          sourceConnectionId: 1,
+          connectionIds: [2],
+          sourceItems: [{ name: 'test.txt', path: '/home/user/test.txt', type: 'file' }],
+          remoteTargetPath: '/tmp',
+          transferMethod: 'auto',
+        },
+      });
       const res = mockRes();
 
       await controller.initiateTransfer(req, res, mockNext);
 
       expect(res.status).toHaveBeenCalledWith(202);
       expect(res.json).toHaveBeenCalledWith(mockTask);
+      // 验证 service 收到的是经过 schema 验证和转换后的数据
+      expect(mockTransfersService.initiateNewTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({ sourceConnectionId: 1 }),
+        1
+      );
     });
 
     it('服务异常应返回 500', async () => {
-      vi.mocked(initiateTransferPayloadSchema.safeParse).mockReturnValue({
-        success: true,
-        data: { sourceConnectionId: 1, connectionIds: [2] },
-      } as any);
       mockTransfersService.initiateNewTransfer.mockRejectedValue(
         new Error('SSH connection failed')
       );
 
-      const req = mockReq({ body: { sourceConnectionId: 1, connectionIds: [2] } });
+      const req = mockReq({
+        body: {
+          sourceConnectionId: 1,
+          connectionIds: [2],
+          sourceItems: [{ name: 'a.txt', path: '/a.txt', type: 'file' }],
+          remoteTargetPath: '/tmp',
+          transferMethod: 'rsync',
+        },
+      });
       const res = mockRes();
 
       await controller.initiateTransfer(req, res, mockNext);
