@@ -14,7 +14,6 @@ vi.mock('./transfers.service', () => ({
 }));
 
 import { TransfersController } from './transfers.controller';
-import { initiateTransferPayloadSchema } from './transfers.schema';
 
 describe('transfers.controller', () => {
   let controller: TransfersController;

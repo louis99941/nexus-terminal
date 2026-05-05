@@ -172,7 +172,7 @@ describe('WebSocket Validate — 真实 Schema 验证', () => {
       });
       expect(result.success).toBe(false);
       expect(result.errorDetails).toBeDefined();
-      expect(result.errorDetails!.length).toBeGreaterThan(0);
+      expect(result.errorDetails?.length).toBeGreaterThan(0);
     });
   });
 });
@@ -295,10 +295,7 @@ describe('WebSocket Validate — 真实 Schema 集成验证', async () => {
         requestId: 'req-e2e-1',
       };
 
-      const result = validateWebSocketMessage(message);
-      // 注意：此测试仍使用顶层 mock 的 validateWebSocketMessage，
-      // 但消息会通过真实 Zod schema 验证（因为 sftpBaseSchema 是动态解析的）
-      // 这里只验证 schema 层面的正确性
+      // 直接使用真实 schema 验证（确保 z.union strip 模式不丢弃 content 字段）
       expect(() => realSchemas.sftpBaseSchema.parse(message)).not.toThrow();
       const parsed = realSchemas.sftpBaseSchema.parse(message);
       expect((parsed.payload as Record<string, unknown>).content).toBe('hello world');
