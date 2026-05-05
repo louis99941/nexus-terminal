@@ -5,12 +5,12 @@
       class="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh]"
       @click.self="close"
     >
-      <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true"></div>
+      <div class="fixed inset-0 bg-black/50" aria-hidden="true"></div>
       <div
-        class="relative w-full max-w-2xl mx-4 bg-[#1e1e1e] rounded-lg shadow-2xl border border-[#333] overflow-hidden flex flex-col max-h-[60vh]"
+        class="relative w-full max-w-2xl mx-4 bg-[var(--editor-header-bg-color)] rounded-lg shadow-2xl border border-[var(--editor-border-color)] overflow-hidden flex flex-col max-h-[60vh]"
       >
         <!-- Search Input -->
-        <div class="flex items-center px-4 py-3 border-b border-[#333]">
+        <div class="flex items-center px-4 py-3 border-b border-[var(--editor-border-color)]">
           <i class="fas fa-search text-gray-400 mr-3"></i>
           <input
             ref="inputRef"
@@ -21,7 +21,10 @@
             @keydown="handleKeydown"
           />
           <div class="flex items-center gap-2 text-xs text-gray-500">
-            <span class="px-1.5 py-0.5 rounded border border-[#444] bg-[#2d2d2d]">ESC</span>
+            <span
+              class="px-1.5 py-0.5 rounded border border-[var(--editor-input-bg-color)] bg-[var(--editor-bg-color)]"
+              >ESC</span
+            >
           </div>
         </div>
 
@@ -37,8 +40,8 @@
               :class="[
                 'px-4 py-2 cursor-pointer flex items-center justify-between group',
                 {
-                  'bg-[#04395e]': selectedIndex === index,
-                  'hover:bg-[#2d2d2d]': selectedIndex !== index,
+                  'bg-[var(--link-active-bg-color)]': selectedIndex === index,
+                  'hover:bg-[var(--editor-bg-color)]': selectedIndex !== index,
                 },
               ]"
               @click="execute(item)"
@@ -65,7 +68,7 @@
 
         <!-- Footer -->
         <div
-          class="px-4 py-1.5 bg-[#252526] border-t border-[#333] text-xs text-gray-500 flex justify-end gap-4"
+          class="px-4 py-1.5 bg-[var(--editor-header-bg-color)] border-t border-[var(--editor-border-color)] text-xs text-gray-500 flex justify-end gap-4"
         >
           <span><span class="text-gray-300">↑↓</span> {{ t('common.navigate') }}</span>
           <span><span class="text-gray-300">↵</span> {{ t('common.select') }}</span>
@@ -239,11 +242,11 @@ watch(query, () => {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #444;
+  background: var(--editor-input-bg-color);
   border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--editor-border-color);
 }
 
 .fade-enter-active,

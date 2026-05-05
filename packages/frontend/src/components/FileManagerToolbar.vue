@@ -171,6 +171,7 @@ onBeforeUnmount(() => {
           @click.stop="emit('cd-to-terminal')"
           :disabled="!isConnected || isEditingPath"
           :title="t('fileManager.actions.cdToTerminal', '将终端路径切换到文件管理器当前路径')"
+          :aria-label="t('fileManager.actions.cdToTerminal', '将终端路径切换到文件管理器当前路径')"
         >
           <i class="fas fa-terminal leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
         </button>
@@ -181,6 +182,9 @@ onBeforeUnmount(() => {
           @click.stop="emit('sync-from-terminal')"
           :disabled="!isConnected || isEditingPath || isSyncingFromTerminal"
           :title="
+            t('fileManager.actions.syncFromTerminalPath', '将文件管理器路径切换到终端当前路径')
+          "
+          :aria-label="
             t('fileManager.actions.syncFromTerminalPath', '将文件管理器路径切换到终端当前路径')
           "
         >
@@ -200,6 +204,7 @@ onBeforeUnmount(() => {
           @click.stop="emit('refresh')"
           :disabled="!isConnected || isEditingPath"
           :title="t('fileManager.actions.refresh')"
+          :aria-label="t('fileManager.actions.refresh')"
         >
           <i class="fas fa-sync-alt leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
         </button>
@@ -210,6 +215,7 @@ onBeforeUnmount(() => {
           @click.stop="emit('go-to-parent')"
           :disabled="!isConnected || isAtRoot || isEditingPath"
           :title="t('fileManager.actions.parentDirectory')"
+          :aria-label="t('fileManager.actions.parentDirectory')"
         >
           <i class="fas fa-arrow-up leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
         </button>
@@ -222,6 +228,7 @@ onBeforeUnmount(() => {
             @click.stop="emit('activate-search')"
             :disabled="!isConnected"
             :title="t('fileManager.searchPlaceholder')"
+            :aria-label="t('fileManager.searchPlaceholder')"
           >
             <i class="fas fa-search leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
           </button>
@@ -252,6 +259,9 @@ onBeforeUnmount(() => {
             class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 hover:enabled:bg-black/10 hover:enabled:text-foreground"
             :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
             @click="toggleFavoritePathsModal"
+            :title="t('favoritePaths.title', '收藏路径')"
+            :aria-label="t('favoritePaths.title', '收藏路径')"
+            :aria-expanded="showFavoritePathsModal"
           >
             <i class="fas fa-star leading-none" :class="isMobile ? 'text-sm' : 'text-base'"></i>
           </button>
@@ -377,6 +387,11 @@ onBeforeUnmount(() => {
         v-if="isMobile"
         @click="emit('toggle-multi-select')"
         :title="
+          isMultiSelectMode
+            ? t('fileManager.actions.exitMultiSelect', 'Exit Multi-Select Mode')
+            : t('fileManager.actions.multiSelect', 'Enter Multi-Select Mode')
+        "
+        :aria-label="
           isMultiSelectMode
             ? t('fileManager.actions.exitMultiSelect', 'Exit Multi-Select Mode')
             : t('fileManager.actions.multiSelect', 'Enter Multi-Select Mode')

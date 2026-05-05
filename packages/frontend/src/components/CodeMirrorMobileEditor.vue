@@ -334,12 +334,12 @@ defineExpose({
 }
 
 .codemirror-mobile-editor-container :deep(.cm-gutters) {
-  background-color: #1e1e1e !important;
-  color: #858585 !important;
-  border-right: 1px solid var(--border-color, #cccccc) !important;
+  background-color: var(--editor-bg-color) !important;
+  color: var(--editor-text-muted-color) !important;
+  border-right: 1px solid var(--editor-border-color) !important;
 }
 
 .codemirror-mobile-editor-container :deep(.cm-selectionBackground) {
-  background-color: #5264ac !important;
+  background-color: var(--link-active-bg-color) !important;
 }
 </style>

@@ -586,7 +586,7 @@ const handleConnectAllFilteredConnections = async () => {
                   background-position: right 0.5rem center;
                   background-size: 16px 12px;
                 "
-                aria-label="Filter connections by tag"
+                :aria-label="t('dashboard.filterTags.ariaLabel', '按标签筛选连接')"
                 :disabled="isLoadingTags"
               >
                 <option :value="null">{{ t('dashboard.filterTags.all', '所有标签') }}</option>
@@ -604,7 +604,7 @@ const handleConnectAllFilteredConnections = async () => {
                   background-position: right 0.5rem center;
                   background-size: 16px 12px;
                 "
-                aria-label="Sort connections by"
+                :aria-label="t('dashboard.sortBy.ariaLabel', '排序方式')"
               >
                 <option v-for="option in sortOptions" :key="option.value" :value="option.value">
                   {{ t(option.labelKey, option.value.replace('_', ' ')) }}
@@ -625,6 +625,7 @@ const handleConnectAllFilteredConnections = async () => {
             <button
               @click="openAddConnectionForm"
               :title="t('connections.addConnection', 'Add Connection')"
+              :aria-label="t('connections.addConnection', 'Add Connection')"
               class="h-8 w-8 bg-button rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
             >
               <i class="fas fa-plus" style="color: white"></i>

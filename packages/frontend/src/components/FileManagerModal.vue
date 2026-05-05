@@ -151,7 +151,7 @@ defineExpose({
         <button
           @click="closeFileManagerModal"
           class="text-text-secondary hover:text-foreground transition-colors"
-          aria-label="关闭文件管理器"
+          :aria-label="props.t('common.close', '关闭文件管理器')"
         >
           <i class="fas fa-times text-xl"></i>
         </button>

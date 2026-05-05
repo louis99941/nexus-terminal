@@ -313,13 +313,11 @@ const formatDuration = (seconds: number | null | undefined): string => {
   <div class="dashboard p-4 md:p-6 min-h-full bg-background text-foreground animate-fade-in">
     <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-      <h1
-        class="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent"
-      >
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
         {{ t('dashboard.title') }}
       </h1>
       <div
-        class="flex items-center gap-4 flex-wrap bg-surface/50 backdrop-blur-md p-2 rounded-xl border border-border shadow-sm w-full md:w-auto"
+        class="flex items-center gap-4 flex-wrap bg-surface/80 p-2 rounded-xl border border-border shadow-sm w-full md:w-auto"
       >
         <div class="flex items-center gap-2 flex-1 md:flex-none justify-between md:justify-start">
           <span class="text-xs font-medium text-muted uppercase tracking-wider ml-2">{{
@@ -369,7 +367,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             :loading="isLoading"
             circle
             size="small"
-            class="!bg-primary/10 !border-primary/20 !text-primary hover:!bg-primary hover:!text-white transition-all hover:rotate-180"
+            class="!bg-primary/10 !border-primary/20 !text-primary hover:!bg-primary hover:!text-white transition-all duration-300 hover:rotate-180"
           >
             <i class="fas fa-sync-alt"></i>
           </el-button>
@@ -438,7 +436,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     <!-- Security Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <div
-        class="stat-card group border-l-4 border-l-red-500/50 hover:border-l-red-500 transition-all"
+        class="stat-card group border-l-4 border-l-red-500/50 hover:border-l-red-500 transition-colors duration-200"
       >
         <div class="flex justify-between items-center">
           <div>
@@ -448,12 +446,12 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-exclamation-circle text-red-500/80 text-2xl group-hover:scale-125 group-hover:text-red-500 transition-all !text-current"
+            class="fas fa-exclamation-circle text-red-500/80 text-2xl group-hover:scale-125 group-hover:text-red-500 transition-all duration-300 !text-current"
           ></i>
         </div>
       </div>
       <div
-        class="stat-card group border-l-4 border-l-orange-500/50 hover:border-l-orange-500 transition-all"
+        class="stat-card group border-l-4 border-l-orange-500/50 hover:border-l-orange-500 transition-colors duration-200"
       >
         <div class="flex justify-between items-center">
           <div>
@@ -463,12 +461,12 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-ban text-orange-500/80 text-2xl group-hover:scale-125 group-hover:text-orange-500 transition-all !text-current"
+            class="fas fa-ban text-orange-500/80 text-2xl group-hover:scale-125 group-hover:text-orange-500 transition-all duration-300 !text-current"
           ></i>
         </div>
       </div>
       <div
-        class="stat-card group border-l-4 border-l-yellow-500/50 hover:border-l-yellow-500 transition-all"
+        class="stat-card group border-l-4 border-l-yellow-500/50 hover:border-l-yellow-500 transition-colors duration-200"
       >
         <div class="flex justify-between items-center">
           <div>
@@ -478,7 +476,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-bell text-yellow-500/80 text-2xl group-hover:scale-125 group-hover:text-yellow-500 transition-all !text-current"
+            class="fas fa-bell text-yellow-500/80 text-2xl group-hover:scale-125 group-hover:text-yellow-500 transition-all duration-300 !text-current"
           ></i>
         </div>
       </div>
@@ -487,7 +485,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     <!-- Health & Recent Connections Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       <!-- Asset Health -->
-      <div class="content-card">
+      <div class="content-card border-t-2 border-t-green-500/30">
         <div class="card-header border-b border-border/50 bg-surface/30">
           <div class="flex items-center gap-3">
             <div class="p-2 rounded-md bg-red-500/10 text-red-500">
@@ -541,7 +539,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
       </div>
 
       <!-- Recent Connections -->
-      <div class="content-card">
+      <div class="content-card border-t-2 border-t-blue-500/30">
         <div class="card-header border-b border-border/50 bg-surface/30">
           <div class="flex justify-between items-center w-full">
             <div class="flex items-center gap-3">
@@ -567,13 +565,13 @@ const formatDuration = (seconds: number | null | undefined): string => {
           <div
             v-for="conn in recentConnections"
             :key="conn.id"
-            class="group relative flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 border-l-2 border-transparent transition-all cursor-pointer active:scale-[0.98] active:bg-surface/70"
+            class="group relative flex items-center justify-between p-3 mb-1 rounded-lg hover:bg-surface/50 border-l-2 border-transparent transition-all duration-200 cursor-pointer active:scale-[0.98] active:bg-surface/70"
             :class="getConnectionTypeStyle(conn.type).border"
             @click="handleConnectRecent(conn)"
           >
             <div class="flex items-center gap-4">
               <div
-                class="w-10 h-10 rounded-xl bg-surface flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-primary/10 transition-all border border-border/50 shadow-sm"
+                class="w-10 h-10 rounded-xl bg-surface flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-primary/10 transition-colors duration-200 border border-border/50 shadow-sm"
               >
                 <i
                   class="fas"
@@ -754,9 +752,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 }
 
 .stat-card {
-  background: var(--card-bg, rgba(255, 255, 255, 0.03));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--card-bg, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--card-border, var(--border-color));
   border-radius: 1.25rem;
   padding: 1.5rem;
@@ -795,9 +791,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 }
 
 .content-card {
-  background: var(--card-bg, rgba(255, 255, 255, 0.03));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--card-bg, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--card-border, var(--border-color));
   border-radius: 1.25rem;
   overflow: hidden;

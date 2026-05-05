@@ -414,7 +414,8 @@
   },
   "workspace": {
     "terminal": {
-      "reconnectingMsg": "再接続を試行中..."
+      "reconnectingMsg": "再接続を試行中...",
+      "output": "终端输出"
     },
     "errors": {
       "sessionNotFound": "会话未找到",
@@ -1156,6 +1157,7 @@
     "settings": "設定",
     "errorOccurred": "エラーが発生しました。",
     "close": "閉じる",
+    "back": "返回",
     "remove": "削除",
     "expand": "展開",
     "collapse": "折りたたむ",
@@ -1325,7 +1327,8 @@
       "noConnection": "接続情報が提供されていません。",
       "tokenError": "トークンの取得に失敗しました"
     },
-    "reconnectTooltip": "リモートデスクトップに再接続"
+    "reconnectTooltip": "リモートデスクトップに再接続",
+    "resize": "调整大小"
   },
   "vncModal": {
     "title": "VNCセッション",
@@ -1532,7 +1535,11 @@
       "created": "作成日時"
     },
     "filterTags": {
-      "all": "すべてのタグ"
+      "all": "すべてのタグ",
+      "ariaLabel": "按标签筛选"
+    },
+    "sortBy": {
+      "ariaLabel": "排序方式"
     },
     "noConnectionsWithTag": "このタグには接続記録がありません",
     "noConnectionsMatchSearch": "検索条件に一致する接続はありません。",
@@ -1796,6 +1803,7 @@
     "loading": "Loading favorites...",
     "noResults": "No matching favorites found.",
     "noFavorites": "No favorite paths yet. Add one!",
+    "toggleSort": "切换排序",
     "notifications": {
       "fetchError": "Failed to load favorite paths.",
       "addSuccess": "Favorite path added successfully.",
@@ -1856,6 +1864,11 @@
     "typing": "AI 正在分析...",
     "insights": "洞察",
     "inputPlaceholder": "输入消息...",
+    "generateCommand": "生成命令",
+    "disable": "禁用 AI",
+    "enable": "启用 AI",
+    "enableInSettings": "在设置中启用",
+    "sendMessage": "发送消息",
     "suggestions": {
       "health": "检查系统健康状态",
       "commands": "分析命令执行模式",

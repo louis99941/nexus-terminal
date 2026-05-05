@@ -141,6 +141,10 @@
 
   /* Layout */
   --header-height: 55px;
+
+  /* 滚动条主题变量（浅色模式默认值，深色模式需覆盖） */
+  --scrollbar-thumb-color: #d1d5db;
+  --scrollbar-thumb-hover-color: #9ca3af;
 }
 
 /* 应用基础样式 */
@@ -218,13 +222,13 @@ hr {
   --el-card-bg-color: rgba(30, 41, 59, 0.7) !important; /* Slate 800 with opacity */
   --el-card-border-color: var(--border-color) !important;
   color: var(--text-color) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* 已移除 backdrop-filter：glassmorphism 导致可访问性问题，背景应由主题变量控制 */
 }
 
 .el-drawer,
 .el-dialog {
-  --el-bg-color: #1e293b !important;
+  /* 使用主题变量替代硬编码深色值，确保浅色/深色主题一致切换 */
+  --el-bg-color: var(--header-bg-color) !important;
   --el-text-color-primary: var(--text-color) !important;
 }
 
@@ -272,12 +276,12 @@ hr {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #334155;
+  background-color: var(--scrollbar-thumb-color, #334155);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #475569;
+  background-color: var(--scrollbar-thumb-hover-color, #475569);
 }
 
 input::placeholder,
@@ -328,14 +332,15 @@ button.bg-primary:hover .fab {
   color: white !important;
 }
 
-button:focus {
-  outline: none !important;
-  box-shadow: none !important;
+/* 仅在鼠标点击时移除焦点环，键盘导航时保留可见焦点指示器（无障碍合规） */
+button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
 
 button:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+  outline: 2px solid var(--link-active-color, #0ea5e9);
+  outline-offset: 2px;
 }
 
 button:hover {

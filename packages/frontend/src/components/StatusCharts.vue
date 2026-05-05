@@ -106,6 +106,26 @@ const MAX_DATA_POINTS = 60;
 const KB_TO_MB_THRESHOLD = 1024; // For network
 const MB_TO_GB_THRESHOLD = 1024; // For memory
 
+// 读取 CSS 变量的实际值，Chart.js 不支持直接使用 CSS 变量
+const getCssVar = (varName: string): string => {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+};
+
+// 图表颜色从 CSS 变量读取，确保主题一致性
+const chartTickColor = computed(() => getCssVar('--text-color-secondary') || '#9CA3AF');
+const chartGridColor = computed(() => {
+  const base = getCssVar('--text-color-secondary') || '156, 163, 175';
+  // 提取 RGB 值用于半透明网格线
+  const rgbMatch = base.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1], 16);
+    const g = parseInt(rgbMatch[2], 16);
+    const b = parseInt(rgbMatch[3], 16);
+    return `rgba(${r}, ${g}, ${b}, 0.1)`;
+  }
+  return 'rgba(156, 163, 175, 0.1)';
+});
+
 const { t } = useI18n();
 const sessionStore = useSessionStore();
 const { sessions } = storeToRefs(sessionStore); // 获取响应式的 sessions
@@ -275,7 +295,7 @@ const baseChartOptions: Omit<ChartOptions<'line'>, 'scales'> = {
   maintainAspectRatio: false,
   animation: false,
   plugins: {
-    legend: { labels: { color: '#9CA3AF' } },
+    legend: { labels: { color: chartTickColor.value } },
     tooltip: { enabled: true, mode: 'index', intersect: false },
   },
   interaction: { mode: 'index', intersect: false },
@@ -289,11 +309,11 @@ const percentageChartOptions = ref<ChartOptions<'line'>>({
       beginAtZero: true,
       min: 0,
       max: 100,
-      ticks: { color: '#9CA3AF', callback: (value) => `${value}%` },
-      grid: { color: 'rgba(156, 163, 175, 0.1)' },
+      ticks: { color: chartTickColor.value, callback: (value) => `${value}%` },
+      grid: { color: chartGridColor.value },
     },
     x: {
-      ticks: { display: false, color: '#9CA3AF', maxRotation: 0, minRotation: 0 },
+      ticks: { display: false, color: chartTickColor.value, maxRotation: 0, minRotation: 0 },
       grid: { display: false },
     },
   },
@@ -327,15 +347,15 @@ const memoryChartOptions = ref<ChartOptions<'line'>>({
       min: 0,
       // max will be set dynamically based on memTotal
       ticks: {
-        color: '#9CA3AF',
+        color: chartTickColor.value,
         callback: function (value) {
           return `${parseFloat(Number(value).toFixed(1))}`; // Unit will be implicit from title or tooltip
         },
       },
-      grid: { color: 'rgba(156, 163, 175, 0.1)' },
+      grid: { color: chartGridColor.value },
     },
     x: {
-      ticks: { display: false, color: '#9CA3AF', maxRotation: 0, minRotation: 0 },
+      ticks: { display: false, color: chartTickColor.value, maxRotation: 0, minRotation: 0 },
       grid: { display: false },
     },
   },
@@ -370,7 +390,7 @@ const networkChartOptions = ref<ChartOptions<'line'>>({
       min: 0,
       max: 10, // 初始值，将动态更新
       ticks: {
-        color: '#9CA3AF',
+        color: chartTickColor.value,
         callback: function (value) {
           const precision = networkRateUnitIsMB.value ? 2 : 0; // KB/s usually whole numbers, MB/s two decimal places
           // For KB/s, if the value is very small (e.g. < 1), it might be better to show 1 decimal.
@@ -386,10 +406,10 @@ const networkChartOptions = ref<ChartOptions<'line'>>({
           return `${Number(value).toFixed(precision)}`;
         },
       },
-      grid: { color: 'rgba(156, 163, 175, 0.1)' },
+      grid: { color: chartGridColor.value },
     },
     x: {
-      ticks: { display: false, color: '#9CA3AF', maxRotation: 0, minRotation: 0 },
+      ticks: { display: false, color: chartTickColor.value, maxRotation: 0, minRotation: 0 },
       grid: { display: false },
     },
   },

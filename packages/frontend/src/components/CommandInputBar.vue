@@ -512,7 +512,7 @@ const handleQuickCommandExecute = (command: string) => {
         <input
           type="text"
           v-model="nl2cmdQuery"
-          placeholder="AI 助手：描述操作..."
+          :placeholder="t('aiOps.inputPlaceholder', 'Type a message...')"
           class="w-full px-4 py-1.5 pr-10 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
           ref="nl2cmdInputRef"
           @keydown="handleNL2CMDKeydown"
@@ -521,7 +521,7 @@ const handleQuickCommandExecute = (command: string) => {
           @click="submitNL2CMD"
           :disabled="nl2cmdLoading"
           class="absolute right-1 top-1/2 transform -translate-y-1/2 w-7 h-7 flex items-center justify-center text-text-secondary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="生成命令 (Enter)"
+          :title="t('aiOps.generateCommand', '生成命令')"
         >
           <i v-if="!nl2cmdLoading" class="fas fa-paper-plane text-xs"></i>
           <i v-else class="fas fa-spinner fa-spin text-xs"></i>
@@ -589,10 +589,18 @@ const handleQuickCommandExecute = (command: string) => {
           @click="toggleAI"
           class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
           :title="
-            isNL2CMDEnabled ? (isAIActive ? '关闭 AI 助手' : 'AI 助手') : '请在设置中启用 AI 助手'
+            isNL2CMDEnabled
+              ? isAIActive
+                ? t('aiOps.disable', '关闭 AI 助手')
+                : t('aiOps.enable', 'AI 助手')
+              : t('aiOps.enableInSettings', '请在设置中启用 AI 助手')
           "
           :aria-label="
-            isNL2CMDEnabled ? (isAIActive ? '关闭 AI 助手' : 'AI 助手') : '请在设置中启用 AI 助手'
+            isNL2CMDEnabled
+              ? isAIActive
+                ? t('aiOps.disable', '关闭 AI 助手')
+                : t('aiOps.enable', 'AI 助手')
+              : t('aiOps.enableInSettings', '请在设置中启用 AI 助手')
           "
           :disabled="!isNL2CMDEnabled"
           :class="{

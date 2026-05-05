@@ -414,7 +414,8 @@
   },
   "workspace": {
     "terminal": {
-      "reconnectingMsg": "Attempting to reconnect..."
+      "reconnectingMsg": "Attempting to reconnect...",
+      "output": "Terminal Output"
     },
     "errors": {
       "sessionNotFound": "Session not found",
@@ -1156,6 +1157,7 @@
     "settings": "Settings",
     "errorOccurred": "An error occurred.",
     "close": "Close",
+    "back": "Back",
     "remove": "Remove",
     "expand": "Expand",
     "collapse": "Collapse",
@@ -1325,7 +1327,8 @@
       "noConnection": "No connection information provided.",
       "tokenError": "Failed to retrieve token"
     },
-    "reconnectTooltip": "Reconnect to the remote desktop"
+    "reconnectTooltip": "Reconnect to the remote desktop",
+    "resize": "Resize"
   },
   "vncModal": {
     "title": "VNC Session",
@@ -1532,7 +1535,11 @@
       "created": "Created"
     },
     "filterTags": {
-      "all": "All Tags"
+      "all": "All Tags",
+      "ariaLabel": "Filter by tag"
+    },
+    "sortBy": {
+      "ariaLabel": "Sort by"
     },
     "noConnectionsWithTag": "No connections found with this tag",
     "noConnectionsMatchSearch": "No connections match your search.",
@@ -1796,6 +1803,7 @@
     "loading": "Loading favorites...",
     "noResults": "No matching favorites found.",
     "noFavorites": "No favorite paths yet. Add one!",
+    "toggleSort": "Toggle Sort",
     "notifications": {
       "fetchError": "Failed to load favorite paths.",
       "addSuccess": "Favorite path added successfully.",
@@ -1856,6 +1864,11 @@
     "typing": "AI 正在分析...",
     "insights": "洞察",
     "inputPlaceholder": "输入消息...",
+    "generateCommand": "生成命令",
+    "disable": "禁用 AI",
+    "enable": "启用 AI",
+    "enableInSettings": "在设置中启用",
+    "sendMessage": "发送消息",
     "suggestions": {
       "health": "检查系统健康状态",
       "commands": "分析命令执行模式",

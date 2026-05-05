@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full bg-background border-l border-border">
+  <div id="ai-assistant-panel" class="flex flex-col h-full bg-background border-l border-border">
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-header">
       <div class="flex items-center gap-2">
@@ -14,6 +14,7 @@
           @click="handleNewSession"
           class="text-text-secondary hover:text-foreground text-xs"
           :title="t('aiOps.newSession', 'New Session')"
+          :aria-label="t('aiOps.newSession', 'New Session')"
         >
           <i class="fas fa-plus"></i>
         </button>
@@ -21,10 +22,16 @@
           @click="handleShowHistory"
           class="text-text-secondary hover:text-foreground text-xs"
           :title="t('aiOps.history', 'History')"
+          :aria-label="t('aiOps.history', 'History')"
         >
           <i class="fas fa-history"></i>
         </button>
-        <button @click="$emit('close')" class="text-text-secondary hover:text-foreground">
+        <button
+          @click="$emit('close')"
+          class="text-text-secondary hover:text-foreground"
+          :title="t('common.close', '关闭')"
+          :aria-label="t('common.close', '关闭')"
+        >
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -34,7 +41,12 @@
     <div v-if="showHistory" class="absolute inset-0 z-10 bg-background flex flex-col">
       <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-header">
         <span class="font-medium text-sm">{{ t('aiOps.sessionHistory', 'Session History') }}</span>
-        <button @click="showHistory = false" class="text-text-secondary hover:text-foreground">
+        <button
+          @click="showHistory = false"
+          class="text-text-secondary hover:text-foreground"
+          :title="t('common.back', '返回')"
+          :aria-label="t('common.back', '返回')"
+        >
           <i class="fas fa-arrow-left"></i>
         </button>
       </div>
@@ -64,6 +76,8 @@
             <button
               @click.stop="deleteSessionHistory(session.sessionId)"
               class="text-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              :title="t('common.delete')"
+              :aria-label="t('common.delete')"
             >
               <i class="fas fa-trash-alt text-xs"></i>
             </button>
@@ -181,6 +195,8 @@
           @click="sendMessage"
           :disabled="!inputMessage.trim() || aiStore.isTyping"
           class="px-3 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+          :title="t('aiOps.sendMessage', '发送消息')"
+          :aria-label="t('aiOps.sendMessage', '发送消息')"
         >
           <i class="fas fa-paper-plane"></i>
         </button>

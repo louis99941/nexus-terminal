@@ -301,7 +301,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
     <!-- Header with Tailwind classes using theme variables -->
     <header
       v-if="isAuthenticated && (!isWorkspaceRoute || isHeaderVisible)"
-      class="sticky top-0 z-50 flex items-center h-16 pl-4 pr-6 bg-header backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-300"
+      class="sticky top-0 z-50 flex items-center h-16 pl-4 pr-6 bg-header border-b border-border/50 shadow-sm transition-all duration-300"
     >
       <!-- Modernized Header -->
       <!-- Nav with Tailwind classes -->
@@ -317,43 +317,43 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
           />
           <RouterLink
             to="/"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.dashboard') }}</RouterLink
           >
           <RouterLink
             to="/workspace"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.terminal') }}</RouterLink
           >
           <RouterLink
             to="/connections"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.connections') }}</RouterLink
           >
           <RouterLink
             to="/proxies"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.proxies') }}</RouterLink
           >
           <RouterLink
             to="/notifications"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.notifications') }}</RouterLink
           >
           <RouterLink
             to="/audit-logs"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.auditLogs') }}</RouterLink
           >
           <RouterLink
             to="/settings"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-all duration-200 ease-in-out whitespace-nowrap"
+            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.settings') }}</RouterLink
           >

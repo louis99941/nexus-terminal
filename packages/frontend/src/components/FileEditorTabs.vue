@@ -178,25 +178,25 @@ onBeforeUnmount(() => {
   flex-wrap: nowrap; /* 防止标签换行 */
   overflow-x: auto; /* 水平滚动 */
   overflow-y: hidden; /* 防止垂直滚动 */
-  background-color: #252526; /* VSCode 风格的标签背景 */
-  border-bottom: 1px solid #3f3f46; /* 分隔线 */
+  background-color: var(--editor-header-bg-color); /* VSCode 风格的标签背景 */
+  border-bottom: 1px solid var(--editor-border-color); /* 分隔线 */
   flex-shrink: 0; /* 防止标签栏被压缩 */
   scrollbar-width: thin; /* Firefox */
-  scrollbar-color: #555 #252526; /* Firefox */
+  scrollbar-color: var(--editor-border-color) var(--editor-header-bg-color); /* Firefox */
 }
 /* Webkit 滚动条样式 */
 .file-editor-tabs::-webkit-scrollbar {
   height: 4px; /* 滚动条高度 */
 }
 .file-editor-tabs::-webkit-scrollbar-track {
-  background: #252526;
+  background: var(--editor-header-bg-color);
 }
 .file-editor-tabs::-webkit-scrollbar-thumb {
-  background-color: #555;
+  background-color: var(--editor-border-color);
   border-radius: 2px;
 }
 .file-editor-tabs::-webkit-scrollbar-thumb:hover {
-  background-color: #666;
+  background-color: var(--editor-text-dimmed-color);
 }
 
 .tab-item {
@@ -204,9 +204,9 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 6px 10px 6px 12px; /* 调整内边距 */
   cursor: pointer;
-  border-right: 1px solid #3f3f46; /* 标签分隔线 */
-  color: #cccccc; /* 未激活标签颜色 */
-  background-color: #2d2d2d; /* 未激活标签背景 */
+  border-right: 1px solid var(--editor-border-color); /* 标签分隔线 */
+  color: var(--editor-close-btn-color); /* 未激活标签颜色 */
+  background-color: var(--editor-bg-color); /* 未激活标签背景 */
   white-space: nowrap; /* 防止文件名换行 */
   font-size: 0.85em;
   position: relative; /* 用于关闭按钮定位 */
@@ -214,13 +214,13 @@ onBeforeUnmount(() => {
 }
 
 .tab-item:hover {
-  background-color: #3e3e42; /* 悬停背景 */
+  background-color: var(--editor-header-bg-color); /* 悬停背景 */
 }
 
 .tab-item.active {
-  background-color: #1e1e1e; /* 激活标签背景 (编辑器背景色) */
-  color: #ffffff; /* 激活标签文字颜色 */
-  border-bottom: 1px solid #1e1e1e; /* 覆盖下边框，使其看起来连接内容 */
+  background-color: var(--editor-bg-color); /* 激活标签背景 (编辑器背景色) */
+  color: var(--editor-text-color); /* 激活标签文字颜色 */
+  border-bottom: 1px solid var(--editor-bg-color); /* 覆盖下边框，使其看起来连接内容 */
   margin-bottom: -1px; /* 轻微上移以覆盖边框 */
 }
 
@@ -232,19 +232,19 @@ onBeforeUnmount(() => {
 }
 
 .modified-indicator {
-  color: #cccccc; /* 修改指示器颜色 */
+  color: var(--editor-modified-indicator-color); /* 修改指示器颜色 */
   margin-left: 2px;
   margin-right: 4px; /* 与关闭按钮保持距离 */
   font-weight: normal;
 }
 .tab-item.active .modified-indicator {
-  color: #ffffff; /* 激活标签的修改指示器颜色 */
+  color: var(--editor-modified-indicator-color); /* 激活标签的修改指示器颜色 */
 }
 
 .close-tab-btn {
   background: none;
   border: none;
-  color: #cccccc;
+  color: var(--editor-close-btn-color);
   font-size: 1.1em; /* 调整大小 */
   line-height: 1;
   padding: 0 4px;
@@ -262,8 +262,8 @@ onBeforeUnmount(() => {
 }
 
 .close-tab-btn:hover {
-  background-color: rgba(255, 255, 255, 0.15); /* 悬停背景 */
-  color: #ffffff;
+  background-color: var(--editor-input-hover-bg-color); /* 悬停背景 */
+  color: var(--editor-text-color);
 }
 
 .no-tabs-placeholder {

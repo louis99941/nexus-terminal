@@ -86,7 +86,7 @@
             <el-progress
               :percentage="displayCpuPercent"
               :stroke-width="16"
-              color="#3b82f6"
+              :color="'var(--link-active-color)'"
               :show-text="true"
               :text-inside="true"
               :format="formatPercentageText"
@@ -107,7 +107,7 @@
             <el-progress
               :percentage="displayMemPercent"
               :stroke-width="16"
-              color="#22c55e"
+              :color="'var(--status-success)'"
               :show-text="true"
               :text-inside="true"
               :format="formatPercentageText"
@@ -130,7 +130,11 @@
             <el-progress
               :percentage="displaySwapPercent"
               :stroke-width="16"
-              :color="(currentServerStatus?.swapPercent ?? 0) > 0 ? '#eab308' : '#6b7280'"
+              :color="
+                (currentServerStatus?.swapPercent ?? 0) > 0
+                  ? 'var(--status-warning)'
+                  : 'var(--text-color-secondary)'
+              "
               :show-text="true"
               :text-inside="true"
               :format="formatPercentageText"
@@ -153,7 +157,7 @@
             <el-progress
               :percentage="displayDiskPercent"
               :stroke-width="16"
-              color="#a855f7"
+              :color="'var(--link-active-color)'"
               :show-text="true"
               :text-inside="true"
               :format="formatPercentageText"

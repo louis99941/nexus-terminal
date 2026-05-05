@@ -244,6 +244,8 @@ onBeforeUnmount(() => {
         <button
           @click="toggleSort"
           class="flex items-center justify-center w-8 h-8 bg-background border border-border text-text-secondary rounded-lg text-sm cursor-pointer shadow-sm transition-colors duration-200 ease-in-out hover:bg-primary/10 hover:text-primary focus:outline-none flex-shrink-0"
+          :title="t('favoritePaths.toggleSort', '切换排序方式')"
+          :aria-label="t('favoritePaths.toggleSort', '切换排序方式')"
         >
           <i :class="sortButtonIcon"></i>
         </button>
@@ -251,6 +253,7 @@ onBeforeUnmount(() => {
           @click="openAddModal"
           class="flex items-center justify-center w-8 h-8 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary flex-shrink-0"
           :title="t('favoritePaths.addNew', 'Add new favorite path')"
+          :aria-label="t('favoritePaths.addNew', 'Add new favorite path')"
         >
           <i class="fas fa-plus text-base"></i>
         </button>
@@ -299,6 +302,7 @@ onBeforeUnmount(() => {
                 @click.stop="handleSendToTerminal(favPath)"
                 class="p-1.5 rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 :title="t('favoritePaths.sendToTerminal', 'Send to Terminal')"
+                :aria-label="t('favoritePaths.sendToTerminal', 'Send to Terminal')"
               >
                 <i class="fas fa-terminal text-xs"></i>
               </button>
@@ -306,6 +310,7 @@ onBeforeUnmount(() => {
                 @click.stop="openEditModal(favPath)"
                 class="p-1.5 rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 :title="t('common.edit')"
+                :aria-label="t('common.edit')"
               >
                 <i class="fas fa-pencil-alt text-xs"></i>
               </button>
@@ -313,6 +318,7 @@ onBeforeUnmount(() => {
                 @click.stop="handleDelete(favPath)"
                 class="p-1.5 rounded text-text-secondary hover:text-error hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 :title="t('common.delete')"
+                :aria-label="t('common.delete')"
               >
                 <i class="fas fa-trash-alt text-xs"></i>
               </button>

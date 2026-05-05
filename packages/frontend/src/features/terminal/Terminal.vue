@@ -9,6 +9,7 @@ import {
   computed,
   type PropType,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Terminal, IDisposable } from '@xterm/xterm';
 import { useDeviceDetection } from '../../composables/useDeviceDetection';
 import { useAppearanceStore } from '../../stores/appearance.store';
@@ -28,6 +29,8 @@ import {
 defineOptions({
   name: 'WorkspaceTerminal',
 });
+
+const { t } = useI18n();
 
 // Import extracted composables
 import { useTerminalFit } from '../../composables/terminal/useTerminalFit';
@@ -714,7 +717,7 @@ watchEffect(() => {
     class="terminal-outer-wrapper"
     :class="{ 'no-auto-wrap': !terminalAutoWrapEnabledBoolean }"
     role="log"
-    aria-label="终端输出"
+    :aria-label="t('terminal.output')"
     aria-live="polite"
   >
     <div ref="terminalRef" class="terminal-inner-container"></div>

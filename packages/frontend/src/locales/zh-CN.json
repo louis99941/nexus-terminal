@@ -414,7 +414,8 @@
   },
   "workspace": {
     "terminal": {
-      "reconnectingMsg": "正在尝试重新连接..."
+      "reconnectingMsg": "正在尝试重新连接...",
+      "output": "终端输出"
     },
     "errors": {
       "sessionNotFound": "会话未找到",
@@ -1157,6 +1158,7 @@
     "settings": "设置",
     "errorOccurred": "发生错误。",
     "close": "关闭",
+    "back": "返回",
     "remove": "移除",
     "expand": "展开",
     "collapse": "折叠",
@@ -1326,7 +1328,8 @@
       "noConnection": "未提供连接信息。",
       "tokenError": "获取令牌失败"
     },
-    "reconnectTooltip": "重新连接到远程桌面"
+    "reconnectTooltip": "重新连接到远程桌面",
+    "resize": "调整大小"
   },
   "vncModal": {
     "title": "VNC 会话",
@@ -1533,7 +1536,11 @@
       "created": "创建时间"
     },
     "filterTags": {
-      "all": "所有标签"
+      "all": "所有标签",
+      "ariaLabel": "按标签筛选"
+    },
+    "sortBy": {
+      "ariaLabel": "排序方式"
     },
     "noConnectionsWithTag": "该标签下没有连接记录",
     "noConnectionsMatchSearch": "没有连接匹配搜索条件",
@@ -1797,6 +1804,7 @@
     "loading": "正在加载收藏...",
     "noResults": "未找到匹配的收藏。",
     "noFavorites": "还没有收藏路径，快添加一个吧！",
+    "toggleSort": "切换排序",
     "notifications": {
       "fetchError": "加载收藏路径失败。",
       "addSuccess": "收藏路径添加成功。",
@@ -1857,6 +1865,11 @@
     "typing": "AI 正在分析...",
     "insights": "洞察",
     "inputPlaceholder": "输入消息...",
+    "generateCommand": "生成命令",
+    "disable": "禁用 AI",
+    "enable": "启用 AI",
+    "enableInSettings": "在设置中启用",
+    "sendMessage": "发送消息",
     "suggestions": {
       "health": "检查系统健康状态",
       "commands": "分析命令执行模式",
