@@ -144,30 +144,6 @@ onMounted(() => {
       }
     });
 
-    editorInstance.onDidChangeModelContent(() => {
-      if (editorInstance) {
-        const currentValue = editorInstance.getValue();
-        if (currentValue !== props.modelValue) {
-          emit('update:modelValue', currentValue);
-        }
-      }
-    });
-
-    //Ctrl+S / Cmd+S
-    editorInstance.addAction({
-      id: 'save-file',
-      label: 'Save File',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
-      precondition: undefined,
-      keybindingContext: undefined,
-      contextMenuGroupId: 'navigation',
-      contextMenuOrder: 1.5,
-      run: () => {
-        console.info('[MonacoEditor] Save action triggered (Ctrl+S / Cmd+S)');
-        emit('request-save');
-      },
-    });
-
     // --- 添加带防抖的鼠标滚轮缩放功能 ---
     const editorDomNode = editorInstance?.getDomNode();
     if (editorDomNode && editorInstance) {

@@ -234,17 +234,14 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
       }
 
       const initialContent = decodeRawContent(fileData.rawContentBase64, fileData.encodingUsed);
-      const updatedTab: FileTab = {
-        ...tabToUpdate,
-        rawContentBase64: fileData.rawContentBase64,
-        content: initialContent,
-        originalContent: initialContent,
-        selectedEncoding: fileData.encodingUsed,
-        isLoading: false,
-        isModified: false,
-        loadingError: null,
-      };
-      tabs.value.set(tabId, updatedTab);
+      // 就地修改属性，避免替换整个对象导致外部引用（如 saveFile 中的 const tab）失效
+      tabToUpdate.rawContentBase64 = fileData.rawContentBase64;
+      tabToUpdate.content = initialContent;
+      tabToUpdate.originalContent = initialContent;
+      tabToUpdate.selectedEncoding = fileData.encodingUsed;
+      tabToUpdate.isLoading = false;
+      tabToUpdate.isModified = false;
+      tabToUpdate.loadingError = null;
 
       console.info(
         `[文件编辑器 Store] 文件 ${filePath} 内容已解码 (${fileData.encodingUsed}) 并设置到标签页 ${tabId}。`
@@ -468,15 +465,51 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
     }
     // --- 检查结束 ---
 
+    // 安全检查：rawContentBase64 为 null 表示文件内容从未成功加载过，需先重载
+    if (tab.rawContentBase64 === null && !tab.isLoading) {
+      console.warn(
+        `[文件编辑器 Store] 保存前检测到文件内容未加载（rawContentBase64=null），尝试重新加载: ${tab.filePath}`
+      );
+      const sftpManagerForReload = sessionStore.getOrCreateSftpManager(
+        tab.sessionId,
+        tab.instanceId || instanceId
+      );
+      if (!sftpManagerForReload) {
+        console.error(`[文件编辑器 Store] 无法重新加载：找不到 SFTP 管理器。中止保存。`);
+        tab.isSaving = false;
+        tab.saveStatus = 'error';
+        tab.saveError = t('fileManager.errors.sftpManagerNotFound');
+        return;
+      }
+      try {
+        await loadTabContent(tab.id, tab.filePath, (path) => sftpManagerForReload.readFile(path));
+      } catch (reloadErr: unknown) {
+        console.error(`[文件编辑器 Store] 重新加载文件失败，中止保存:`, reloadErr);
+        tab.isSaving = false;
+        tab.saveStatus = 'error';
+        tab.saveError = t('fileManager.errors.readFileFailed');
+        return;
+      }
+    }
+
     console.info(
       `[文件编辑器 Store] 开始保存文件: ${tab.filePath} (Tab ID: ${tab.id}) 使用实例 ${instanceId}`
-    ); // 使用解构出的 instanceId
+    );
     tab.isSaving = true;
     tab.saveStatus = 'saving';
     tab.saveError = null;
 
     const contentToSave = tab.content;
-    const encodingToUse = tab.selectedEncoding; // 获取选定的编码
+    const encodingToUse = tab.selectedEncoding;
+
+    // 防御性检查：content 不应为 undefined/null（空字符串是合法的空文件内容）
+    if (contentToSave == null) {
+      console.error(`[文件编辑器 Store] 保存中止：content 为 null/undefined。Tab ID: ${tab.id}`);
+      tab.isSaving = false;
+      tab.saveStatus = 'error';
+      tab.saveError = t('fileManager.errors.saveFailed');
+      return;
+    }
 
     try {
       // --- 修改：传递 selectedEncoding 给 writeFile ---
