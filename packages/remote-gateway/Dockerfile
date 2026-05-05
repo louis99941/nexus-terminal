@@ -49,6 +49,6 @@ RUN rm -rf /root/.npm /tmp/*
 EXPOSE 9090 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD wget -qO- http://localhost:9090/health > /dev/null 2>&1 || exit 1
+    CMD curl -sf http://localhost:9090/health > /dev/null 2>&1 || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

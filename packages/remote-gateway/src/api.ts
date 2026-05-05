@@ -25,6 +25,11 @@ export function createRemoteGatewayApiApp(options: CreateRemoteGatewayApiAppOpti
     );
   }
 
+  // 健康检查端点（Docker HEALTHCHECK 使用）
+  app.get('/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   const apiToken = (options.apiToken || '').trim();
 
   const requireRemoteGatewayApiToken = (req: Request, res: Response, next: () => void): void => {
