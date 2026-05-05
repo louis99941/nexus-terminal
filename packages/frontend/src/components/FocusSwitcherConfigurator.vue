@@ -262,7 +262,7 @@ const localAvailableInputs = computed(() => {
           {{ t('focusSwitcher.configTitle', '配置 Alt 焦点切换') }}
         </h2>
         <button
-          class="bg-transparent border-none text-2xl cursor-pointer text-text-secondary hover:text-foreground leading-none p-0"
+          class="bg-transparent border-none text-2xl cursor-pointer text-text-secondary hover:text-foreground leading-none p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
           @click="closeDialog"
           :title="t('common.close', '关闭')"
         >

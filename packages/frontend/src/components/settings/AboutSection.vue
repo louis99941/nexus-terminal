@@ -11,7 +11,7 @@
         <!-- Version Check Status -->
         <span
           v-if="isCheckingVersion"
-          class="inline-block text-xs ml-2 px-2 py-0.5 rounded-full bg-blue-500 text-white italic"
+          class="inline-block text-xs ml-2 px-2 py-0.5 rounded-full bg-primary text-white italic"
         >
           {{ $t('settings.about.checkingUpdate') }}
         </span>

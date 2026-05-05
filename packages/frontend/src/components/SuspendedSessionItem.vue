@@ -29,8 +29,8 @@
             :class="[
               'px-2 py-0.5 text-xs font-semibold rounded-full ml-2 whitespace-nowrap',
               session.backendSshStatus === 'hanging'
-                ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100'
-                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-700 dark:text-yellow-100',
+                ? 'bg-success/20 text-success'
+                : 'bg-warning/20 text-warning',
             ]"
           >
             {{
@@ -54,7 +54,7 @@
           v-if="
             session.backendSshStatus === 'disconnected_by_backend' && session.disconnectionTimestamp
           "
-          class="text-xs text-orange-500 mt-1"
+          class="text-xs text-warning mt-1"
         >
           {{
             $t('suspendedSshSessions.disconnectedAt', {
@@ -79,9 +79,9 @@
           <button
             @click="$emit('remove', session)"
             :title="$t('suspendedSshSessions.action.remove')"
-            class="responsive-button-padding py-1.5 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-150 inline-flex items-center"
+            class="responsive-button-padding py-1.5 text-sm font-medium rounded-md text-error-text bg-error hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error transition-colors duration-150 inline-flex items-center"
           >
-            <i class="fas fa-trash-alt action-icon" style="color: white"></i>
+            <i class="fas fa-trash-alt action-icon text-white"></i>
             <span class="button-session-text">{{ $t('suspendedSshSessions.action.remove') }}</span>
           </button>
           <button
@@ -91,7 +91,7 @@
             "
             @click="$emit('export-log', session)"
             :title="$t('suspendedSshSessions.action.exportLog')"
-            class="responsive-button-padding py-1.5 text-sm font-medium rounded-md text-button-text bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 inline-flex items-center"
+            class="responsive-button-padding py-1.5 text-sm font-medium rounded-md text-button-text bg-primary hover:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-150 inline-flex items-center"
           >
             <i
               class="fas fa-download action-icon"

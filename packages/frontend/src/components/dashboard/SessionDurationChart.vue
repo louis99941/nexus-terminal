@@ -53,7 +53,12 @@ const chartData = computed<ChartData<'bar'>>(() => ({
     {
       label: t('dashboard.stats.sessionDuration'),
       data: values.value,
-      backgroundColor: ['#67c23a', '#e6a23c', '#f56c6c', '#909399'],
+      backgroundColor: [
+        'var(--color-success, #67c23a)',
+        'var(--color-warning, #e6a23c)',
+        'var(--color-error, #f56c6c)',
+        'var(--text-color-secondary, #909399)',
+      ],
       borderRadius: 6,
     },
   ],
@@ -68,7 +73,7 @@ const chartOptions = computed<ChartOptions<'bar'>>(() => ({
     },
     tooltip: {
       enabled: true,
-      backgroundColor: appearanceStore.currentUiTheme['--header-bg-color'] || 'rgba(0,0,0,0.8)',
+      backgroundColor: appearanceStore.currentUiTheme['--header-bg-color'] || 'var(--bg-overlay)',
       titleColor: textColor.value,
       bodyColor: textColor.value,
       borderColor: borderColor.value,

@@ -484,7 +484,7 @@ const handleQuickCommandExecute = (command: string) => {
         type="text"
         v-model="currentSessionCommandInput"
         :placeholder="t('commandInputBar.placeholder')"
-        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
+        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors duration-300 ease-in-out"
         :class="{
           'basis-3/4': !props.isMobile && isSearching && !isAIActive,
           'basis-1/2': !props.isMobile && isAIActive && !isSearching,
@@ -502,7 +502,7 @@ const handleQuickCommandExecute = (command: string) => {
       <!-- AI Assistant Input (Show when active) -->
       <div
         v-if="isAIActive"
-        class="flex-grow min-w-0 relative flex items-center transition-all duration-300 ease-in-out"
+        class="flex-grow min-w-0 relative flex items-center transition-colors duration-300 ease-in-out"
         :class="{
           'basis-1/2': !props.isMobile && !isSearching,
           'basis-1/3': !props.isMobile && isSearching,
@@ -535,7 +535,7 @@ const handleQuickCommandExecute = (command: string) => {
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
         :aria-label="t('commandInputBar.searchPlaceholder')"
-        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
+        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors duration-300 ease-in-out"
         :class="{
           'basis-1/4': !props.isMobile && !isAIActive,
           'basis-1/3': !props.isMobile && isAIActive,

@@ -149,7 +149,7 @@ const cancelForm = () => {
             class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
             :disabled="isLoading"
           >
-            <i class="fas fa-plus mr-2" style="color: white"></i>{{ t('sshKeys.modal.addKey') }}
+            <i class="fas fa-plus mr-2 text-white"></i>{{ t('sshKeys.modal.addKey') }}
             <!-- Use inline style for white color -->
           </button>
         </div>

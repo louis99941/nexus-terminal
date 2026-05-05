@@ -227,6 +227,7 @@ const handleDeleteTagGlobally = (tagToDelete: GenericTag) => {
       <input
         ref="inputRef"
         type="text"
+        aria-label="添加标签"
         class="flex-grow border-none outline-none p-0.5 text-sm min-w-[100px] bg-transparent"
         v-model="inputValue"
         :placeholder="t('tags.inputPlaceholder')"

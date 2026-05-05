@@ -478,12 +478,12 @@ const handleAvailablePaneDragEnd = (event: DraggableEndEvent) => {
   >
     <div
       ref="dialogRef"
-      class="bg-background text-foreground rounded-lg shadow-xl w-auto h-auto min-w-[800px] min-h-[600px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-auto relative pointer-events-auto cursor-default"
+      class="bg-background text-foreground rounded-lg shadow-xl w-auto h-auto min-w-[320px] md:min-w-[800px] min-h-[400px] md:min-h-[600px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-auto relative pointer-events-auto cursor-default"
     >
       <header class="flex justify-between items-center p-4 border-b border-border bg-header">
         <h2 class="text-lg font-semibold">{{ t('layoutConfigurator.title', '布局管理器') }}</h2>
         <button
-          class="bg-transparent border-none text-2xl cursor-pointer text-text-secondary hover:text-foreground leading-none p-0"
+          class="bg-transparent border-none text-2xl cursor-pointer text-text-secondary hover:text-foreground leading-none p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
           @click="closeDialog"
           :title="t('common.close', '关闭')"
         >
@@ -492,9 +492,11 @@ const handleAvailablePaneDragEnd = (event: DraggableEndEvent) => {
       </header>
 
       <!-- Grid Layout -->
-      <main class="flex-grow p-6 overflow-y-auto grid grid-cols-[220px_1fr] gap-6 min-h-[450px]">
+      <main
+        class="flex-grow p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 min-h-[450px]"
+      >
         <!-- Available Panes -->
-        <section class="flex flex-col overflow-y-auto border-r border-border pr-6 min-w-[200px]">
+        <section class="flex flex-col overflow-y-auto md:border-r md:border-border md:pr-6">
           <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary">
             {{ t('layoutConfigurator.availablePanes', '可用面板') }}
           </h3>
@@ -548,7 +550,7 @@ const handleAvailablePaneDragEnd = (event: DraggableEndEvent) => {
                   @click="handleLayoutLockChange"
                   :class="[
                     'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
-                    layoutLockedBoolean ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+                    layoutLockedBoolean ? 'bg-primary' : 'bg-border',
                   ]"
                   role="switch"
                   :aria-checked="layoutLockedBoolean"

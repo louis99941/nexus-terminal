@@ -791,7 +791,7 @@ const scrollToHighlighted = async () => {
                     editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId)
                   "
                   @click.stop="handleTagMenuAction('manageTag', groupData)"
-                  class="ml-2 px-1 h-6 flex items-center justify-center rounded text-text-secondary hover:text-primary hover:bg-black/10 opacity-0 group-hover:opacity-100 transition-all duration-150 focus:outline-none"
+                  class="ml-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-150 focus:outline-none"
                   :title="t('workspaceConnectionList.manageTags.menuItem')"
                 >
                   <i class="fas fa-edit fa-xs"></i>

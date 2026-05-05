@@ -628,7 +628,7 @@ const handleConnectAllFilteredConnections = async () => {
               :aria-label="t('connections.addConnection', 'Add Connection')"
               class="h-8 w-8 bg-button rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
             >
-              <i class="fas fa-plus" style="color: white"></i>
+              <i class="fas fa-plus text-white"></i>
             </button>
             <!-- Test All Filtered Connections Button -->
             <button
@@ -641,12 +641,8 @@ const handleConnectAllFilteredConnections = async () => {
               class="h-8 px-3 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
               :title="t('connections.actions.testAllFiltered', '测试全部筛选的SSH连接')"
             >
-              <i
-                v-if="isTestingAll"
-                class="fas fa-spinner fa-spin mr-1 sm:mr-2"
-                style="color: white"
-              ></i>
-              <i v-else class="fas fa-check-double mr-1 sm:mr-2" style="color: white"></i>
+              <i v-if="isTestingAll" class="fas fa-spinner fa-spin mr-1 sm:mr-2 text-white"></i>
+              <i v-else class="fas fa-check-double mr-1 sm:mr-2 text-white"></i>
               <span class="hidden sm:inline">{{ t('connections.actions.testAllFiltered') }}</span>
             </button>
             <!-- Connect All Filtered Connections Button -->
@@ -659,12 +655,8 @@ const handleConnectAllFilteredConnections = async () => {
               "
               class="h-8 px-3 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
             >
-              <i
-                v-if="isConnectingAll"
-                class="fas fa-spinner fa-spin mr-1 sm:mr-2"
-                style="color: white"
-              ></i>
-              <i v-else class="fas fa-network-wired mr-1 sm:mr-2" style="color: white"></i>
+              <i v-if="isConnectingAll" class="fas fa-spinner fa-spin mr-1 sm:mr-2 text-white"></i>
+              <i v-else class="fas fa-network-wired mr-1 sm:mr-2 text-white"></i>
               <span class="hidden sm:inline">{{
                 t('workspaceConnectionList.connectAllSshInGroupMenu', '连接全部')
               }}</span>
@@ -702,21 +694,20 @@ const handleConnectAllFilteredConnections = async () => {
             :disabled="selectedConnectionIdsForBatch.size === 0"
             class="px-4 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <i class="fas fa-edit mr-1" style="color: white"></i>
+            <i class="fas fa-edit mr-1 text-white"></i>
             {{ t('connections.batchEdit.editSelected', '编辑选中') }}
           </button>
           <button
             @click="handleBatchDeleteConnections"
             :disabled="selectedConnectionIdsForBatch.size === 0 || isDeletingSelectedConnections"
-            class="px-4 py-1.5 text-sm bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            class="px-4 py-1.5 text-sm bg-error text-white rounded-md shadow-sm hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             :title="t('connections.batchEdit.deleteSelectedTooltip', '删除选中的连接')"
           >
             <i
               v-if="isDeletingSelectedConnections"
-              class="fas fa-spinner fa-spin mr-1.5"
-              style="color: white"
+              class="fas fa-spinner fa-spin mr-1.5 text-white"
             ></i>
-            <i v-else class="fas fa-trash-alt mr-1.5" style="color: white"></i>
+            <i v-else class="fas fa-trash-alt mr-1.5 text-white"></i>
             <span>{{ t('connections.batchEdit.deleteSelectedButton', '删除选中') }}</span>
           </button>
         </div>

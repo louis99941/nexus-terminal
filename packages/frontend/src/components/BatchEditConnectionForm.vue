@@ -258,7 +258,7 @@ onMounted(() => {
               <input
                 type="checkbox"
                 v-model="enablePortEdit"
-                class="form-checkbox h-5 w-5 text-primary rounded border-gray-300 focus:ring-primary"
+                class="form-checkbox h-5 w-5 text-primary rounded border-border focus:ring-primary"
               />
             </div>
             <div v-if="enablePortEdit">
@@ -280,7 +280,7 @@ onMounted(() => {
               <input
                 type="checkbox"
                 v-model="enableAuthEdit"
-                class="form-checkbox h-5 w-5 text-primary rounded border-gray-300 focus:ring-primary"
+                class="form-checkbox h-5 w-5 text-primary rounded border-border focus:ring-primary"
               />
             </div>
             <div v-if="enableAuthEdit" class="space-y-3">
@@ -340,7 +340,7 @@ onMounted(() => {
               <input
                 type="checkbox"
                 v-model="enableAdvancedEdit"
-                class="form-checkbox h-5 w-5 text-primary rounded border-gray-300 focus:ring-primary"
+                class="form-checkbox h-5 w-5 text-primary rounded border-border focus:ring-primary"
               />
             </div>
             <div v-if="enableAdvancedEdit" class="space-y-3">

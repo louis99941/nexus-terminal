@@ -68,7 +68,7 @@
                 <!-- Copy Button -->
                 <button
                   @click.stop="copyCommand(entry.command)"
-                  class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary"
+                  class="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-150 text-text-secondary hover:text-primary"
                   :title="$t('commandHistory.copy', '复制')"
                 >
                   <i class="fas fa-copy text-sm"></i>
@@ -76,7 +76,7 @@
                 <!-- Delete Button -->
                 <button
                   @click.stop="deleteSingleCommand(entry.id)"
-                  class="ml-1 p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-error"
+                  class="ml-1 p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-150 text-text-secondary hover:text-error"
                   :title="$t('commandHistory.delete', '删除')"
                 >
                   <i class="fas fa-times text-sm"></i>

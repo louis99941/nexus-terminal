@@ -128,7 +128,7 @@ const getAvailableJumpHostsForIndex = (currentIndex: number): ConnectionInfo[] =
           type="button"
           @click="setConnectionMode('proxy')"
           :class="[
-            'flex-1 px-3 py-2 border border-border text-sm font-medium focus:outline-none rounded-l-md',
+            'flex-1 px-3 py-2 border border-border text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary rounded-l-md',
             props.advancedConnectionMode === 'proxy'
               ? 'bg-primary text-white'
               : 'bg-background text-foreground hover:bg-border',
@@ -140,7 +140,7 @@ const getAvailableJumpHostsForIndex = (currentIndex: number): ConnectionInfo[] =
           type="button"
           @click="setConnectionMode('jump')"
           :class="[
-            'flex-1 px-3 py-2 border-t border-b border-r border-border text-sm font-medium focus:outline-none -ml-px rounded-r-md',
+            'flex-1 px-3 py-2 border-t border-b border-r border-border text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary -ml-px rounded-r-md',
             props.advancedConnectionMode === 'jump'
               ? 'bg-primary text-white'
               : 'bg-background text-foreground hover:bg-border',
@@ -306,7 +306,7 @@ const getAvailableJumpHostsForIndex = (currentIndex: number): ConnectionInfo[] =
           class="sr-only peer"
         />
         <div
-          class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-primary"
+          class="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-primary"
         ></div>
       </label>
     </div>

@@ -201,8 +201,8 @@ const cpuChartData = computed(() => ({
   datasets: [
     {
       label: t('statusMonitor.cpuUsageLabel'),
-      backgroundColor: 'rgba(54, 162, 235, 0.2)',
-      borderColor: 'rgba(54, 162, 235, 1)',
+      backgroundColor: `color-mix(in srgb, var(--color-primary, #3b82f6) 20%, transparent)`,
+      borderColor: 'var(--color-primary, #3b82f6)',
       borderWidth: 1,
       data: currentCpuHistory.value.map((v) => v ?? 0), // 将 null 映射为 0 用于图表
       tension: 0.1,
@@ -232,8 +232,8 @@ const memoryChartData = computed(() => {
     datasets: [
       {
         label: t('statusMonitor.memoryUsageLabelUnit', { unit: requiresGB ? 'GB' : 'MB' }),
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        borderColor: 'rgba(255, 99, 132, 1)',
+        backgroundColor: `color-mix(in srgb, var(--color-error, #ef4444) 20%, transparent)`,
+        borderColor: 'var(--color-error, #ef4444)',
         borderWidth: 1,
         data: displayData.map((v) => v ?? 0), // 将 null 映射为 0
         tension: 0.1,
@@ -268,8 +268,8 @@ const networkChartData = computed(() => {
     datasets: [
       {
         label: t('statusMonitor.networkDownloadLabelUnit', { unit: requiresMB ? 'MB/s' : 'KB/s' }),
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: `color-mix(in srgb, var(--color-success, #10b981) 20%, transparent)`,
+        borderColor: 'var(--color-success, #10b981)',
         borderWidth: 1,
         data: displayRxData.map((v) => v ?? 0), // 将 null 映射为 0
         tension: 0.1,
@@ -278,8 +278,8 @@ const networkChartData = computed(() => {
       },
       {
         label: t('statusMonitor.networkUploadLabelUnit', { unit: requiresMB ? 'MB/s' : 'KB/s' }),
-        backgroundColor: 'rgba(255, 159, 64, 0.2)',
-        borderColor: 'rgba(255, 159, 64, 1)',
+        backgroundColor: `color-mix(in srgb, var(--color-warning, #f59e0b) 20%, transparent)`,
+        borderColor: 'var(--color-warning, #f59e0b)',
         borderWidth: 1,
         data: displayTxData.map((v) => v ?? 0), // 将 null 映射为 0
         tension: 0.1,

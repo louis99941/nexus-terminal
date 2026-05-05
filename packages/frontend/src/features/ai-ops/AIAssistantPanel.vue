@@ -65,7 +65,10 @@
             v-for="session in aiStore.sessions"
             :key="session.sessionId"
             class="px-4 py-3 hover:bg-header/50 cursor-pointer flex items-center justify-between group"
+            role="button"
+            tabindex="0"
             @click="loadSessionHistory(session.sessionId)"
+            @keydown.enter="loadSessionHistory(session.sessionId)"
           >
             <div class="flex-1 min-w-0">
               <div class="text-sm font-medium truncate">
@@ -75,7 +78,7 @@
             </div>
             <button
               @click.stop="deleteSessionHistory(session.sessionId)"
-              class="text-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              class="text-text-secondary hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
               :title="t('common.delete')"
               :aria-label="t('common.delete')"
             >
@@ -141,7 +144,7 @@
       <!-- Error Message -->
       <div
         v-if="aiStore.error"
-        class="self-center text-red-500 text-xs bg-red-500/10 px-3 py-2 rounded"
+        class="self-center text-error text-xs bg-error/10 px-3 py-2 rounded"
       >
         <i class="fas fa-exclamation-circle mr-1"></i>{{ aiStore.error }}
         <button @click="aiStore.clearError()" class="ml-2 underline">
@@ -157,7 +160,7 @@
         class="w-full px-4 py-2 text-xs flex items-center justify-between bg-header/30 hover:bg-header/50"
       >
         <span
-          ><i class="fas fa-lightbulb mr-2 text-yellow-500"></i
+          ><i class="fas fa-lightbulb mr-2 text-warning"></i
           >{{ t('aiOps.insights', 'Insights') }} ({{ aiStore.insights.length }})</span
         >
         <i :class="['fas', showInsights ? 'fa-chevron-down' : 'fa-chevron-up']"></i>
@@ -187,6 +190,7 @@
           v-model="inputMessage"
           @keydown.enter="sendMessage"
           type="text"
+          aria-label="发送消息"
           class="flex-grow px-3 py-2 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary text-foreground"
           :placeholder="t('aiOps.inputPlaceholder', 'Type a message...')"
           :disabled="aiStore.isTyping"
@@ -313,11 +317,11 @@ const formatMessage = (content: string) => {
 // 严重程度样式
 const severityClass = (severity: AIInsightSeverity) => {
   const classes: Record<AIInsightSeverity, string> = {
-    info: 'border-blue-500 bg-blue-500/10',
-    low: 'border-green-500 bg-green-500/10',
-    medium: 'border-yellow-500 bg-yellow-500/10',
-    high: 'border-orange-500 bg-orange-500/10',
-    critical: 'border-red-500 bg-red-500/10',
+    info: 'border-primary bg-primary/10',
+    low: 'border-success bg-success/10',
+    medium: 'border-warning bg-warning/10',
+    high: 'border-warning bg-warning/10',
+    critical: 'border-error bg-error/10',
   };
   return classes[severity] || classes.info;
 };

@@ -57,17 +57,20 @@ const statIconConfig = {
   alerts: { icon: 'fa-bell', color: 'orange' },
 } as const;
 
-// 连接类型颜色映射（统一管理，避免重复定义）
+// 连接类型颜色映射（使用语义 token 确保 dark mode 一致性）
 const CONNECTION_TYPE_STYLES = {
-  SSH: { border: 'hover:border-l-orange-500', badge: 'text-orange-400 border-orange-500/20' },
-  RDP: { border: 'hover:border-l-blue-500', badge: 'text-blue-400 border-blue-500/20' },
-  VNC: { border: 'hover:border-l-purple-500', badge: 'text-purple-400 border-purple-500/20' },
+  SSH: { border: 'hover:border-l-primary', badge: 'text-primary border-primary/20' },
+  RDP: {
+    border: 'hover:border-l-text-secondary',
+    badge: 'text-text-secondary border-text-secondary/20',
+  },
+  VNC: { border: 'hover:border-l-error', badge: 'text-error border-error/20' },
 } as const;
 
 const getConnectionTypeStyle = (type: string) =>
   CONNECTION_TYPE_STYLES[type as keyof typeof CONNECTION_TYPE_STYLES] ?? {
     border: '',
-    badge: 'text-gray-400 border-gray-500/20',
+    badge: 'text-text-secondary border-text-secondary/20',
   };
 
 // Computed 缓存优化列表渲染
@@ -293,9 +296,9 @@ const getProgressColor = (percent: number): string => {
 };
 
 const getLatencyColorClass = (latency: number): string => {
-  if (latency < 100) return 'text-green-500';
-  if (latency < 300) return 'text-yellow-500';
-  return 'text-red-500';
+  if (latency < 100) return 'text-success';
+  if (latency < 300) return 'text-warning';
+  return 'text-error';
 };
 
 const formatDuration = (seconds: number | null | undefined): string => {
@@ -333,7 +336,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             format="YYYY-MM-DD HH:mm"
             :clearable="false"
             @change="handleTimeRangeChange"
-            class="!w-[260px] md:!w-[320px] !bg-transparent !border-none !shadow-none"
+            class="w-[260px] md:w-[320px] !bg-transparent !border-none !shadow-none"
             popper-class="dashboard-date-picker-popper"
           />
         </div>
@@ -352,7 +355,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 
           <el-select
             v-model="refreshInterval"
-            class="!w-[80px]"
+            class="w-[80px]"
             size="small"
             :disabled="!autoRefresh"
           >
@@ -387,7 +390,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             <h3 class="text-3xl font-bold text-foreground">{{ stats?.sessions?.active || 0 }}</h3>
           </div>
           <div
-            class="p-3 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors transition-transform duration-300 group-hover:scale-105"
+            class="p-3 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-button-text transition-colors transition-transform duration-300 group-hover:scale-105"
           >
             <i class="fas fa-terminal text-xl !text-current"></i>
           </div>
@@ -406,7 +409,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <div
-            class="p-3 rounded-lg bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors transition-transform duration-300 group-hover:scale-105"
+            class="p-3 rounded-lg bg-success/10 text-success group-hover:bg-success group-hover:text-success-text transition-colors transition-transform duration-300 group-hover:scale-105"
           >
             <i class="fas fa-plug text-xl !text-current"></i>
           </div>
@@ -425,7 +428,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <div
-            class="p-3 rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors transition-transform duration-300 group-hover:scale-105"
+            class="p-3 rounded-lg bg-warning/10 text-warning group-hover:bg-warning group-hover:text-warning-text transition-colors transition-transform duration-300 group-hover:scale-105"
           >
             <i class="fas fa-clock text-xl !text-current"></i>
           </div>
@@ -436,7 +439,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     <!-- Security Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <div
-        class="stat-card group border-l-4 border-l-red-500/50 hover:border-l-red-500 transition-colors duration-200"
+        class="stat-card group border-l-4 border-l-error/50 hover:border-l-error transition-colors duration-200"
       >
         <div class="flex justify-between items-center">
           <div>
@@ -446,12 +449,12 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-exclamation-circle text-red-500/80 text-2xl group-hover:scale-110 group-hover:text-red-500 transition-colors transition-transform duration-300 !text-current"
+            class="fas fa-exclamation-circle text-error/80 text-2xl group-hover:scale-110 group-hover:text-error transition-colors transition-transform duration-300 !text-current"
           ></i>
         </div>
       </div>
       <div
-        class="stat-card group border-l-4 border-l-orange-500/50 hover:border-l-orange-500 transition-colors duration-200"
+        class="stat-card group border-l-4 border-l-warning/50 hover:border-l-warning transition-colors duration-200"
       >
         <div class="flex justify-between items-center">
           <div>
@@ -461,12 +464,12 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-ban text-orange-500/80 text-2xl group-hover:scale-110 group-hover:text-orange-500 transition-colors transition-transform duration-300 !text-current"
+            class="fas fa-ban text-warning/80 text-2xl group-hover:scale-110 group-hover:text-warning transition-colors transition-transform duration-300 !text-current"
           ></i>
         </div>
       </div>
       <div
-        class="stat-card group border-l-4 border-l-yellow-500/50 hover:border-l-yellow-500 transition-colors duration-200"
+        class="stat-card group border-l-4 border-l-warning/50 hover:border-l-warning transition-colors duration-200"
       >
         <div class="flex justify-between items-center">
           <div>
@@ -476,7 +479,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             </h3>
           </div>
           <i
-            class="fas fa-bell text-yellow-500/80 text-2xl group-hover:scale-110 group-hover:text-yellow-500 transition-colors transition-transform duration-300 !text-current"
+            class="fas fa-bell text-warning/80 text-2xl group-hover:scale-110 group-hover:text-warning transition-colors transition-transform duration-300 !text-current"
           ></i>
         </div>
       </div>
@@ -485,21 +488,20 @@ const formatDuration = (seconds: number | null | undefined): string => {
     <!-- Health & Recent Connections Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       <!-- Asset Health -->
-      <div class="content-card border-t-2 border-t-green-500/30">
+      <div class="content-card border-t-2 border-t-success/30">
         <div class="card-header border-b border-border/50 bg-surface/30">
           <div class="flex items-center gap-3">
-            <div class="p-2 rounded-md bg-red-500/10 text-red-500">
+            <div class="p-2 rounded-md bg-error/10 text-error">
               <i class="fas fa-heartbeat"></i>
             </div>
             <h3 class="font-semibold text-lg">{{ t('dashboard.assetHealth') }}</h3>
           </div>
           <div v-if="assetHealth" class="flex gap-2">
             <span
-              class="px-2 py-0.5 rounded text-xs bg-green-500/10 text-green-500 border border-green-500/20"
+              class="px-2 py-0.5 rounded text-xs bg-success/10 text-success border border-success/20"
               >{{ t('dashboard.healthy') }}: {{ assetHealth.healthy }}</span
             >
-            <span
-              class="px-2 py-0.5 rounded text-xs bg-red-500/10 text-red-500 border border-red-500/20"
+            <span class="px-2 py-0.5 rounded text-xs bg-error/10 text-error border border-error/20"
               >{{ t('dashboard.unreachable') }}: {{ assetHealth.unreachable }}</span
             >
           </div>
@@ -515,11 +517,11 @@ const formatDuration = (seconds: number | null | undefined): string => {
                 <div class="relative flex h-2 w-2">
                   <span
                     v-if="asset.status === 'online'"
-                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"
                   ></span>
                   <span
                     class="relative inline-flex rounded-full h-2 w-2"
-                    :class="asset.status === 'online' ? 'bg-green-500' : 'bg-red-500'"
+                    :class="asset.status === 'online' ? 'bg-success' : 'bg-error'"
                   ></span>
                 </div>
                 <span class="font-medium text-sm">{{ asset.name }}</span>
@@ -539,11 +541,11 @@ const formatDuration = (seconds: number | null | undefined): string => {
       </div>
 
       <!-- Recent Connections -->
-      <div class="content-card border-t-2 border-t-blue-500/30">
+      <div class="content-card border-t-2 border-t-primary/30">
         <div class="card-header border-b border-border/50 bg-surface/30">
           <div class="flex justify-between items-center w-full">
             <div class="flex items-center gap-3">
-              <div class="p-2 rounded-md bg-green-500/10 text-green-500">
+              <div class="p-2 rounded-md bg-success/10 text-success">
                 <i class="fas fa-network-wired"></i>
               </div>
               <h3 class="font-semibold text-lg">{{ t('dashboard.recentConnections') }}</h3>
@@ -639,7 +641,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
       <div class="content-card">
         <div class="card-header">
           <div class="flex items-center gap-3">
-            <div class="p-2 rounded-md bg-purple-500/10 text-purple-500">
+            <div class="p-2 rounded-md bg-primary/10 text-primary">
               <i class="fas fa-server"></i>
             </div>
             <h3 class="font-semibold text-lg">{{ t('dashboard.stats.systemResources') }}</h3>
@@ -735,6 +737,24 @@ const formatDuration = (seconds: number | null | undefined): string => {
 </template>
 
 <style scoped>
+/* Dashboard 卡片阴影与颜色变量 */
+.dashboard-scope {
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-border: var(--border-color);
+  --card-hover-bg: rgba(255, 255, 255, 0.06);
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --card-header-bg: rgba(255, 255, 255, 0.01);
+  --glass-gradient: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
 .bg-background {
   background-color: var(--app-bg-color);
 }
@@ -752,7 +772,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 }
 
 .stat-card {
-  background: var(--card-bg, rgba(255, 255, 255, 0.06));
+  background: var(--card-bg);
   border: 1px solid var(--card-border, var(--border-color));
   border-radius: 1.25rem;
   padding: 1.5rem;
@@ -761,9 +781,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
@@ -783,11 +801,9 @@ const formatDuration = (seconds: number | null | undefined): string => {
 
 .stat-card:hover {
   transform: translateY(-6px);
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-lg);
   border-color: var(--link-active-color);
-  background: var(--card-hover-bg, rgba(255, 255, 255, 0.06));
+  background: var(--card-hover-bg);
 }
 
 .stat-card:hover::before {
@@ -795,7 +811,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 }
 
 .content-card {
-  background: var(--card-bg, rgba(255, 255, 255, 0.06));
+  background: var(--card-bg);
   border: 1px solid var(--card-border, var(--border-color));
   border-radius: 1.25rem;
   overflow: hidden;
@@ -805,18 +821,18 @@ const formatDuration = (seconds: number | null | undefined): string => {
   transition:
     border-color 0.3s ease,
     box-shadow 0.3s ease;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
 }
 
 .content-card:hover {
   border-color: rgba(var(--input-focus-glow-rgb, 14, 165, 233), 0.4);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-hover);
 }
 
 .card-header {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.01);
+  background: var(--card-header-bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -833,12 +849,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
   left: 0;
   bottom: 0;
   right: 0;
-  background-image: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background-image: var(--glass-gradient);
   background-size: 40px 100%;
   background-repeat: no-repeat;
   animation: flow 2s infinite linear;

@@ -82,7 +82,7 @@
         <!-- Command List (Grouped or Flat) -->
         <div
           v-else
-          class="list-none p-0 m-0 outline-none"
+          class="list-none p-0 m-0 outline-none focus:outline-none focus:ring-2 focus:ring-primary focus:rounded"
           ref="commandListContainerRef"
           tabindex="0"
           @wheel.ctrl.prevent="handleWheel"

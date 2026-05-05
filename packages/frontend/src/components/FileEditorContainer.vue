@@ -345,6 +345,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
           <select
             ref="encodingSelectRef"
             :value="currentSelectedEncoding"
+            aria-label="编码选择"
             @change="handleEncodingChange"
             class="encoding-select"
             :title="t('fileManager.changeEncodingTooltip', '更改文件编码')"
@@ -571,6 +572,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 .encoding-select:focus {
   border-color: var(--editor-input-focus-border-color);
+  box-shadow: 0 0 0 2px var(--color-primary, #3b82f6);
 }
 
 .encoding-select-placeholder {

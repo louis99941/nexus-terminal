@@ -236,6 +236,7 @@ onBeforeUnmount(() => {
         <div class="relative flex-grow">
           <input
             type="text"
+            aria-label="搜索收藏路径"
             v-model="searchTerm"
             :placeholder="t('favoritePaths.searchPlaceholder', 'Search by name or path...')"
             class="w-full bg-input border border-border rounded-md pl-2.5 pr-2 py-1.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
@@ -243,7 +244,7 @@ onBeforeUnmount(() => {
         </div>
         <button
           @click="toggleSort"
-          class="flex items-center justify-center w-8 h-8 bg-background border border-border text-text-secondary rounded-lg text-sm cursor-pointer shadow-sm transition-colors duration-200 ease-in-out hover:bg-primary/10 hover:text-primary focus:outline-none flex-shrink-0"
+          class="flex items-center justify-center w-8 h-8 bg-background border border-border text-text-secondary rounded-lg text-sm cursor-pointer shadow-sm transition-colors duration-200 ease-in-out hover:bg-primary/10 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary flex-shrink-0"
           :title="t('favoritePaths.toggleSort', '切换排序方式')"
           :aria-label="t('favoritePaths.toggleSort', '切换排序方式')"
         >
@@ -300,7 +301,7 @@ onBeforeUnmount(() => {
             >
               <button
                 @click.stop="handleSendToTerminal(favPath)"
-                class="p-1.5 rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 :title="t('favoritePaths.sendToTerminal', 'Send to Terminal')"
                 :aria-label="t('favoritePaths.sendToTerminal', 'Send to Terminal')"
               >
@@ -308,7 +309,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 @click.stop="openEditModal(favPath)"
-                class="p-1.5 rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 :title="t('common.edit')"
                 :aria-label="t('common.edit')"
               >
@@ -316,7 +317,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 @click.stop="handleDelete(favPath)"
-                class="p-1.5 rounded text-text-secondary hover:text-error hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-secondary hover:text-error hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 :title="t('common.delete')"
                 :aria-label="t('common.delete')"
               >

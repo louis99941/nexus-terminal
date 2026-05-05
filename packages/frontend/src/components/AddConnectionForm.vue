@@ -158,7 +158,7 @@ const handleHostIconMouseLeave = () => {
               @click="isScriptModeActive = !isScriptModeActive"
               :class="[
                 'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
-                isScriptModeActive ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+                isScriptModeActive ? 'bg-primary' : 'bg-border',
               ]"
               role="switch"
               :aria-checked="isScriptModeActive"
@@ -233,7 +233,7 @@ const handleHostIconMouseLeave = () => {
               <!-- Tooltip Container -->
               <i class="fas fa-info-circle text-text-secondary cursor-help"></i>
               <span
-                class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-pre-wrap"
+                class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 text-xs text-white bg-overlay rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-pre-wrap"
               >
                 {{ t('connections.test.latencyTooltip') }}
               </span>
@@ -270,7 +270,7 @@ const handleHostIconMouseLeave = () => {
             type="button"
             @click="handleDeleteConnection"
             :disabled="isLoading || (formData.type === 'SSH' && testStatus === 'testing')"
-            class="px-4 py-2 bg-transparent text-red-600 border border-red-500 rounded-md shadow-sm hover:bg-red-500/10 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+            class="px-4 py-2 bg-transparent text-error border border-error/70 rounded-md shadow-sm hover:bg-error/10 hover:text-error-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
           >
             {{ t('connections.actions.delete') }}
           </button>

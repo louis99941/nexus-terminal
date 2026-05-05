@@ -252,11 +252,11 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
   ); /* Consider a dedicated var(--button-hover-light-bg-color) */
 }
 .remove-button {
-  color: #dc3545; /* Consider var(--danger-color) */
-  border-color: #dc3545; /* Consider var(--danger-color) */
+  color: var(--danger-color, #dc3545);
+  border-color: var(--danger-color, #dc3545);
 }
 .remove-button:hover {
-  background-color: #dc3545; /* Consider var(--danger-bg-color) */
+  background-color: var(--danger-color, #dc3545);
   color: var(--button-text-color);
 }
 

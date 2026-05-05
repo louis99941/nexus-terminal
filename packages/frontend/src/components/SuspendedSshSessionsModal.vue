@@ -99,6 +99,6 @@ onUnmounted(() => {
 
 <style scoped>
 .bg-overlay {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: var(--overlay-bg-color, rgba(0, 0, 0, 0.6));
 }
 </style>

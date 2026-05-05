@@ -57,7 +57,7 @@ const patchFormData = (patch: Partial<typeof props.formData>) => {
             type="button"
             @click="patchFormData({ auth_method: 'password' })"
             :class="[
-              'flex-1 px-3 py-2 border border-border text-sm font-medium focus:outline-none',
+              'flex-1 px-3 py-2 border border-border text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary',
               props.formData.auth_method === 'password'
                 ? 'bg-primary text-white'
                 : 'bg-background text-foreground hover:bg-border',

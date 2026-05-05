@@ -11,16 +11,16 @@
       >
         <!-- Search Input -->
         <div class="flex items-center px-4 py-3 border-b border-[var(--editor-border-color)]">
-          <i class="fas fa-search text-gray-400 mr-3"></i>
+          <i class="fas fa-search text-text-secondary mr-3"></i>
           <input
             ref="inputRef"
             v-model="query"
             type="text"
-            class="w-full bg-transparent border-none text-white focus:ring-0 placeholder-gray-500 text-lg outline-none"
+            class="w-full bg-transparent border-none text-white focus:ring-0 placeholder-text-secondary text-lg outline-none"
             :placeholder="t('commandPalette.placeholder', 'Type a command or search...')"
             @keydown="handleKeydown"
           />
-          <div class="flex items-center gap-2 text-xs text-gray-500">
+          <div class="flex items-center gap-2 text-xs text-text-secondary">
             <span
               class="px-1.5 py-0.5 rounded border border-[var(--editor-input-bg-color)] bg-[var(--editor-bg-color)]"
               >ESC</span
@@ -30,13 +30,16 @@
 
         <!-- Results List -->
         <div class="overflow-y-auto custom-scrollbar flex-grow">
-          <div v-if="filteredItems.length === 0" class="px-4 py-8 text-center text-gray-500">
+          <div v-if="filteredItems.length === 0" class="px-4 py-8 text-center text-text-secondary">
             {{ t('commandPalette.noResults', 'No matching commands found') }}
           </div>
           <div v-else class="py-2">
             <div
               v-for="(item, index) in filteredItems"
               :key="item.id"
+              role="option"
+              :aria-selected="selectedIndex === index"
+              tabindex="0"
               :class="[
                 'px-4 py-2 cursor-pointer flex items-center justify-between group',
                 {
@@ -45,6 +48,7 @@
                 },
               ]"
               @click="execute(item)"
+              @keydown.enter="execute(item)"
               @mouseover="selectedIndex = index"
             >
               <div class="flex items-center gap-3">
@@ -62,7 +66,7 @@
                   >{{ item.label }}</span
                 >
               </div>
-              <span v-if="item.shortcut" class="text-xs text-gray-500 font-mono">{{
+              <span v-if="item.shortcut" class="text-xs text-text-secondary font-mono">{{
                 item.shortcut
               }}</span>
             </div>
@@ -71,10 +75,10 @@
 
         <!-- Footer -->
         <div
-          class="px-4 py-1.5 bg-[var(--editor-header-bg-color)] border-t border-[var(--editor-border-color)] text-xs text-gray-500 flex justify-end gap-4"
+          class="px-4 py-1.5 bg-[var(--editor-header-bg-color)] border-t border-[var(--editor-border-color)] text-xs text-text-secondary flex justify-end gap-4"
         >
-          <span><span class="text-gray-300">↑↓</span> {{ t('common.navigate') }}</span>
-          <span><span class="text-gray-300">↵</span> {{ t('common.select') }}</span>
+          <span><span class="text-foreground">↑↓</span> {{ t('common.navigate') }}</span>
+          <span><span class="text-foreground">↵</span> {{ t('common.select') }}</span>
         </div>
       </div>
     </div>

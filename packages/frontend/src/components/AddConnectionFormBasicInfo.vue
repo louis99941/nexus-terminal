@@ -70,7 +70,7 @@ const handleHostIconMouseLeave = () => {
       v-if="showHostTooltip"
       ref="hostTooltipContentRef"
       :style="hostTooltipStyle"
-      class="fixed w-max max-w-xs p-2 text-xs text-white bg-gray-800 rounded shadow-lg z-[1000] whitespace-pre-wrap pointer-events-none"
+      class="fixed w-max max-w-xs p-2 text-xs text-white bg-overlay rounded shadow-lg z-[1000] whitespace-pre-wrap pointer-events-none"
       role="tooltip"
     >
       {{
@@ -108,7 +108,7 @@ const handleHostIconMouseLeave = () => {
           type="button"
           @click="patchFormData({ type: 'SSH' })"
           :class="[
-            'flex-1 px-3 py-2 border border-border text-sm font-medium focus:outline-none',
+            'flex-1 px-3 py-2 border border-border text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary',
             props.formData.type === 'SSH'
               ? 'bg-primary text-white'
               : 'bg-background text-foreground hover:bg-border',

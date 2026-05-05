@@ -709,10 +709,10 @@ const stopResize = () => {
           <span
             class="text-xs px-2 py-0.5 rounded"
             :class="{
-              'bg-yellow-200 text-yellow-800': connectionStatus === 'connecting',
-              'bg-green-200 text-green-800': connectionStatus === 'connected',
-              'bg-red-200 text-red-800': connectionStatus === 'error',
-              'bg-gray-200 text-gray-800': connectionStatus === 'disconnected',
+              'bg-warning/20 text-warning': connectionStatus === 'connecting',
+              'bg-success/20 text-success': connectionStatus === 'connected',
+              'bg-error/20 text-error': connectionStatus === 'error',
+              'bg-text-secondary/20 text-text-secondary': connectionStatus === 'disconnected',
             }"
           >
             {{ t('remoteDesktopModal.status.' + connectionStatus) }}
@@ -747,7 +747,7 @@ const stopResize = () => {
               v-if="connectionStatus === 'connecting'"
               class="fas fa-spinner fa-spin fa-2x mb-3"
             ></i>
-            <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-red-400"></i>
+            <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-error"></i>
             <p class="text-sm">{{ statusMessage }}</p>
             <button
               v-if="connectionStatus === 'error'"

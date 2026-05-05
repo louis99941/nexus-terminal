@@ -167,7 +167,7 @@ const handleTestConnection = async (connectionId: number) => {
 
 <template>
   <div class="mt-2 font-sans">
-    <div v-if="tagsError" class="p-4 border border-red-300 bg-red-100 text-red-700 rounded m-2">
+    <div v-if="tagsError" class="p-4 border border-error/30 bg-error/10 text-error rounded m-2">
       {{ t('tags.error', { error: tagsError }) }}
     </div>
 
@@ -272,7 +272,7 @@ const handleTestConnection = async (connectionId: number) => {
               <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">
                 <button
                   @click="connectToServer(conn.id)"
-                  class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700"
+                  class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-success text-success-text border-success hover:bg-success/80 hover:border-success/80"
                 >
                   {{ t('connections.actions.connect') }}
                 </button>
@@ -284,7 +284,7 @@ const handleTestConnection = async (connectionId: number) => {
                 </button>
                 <button
                   @click="handleTestConnection(conn.id)"
-                  class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:border-blue-700 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-500 disabled:border-gray-500"
+                  class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-primary text-white border-primary hover:bg-primary/80 hover:border-primary/80 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-text-secondary disabled:border-text-secondary"
                   :disabled="testingState[conn.id]"
                 >
                   {{
@@ -295,7 +295,7 @@ const handleTestConnection = async (connectionId: number) => {
                 </button>
                 <button
                   @click="handleDelete(conn)"
-                  class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 bg-red-600 text-white border-red-600 hover:bg-red-700 hover:border-red-700"
+                  class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 bg-error text-error-text border-error hover:bg-error/80 hover:border-error/80"
                 >
                   {{ t('connections.actions.delete') }}
                 </button>

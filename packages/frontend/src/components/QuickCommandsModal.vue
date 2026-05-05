@@ -96,6 +96,6 @@ onMounted(() => {
 <style scoped>
 /* Add any specific modal styles if needed */
 .bg-overlay {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: var(--overlay-bg-color, rgba(0, 0, 0, 0.6));
 }
 </style>

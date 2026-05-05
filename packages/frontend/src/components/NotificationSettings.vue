@@ -30,7 +30,7 @@
     <!-- Empty state (Show only if not loading, no error, and settings empty) -->
     <div
       v-else-if="!store.isLoading && !store.error && settings.length === 0"
-      class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded"
+      class="p-4 mb-4 border-l-4 border-primary/40 bg-primary/10 text-primary rounded"
     >
       {{ $t('settings.notifications.noChannels') }}
     </div>

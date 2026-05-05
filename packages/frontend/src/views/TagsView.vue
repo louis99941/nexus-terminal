@@ -91,7 +91,7 @@ h2 {
 .no-data-message {
   margin-top: 1rem;
   text-align: center;
-  color: #666;
+  color: var(--text-color-secondary, #666);
 }
 
 .error-message {

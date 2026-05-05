@@ -78,6 +78,7 @@ const closeManagementModal = () => {
       <select
         id="ssh-key-select"
         v-model="selectedKeyId"
+        aria-label="SSH 密钥"
         :disabled="isLoading"
         class="flex-grow px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
         style="

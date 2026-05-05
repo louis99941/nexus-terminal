@@ -201,6 +201,7 @@ defineExpose({
     @wheel="emit('wheel', $event)"
     @contextmenu.prevent="emit('context-menu', $event)"
     tabindex="0"
+    role="grid"
     :style="{ '--row-size-multiplier': rowSizeMultiplier }"
   >
     <!-- 外部文件拖拽蒙版 -->
@@ -227,7 +228,7 @@ defineExpose({
         :aria-sort="
           sortKey === 'type' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
         "
-        class="relative border-r border-border/10 hover:bg-black/5 cursor-pointer flex items-center truncate"
+        class="relative border-r border-border/10 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer flex items-center truncate"
         :style="{
           paddingLeft: `calc(1rem * var(--row-size-multiplier))`,
           paddingRight: `calc(0.5rem * var(--row-size-multiplier))`,
@@ -252,7 +253,7 @@ defineExpose({
         :aria-sort="
           sortKey === 'filename' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
         "
-        class="relative border-r border-border/10 hover:bg-black/5 cursor-pointer flex items-center truncate"
+        class="relative border-r border-border/10 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer flex items-center truncate"
         :style="{
           padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`,
         }"
@@ -274,7 +275,7 @@ defineExpose({
         :aria-sort="
           sortKey === 'size' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
         "
-        class="relative border-r border-border/10 hover:bg-black/5 cursor-pointer flex items-center truncate"
+        class="relative border-r border-border/10 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer flex items-center truncate"
         :style="{
           padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`,
         }"
@@ -311,7 +312,7 @@ defineExpose({
         :aria-sort="
           sortKey === 'mtime' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
         "
-        class="relative hover:bg-black/5 cursor-pointer flex items-center truncate"
+        class="relative hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer flex items-center truncate"
         :style="{
           padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`,
         }"
@@ -387,7 +388,7 @@ defineExpose({
                 item.attrs.isDirectory
                   ? 'fas fa-folder text-primary'
                   : item.attrs.isSymbolicLink
-                    ? 'fas fa-link text-cyan-500'
+                    ? 'fas fa-link text-primary'
                     : `${getFileIconClassBase(item.filename)} text-text-secondary`,
                 {
                   'text-white': selectedItems.has(item.filename) || index === selectedIndex,

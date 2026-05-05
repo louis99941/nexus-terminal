@@ -73,7 +73,7 @@
       <!-- No logs state -->
       <div
         v-else-if="!store.isLoading && !store.error && logs.length === 0"
-        class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded flex-shrink-0"
+        class="p-4 mb-4 border-l-4 border-info bg-info/10 text-foreground rounded flex-shrink-0"
       >
         {{ $t('auditLog.noLogs') }}
       </div>

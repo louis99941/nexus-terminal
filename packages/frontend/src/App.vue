@@ -301,7 +301,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
     <!-- Header with Tailwind classes using theme variables -->
     <header
       v-if="isAuthenticated && (!isWorkspaceRoute || isHeaderVisible)"
-      class="sticky top-0 z-50 flex items-center h-16 pl-4 pr-6 bg-header border-b border-border/50 shadow-sm transition-all duration-300"
+      class="sticky top-0 z-50 flex items-center h-16 pl-4 pr-6 bg-header border-b border-border/50 shadow-sm transition-shadow duration-300"
     >
       <!-- Modernized Header -->
       <!-- Nav with Tailwind classes -->
@@ -317,43 +317,43 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
           />
           <RouterLink
             to="/"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.dashboard') }}</RouterLink
           >
           <RouterLink
             to="/workspace"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.terminal') }}</RouterLink
           >
           <RouterLink
             to="/connections"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.connections') }}</RouterLink
           >
           <RouterLink
             to="/proxies"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.proxies') }}</RouterLink
           >
           <RouterLink
             to="/notifications"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.notifications') }}</RouterLink
           >
           <RouterLink
             to="/audit-logs"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.auditLogs') }}</RouterLink
           >
           <RouterLink
             to="/settings"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
             active-class="text-primary bg-primary/10"
             >{{ t('nav.settings') }}</RouterLink
           >
@@ -392,21 +392,21 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
           <RouterLink
             v-if="!isAuthenticated"
             to="/login"
-            class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
+            class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
             >{{ t('nav.login') }}</RouterLink
           >
           <a
             href="#"
             v-if="isAuthenticated"
             @click.prevent="handleLogout"
-            class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
+            class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
             >{{ t('nav.logout') }}</a
           >
         </div>
         <!-- Sliding underline element with Tailwind classes using theme variables (JS still controls positioning) -->
         <div
           ref="underlineRef"
-          class="absolute bottom-0 h-0.5 bg-link-active rounded transition-all duration-300 ease-in-out pointer-events-none opacity-0 transform translate-y-1.5"
+          class="absolute bottom-0 h-0.5 bg-link-active rounded transition-opacity duration-300 ease-in-out pointer-events-none opacity-0 transform translate-y-1.5"
         ></div>
         <!-- Changed translate-y-1 to translate-y-1.5 -->
       </nav>

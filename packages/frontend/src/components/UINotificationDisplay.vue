@@ -42,10 +42,10 @@ const getContainerClass = (type: string) => {
         :class="[
           'flex items-center p-3 mb-2 rounded shadow-md min-w-[250px] max-w-[400px] opacity-95 text-white',
           {
-            'bg-green-600': notification.type === 'success',
-            'bg-red-600': notification.type === 'error',
-            'bg-blue-600': notification.type === 'info',
-            'bg-yellow-500 text-gray-800': notification.type === 'warning',
+            'bg-success': notification.type === 'success',
+            'bg-error': notification.type === 'error',
+            'bg-primary': notification.type === 'info',
+            'bg-warning text-warning-text': notification.type === 'warning',
           },
         ]"
       >

@@ -140,7 +140,7 @@ onMounted(() => {
         <h2 class="m-0 text-lg md:text-xl text-foreground">{{ t('styleCustomizer.title') }}</h2>
         <button
           @click="closeCustomizer"
-          class="bg-transparent border-none text-2xl md:text-3xl leading-none cursor-pointer text-text-secondary px-2 py-1 rounded hover:text-foreground hover:bg-black/10"
+          class="bg-transparent border-none text-2xl md:text-3xl leading-none cursor-pointer text-text-secondary px-2 py-1 rounded hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10"
         >
           &times;
         </button>
@@ -152,7 +152,7 @@ onMounted(() => {
           <button
             @click="currentTab = 'ui'"
             :class="[
-              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'ui' },
             ]"
           >
@@ -161,7 +161,7 @@ onMounted(() => {
           <button
             @click="currentTab = 'terminal'"
             :class="[
-              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               {
                 '!bg-button !text-button-text !font-bold':
                   currentTab === 'terminal' && !isEditingTheme,
@@ -174,7 +174,7 @@ onMounted(() => {
           <button
             @click="currentTab = 'background'"
             :class="[
-              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'background' },
             ]"
             :disabled="isEditingTheme"
@@ -184,7 +184,7 @@ onMounted(() => {
           <button
             @click="currentTab = 'other'"
             :class="[
-              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'other' },
             ]"
             :disabled="isEditingTheme"

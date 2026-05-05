@@ -209,19 +209,19 @@ onMounted(() => {
           />
           <button
             @click="handleSelectAll"
-            class="px-4 py-2 text-sm bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none transition duration-150 ease-in-out"
+            class="px-4 py-2 text-sm bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition duration-150 ease-in-out"
           >
             {{ t('workspaceConnectionList.manageTags.selectAll') }}
           </button>
           <button
             @click="handleDeselectAll"
-            class="px-4 py-2 text-sm bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none transition duration-150 ease-in-out"
+            class="px-4 py-2 text-sm bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition duration-150 ease-in-out"
           >
             {{ t('workspaceConnectionList.manageTags.deselectAll') }}
           </button>
           <button
             @click="handleInvertSelection"
-            class="px-4 py-2 text-sm bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none transition duration-150 ease-in-out"
+            class="px-4 py-2 text-sm bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition duration-150 ease-in-out"
           >
             {{ t('workspaceConnectionList.manageTags.invertSelection') }}
           </button>

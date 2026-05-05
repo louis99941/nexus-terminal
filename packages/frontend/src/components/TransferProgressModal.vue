@@ -324,7 +324,7 @@ const handleCancelTask = async (taskId: string) => {
           </svg>
           {{ t('transferProgressModal.loading', '正在加载传输任务...') }}
         </div>
-        <div v-else-if="errorLoading" class="text-center text-red-500 bg-red-50 p-4 rounded-md">
+        <div v-else-if="errorLoading" class="text-center text-error bg-error/10 p-4 rounded-md">
           <p class="font-semibold">
             {{ t('transferProgressModal.errorLoadingTitle', '加载错误') }}
           </p>
@@ -336,7 +336,7 @@ const handleCancelTask = async (taskId: string) => {
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            class="h-12 w-12 text-gray-400 mx-auto mb-2"
+            class="h-12 w-12 text-text-secondary mx-auto mb-2"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -372,16 +372,16 @@ const handleCancelTask = async (taskId: string) => {
                 <span
                   :class="[
                     'px-2.5 py-1 text-xs font-semibold rounded-full',
-                    { 'bg-green-100 text-green-700': task.status === 'completed' },
-                    { 'bg-red-100 text-red-700': task.status === 'failed' },
+                    { 'bg-success/10 text-success': task.status === 'completed' },
+                    { 'bg-error/10 text-error': task.status === 'failed' },
                     {
-                      'bg-yellow-100 text-yellow-700':
+                      'bg-warning/10 text-warning':
                         task.status === 'partially-completed' ||
                         task.status === 'queued' ||
                         task.status === 'cancelling',
                     }, // cancelling 也用黄色
-                    { 'bg-blue-100 text-blue-700': task.status === 'in-progress' },
-                    { 'bg-gray-100 text-gray-700': task.status === 'cancelled' }, // cancelled 用灰色
+                    { 'bg-primary/10 text-primary': task.status === 'in-progress' },
+                    { 'bg-text-secondary/10 text-text-secondary': task.status === 'cancelled' }, // cancelled 用灰色
                   ]"
                 >
                   {{ getDisplayStatus(task.status) }}
@@ -390,7 +390,7 @@ const handleCancelTask = async (taskId: string) => {
                   v-if="isTaskCancellable(task.status)"
                   @click="handleCancelTask(task.taskId)"
                   :disabled="isTaskCancelling(task.status)"
-                  class="px-2 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  class="px-2 py-0.5 text-xs bg-error hover:bg-error/80 text-error-text rounded-md focus:outline-none focus:ring-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   :title="
                     isTaskCancelling(task.status)
                       ? t('transferProgressModal.cancellingTooltip', '终止中...')
@@ -457,17 +457,20 @@ const handleCancelTask = async (taskId: string) => {
                     <span
                       :class="[
                         'px-2 py-0.5 text-xs font-semibold rounded-full',
-                        { 'bg-green-100 text-green-700': subTask.status === 'completed' },
-                        { 'bg-red-100 text-red-700': subTask.status === 'failed' },
+                        { 'bg-success/10 text-success': subTask.status === 'completed' },
+                        { 'bg-error/10 text-error': subTask.status === 'failed' },
                         {
-                          'bg-yellow-100 text-yellow-700':
+                          'bg-warning/10 text-warning':
                             subTask.status === 'queued' || subTask.status === 'cancelling',
                         },
                         {
-                          'bg-blue-100 text-blue-700':
+                          'bg-primary/10 text-primary':
                             subTask.status === 'transferring' || subTask.status === 'connecting',
                         }, // 'connecting' and 'transferring' use blue
-                        { 'bg-gray-100 text-gray-700': subTask.status === 'cancelled' },
+                        {
+                          'bg-text-secondary/10 text-text-secondary':
+                            subTask.status === 'cancelled',
+                        },
                       ]"
                     >
                       {{ getDisplayStatus(subTask.status) }}
@@ -483,7 +486,7 @@ const handleCancelTask = async (taskId: string) => {
                     <strong>{{ t('transferProgressModal.subTask.method', '方法') }}:</strong>
                     {{ subTask.transferMethodUsed }}
                   </p>
-                  <p v-if="subTask.status === 'failed' && subTask.message" class="text-red-600">
+                  <p v-if="subTask.status === 'failed' && subTask.message" class="text-error">
                     <strong>{{ t('transferProgressModal.subTask.error', '错误') }}:</strong>
                     {{ subTask.message }}
                   </p>
@@ -518,7 +521,7 @@ const handleCancelTask = async (taskId: string) => {
 
 <style scoped>
 .bg-overlay {
-  background-color: rgba(0, 0, 0, 0.6); /* Slightly darker overlay */
+  background-color: var(--bg-overlay);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -528,17 +531,17 @@ const handleCancelTask = async (taskId: string) => {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(128, 128, 128, 0.3);
+  background-color: color-mix(in srgb, var(--border-color) 30%, transparent);
   border-radius: 10px;
   border: 2px solid transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(128, 128, 128, 0.5);
+  background-color: color-mix(in srgb, var(--border-color) 50%, transparent);
 }
 
 /* For Firefox */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
+  scrollbar-color: color-mix(in srgb, var(--border-color) 30%, transparent) transparent;
 }
 </style>

@@ -103,7 +103,7 @@ const viewContainerLogs = (containerId: string) => {
       v-else-if="sshConnectionStatus === 'error'"
       class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4"
     >
-      <i class="fas fa-exclamation-circle text-3xl text-red-500 mb-2"></i>
+      <i class="fas fa-exclamation-circle text-3xl text-error mb-2"></i>
       <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.error.sshError') }}</p>
       <small class="text-xs max-w-[80%]">{{
         activeSession?.wsManager.statusMessage.value || 'Unknown SSH error'
@@ -135,7 +135,7 @@ const viewContainerLogs = (containerId: string) => {
       class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4"
     >
       <!-- Use computed error -->
-      <i class="fas fa-exclamation-triangle text-3xl text-red-500 mb-2"></i>
+      <i class="fas fa-exclamation-triangle text-3xl text-error mb-2"></i>
       <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.error.fetchFailed') }}</p>
       <small class="text-xs max-w-[80%]">{{ error }}</small>
       <!-- Use computed error -->
@@ -201,8 +201,13 @@ const viewContainerLogs = (containerId: string) => {
               >
                 <button
                   @click="toggleExpand(container.id)"
-                  class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 text-xs"
+                  class="text-text-secondary hover:text-foreground transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-xs"
                   :title="
+                    expandedContainerIds.has(container.id)
+                      ? t('common.collapse')
+                      : t('common.expand')
+                  "
+                  :aria-label="
                     expandedContainerIds.has(container.id)
                       ? t('common.collapse')
                       : t('common.expand')
@@ -243,14 +248,14 @@ const viewContainerLogs = (containerId: string) => {
                   :class="[
                     'px-2 py-0.5 rounded-full text-xs font-medium text-white whitespace-nowrap',
                     container.State === 'running'
-                      ? 'bg-green-500'
+                      ? 'bg-success text-success-text'
                       : container.State === 'exited'
-                        ? 'bg-red-500'
+                        ? 'bg-error text-error-text'
                         : container.State === 'paused'
-                          ? 'bg-yellow-500 text-gray-800'
+                          ? 'bg-warning text-warning-text'
                           : container.State === 'restarting'
-                            ? 'bg-blue-500'
-                            : 'bg-gray-500',
+                            ? 'bg-primary text-white'
+                            : 'bg-text-secondary text-white',
                   ]"
                 >
                   {{ container.Status }}
@@ -277,7 +282,8 @@ const viewContainerLogs = (containerId: string) => {
                   <button
                     @click="sendDockerCommand(container.id, 'start')"
                     :title="t('dockerManager.action.start')"
-                    class="text-text-secondary hover:text-green-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base"
+                    :aria-label="t('dockerManager.action.start')"
+                    class="text-text-secondary hover:text-success disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-base"
                     :disabled="container.State === 'running'"
                   >
                     <i class="fas fa-play"></i>
@@ -285,7 +291,8 @@ const viewContainerLogs = (containerId: string) => {
                   <button
                     @click="sendDockerCommand(container.id, 'stop')"
                     :title="t('dockerManager.action.stop')"
-                    class="text-text-secondary hover:text-yellow-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base"
+                    :aria-label="t('dockerManager.action.stop')"
+                    class="text-text-secondary hover:text-warning disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-base"
                     :disabled="container.State !== 'running'"
                   >
                     <i class="fas fa-stop"></i>
@@ -293,7 +300,8 @@ const viewContainerLogs = (containerId: string) => {
                   <button
                     @click="sendDockerCommand(container.id, 'restart')"
                     :title="t('dockerManager.action.restart')"
-                    class="text-text-secondary hover:text-blue-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base"
+                    :aria-label="t('dockerManager.action.restart')"
+                    class="text-text-secondary hover:text-primary disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-base"
                     :disabled="container.State !== 'running'"
                   >
                     <i class="fas fa-sync-alt"></i>
@@ -301,21 +309,24 @@ const viewContainerLogs = (containerId: string) => {
                   <button
                     @click="sendDockerCommand(container.id, 'remove')"
                     :title="t('dockerManager.action.remove')"
-                    class="text-text-secondary hover:text-red-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base"
+                    :aria-label="t('dockerManager.action.remove')"
+                    class="text-text-secondary hover:text-error disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-base"
                   >
                     <i class="fas fa-trash-alt"></i>
                   </button>
                   <button
                     @click="enterContainer(container.id)"
                     :title="t('dockerManager.action.enter')"
-                    class="text-text-secondary hover:text-blue-400 transition-colors duration-150 p-0.5 text-base"
+                    :aria-label="t('dockerManager.action.enter')"
+                    class="text-text-secondary hover:text-primary transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-base"
                   >
                     <i class="fas fa-terminal"></i>
                   </button>
                   <button
                     @click="viewContainerLogs(container.id)"
                     :title="t('dockerManager.action.logs')"
-                    class="text-text-secondary hover:text-gray-400 transition-colors duration-150 p-0.5 text-base"
+                    :aria-label="t('dockerManager.action.logs')"
+                    class="text-text-secondary hover:text-text-secondary transition-colors duration-150 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-base"
                   >
                     <i class="fas fa-file-alt"></i>
                   </button>

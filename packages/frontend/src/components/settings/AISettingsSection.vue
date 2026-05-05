@@ -29,9 +29,12 @@
 
       <!-- Provider 选择 -->
       <div>
-        <label class="text-sm font-medium text-foreground">AI Provider</label>
+        <label for="ai-provider-select" class="text-sm font-medium text-foreground"
+          >AI Provider</label
+        >
         <div class="relative mt-2">
           <select
+            id="ai-provider-select"
             v-model="localSettings.provider"
             @change="handleProviderChange"
             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
@@ -390,7 +393,7 @@ function handleReset() {
 
 <style scoped>
 code {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 0.9em;
 }
 </style>

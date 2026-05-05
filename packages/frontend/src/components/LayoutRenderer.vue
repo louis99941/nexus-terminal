@@ -729,7 +729,7 @@ onBeforeUnmount(() => {
           <!-- Invalid Pane Component -->
           <div
             v-else
-            class="flex-grow flex justify-center items-center text-center text-red-600 bg-red-100 text-sm p-4"
+            class="flex-grow flex justify-center items-center text-center text-error bg-error/10 text-sm p-4"
           >
             无效面板组件: {{ layoutNode.component || '未指定' }} (ID: {{ layoutNode.id }})
           </div>
@@ -738,7 +738,7 @@ onBeforeUnmount(() => {
         <!-- Invalid Node Type -->
         <template v-else>
           <div
-            class="flex-grow flex justify-center items-center text-center text-red-600 bg-red-100 text-sm p-4"
+            class="flex-grow flex justify-center items-center text-center text-error bg-error/10 text-sm p-4"
           >
             无效布局节点 (ID: {{ layoutNode.id }})
           </div>

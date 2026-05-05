@@ -68,8 +68,8 @@ const chartData = computed<ChartData<'line'>>(() => ({
     {
       label: 'CPU',
       data: props.history.map((p) => p.cpuPercent),
-      borderColor: '#409eff',
-      backgroundColor: 'rgba(64, 158, 255, 0.15)',
+      borderColor: 'var(--color-primary)',
+      backgroundColor: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
       tension: 0.3,
       pointRadius: 0,
       fill: true,
@@ -77,8 +77,8 @@ const chartData = computed<ChartData<'line'>>(() => ({
     {
       label: t('dashboard.memory'),
       data: props.history.map((p) => p.memPercent),
-      borderColor: '#67c23a',
-      backgroundColor: 'rgba(103, 194, 58, 0.15)',
+      borderColor: 'var(--color-success)',
+      backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)',
       tension: 0.3,
       pointRadius: 0,
       fill: true,
@@ -86,8 +86,8 @@ const chartData = computed<ChartData<'line'>>(() => ({
     {
       label: t('dashboard.disk'),
       data: props.history.map((p) => p.diskPercent),
-      borderColor: '#e6a23c',
-      backgroundColor: 'rgba(230, 162, 60, 0.15)',
+      borderColor: 'var(--color-warning)',
+      backgroundColor: 'color-mix(in srgb, var(--color-warning) 15%, transparent)',
       tension: 0.3,
       pointRadius: 0,
       fill: true,
@@ -111,7 +111,7 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
     },
     tooltip: {
       enabled: true,
-      backgroundColor: appearanceStore.currentUiTheme['--header-bg-color'] || 'rgba(0,0,0,0.8)',
+      backgroundColor: appearanceStore.currentUiTheme['--header-bg-color'] || 'var(--bg-overlay)',
       titleColor: textColor.value,
       bodyColor: textColor.value,
       borderColor: borderColor.value,

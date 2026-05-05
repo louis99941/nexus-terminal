@@ -20,7 +20,7 @@
     <!-- 错误状态 -->
     <div
       v-else-if="currentStatusError"
-      class="status-error flex flex-col items-center justify-center text-center text-red-500 mt-4 h-full"
+      class="status-error flex flex-col items-center justify-center text-center text-error mt-4 h-full"
     >
       <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
       <span>{{ t('statusMonitor.errorPrefix') }} {{ currentStatusError }}</span>
@@ -185,15 +185,13 @@
       <div class="network-values flex items-center justify-start gap-4">
         <!-- 减小间距 -->
         <span
-          class="rate down inline-flex items-center gap-1 text-green-500 text-xs whitespace-nowrap"
+          class="rate down inline-flex items-center gap-1 text-success text-xs whitespace-nowrap"
         >
           <i class="fas fa-arrow-down w-3 text-center"></i>
           <!-- Font Awesome 图标 -->
           <span class="font-mono">{{ formatBytesPerSecond(currentServerStatus?.netRxRate) }}</span>
         </span>
-        <span
-          class="rate up inline-flex items-center gap-1 text-orange-500 text-xs whitespace-nowrap"
-        >
+        <span class="rate up inline-flex items-center gap-1 text-primary text-xs whitespace-nowrap">
           <i class="fas fa-arrow-up w-3 text-center"></i>
           <!-- Font Awesome 图标 -->
           <span class="font-mono">{{ formatBytesPerSecond(currentServerStatus?.netTxRate) }}</span>

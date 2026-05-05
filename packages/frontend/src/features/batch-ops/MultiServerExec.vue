@@ -80,7 +80,7 @@
         <button
           v-else
           @click="cancelExecution"
-          class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-2"
+          class="px-4 py-2 bg-error text-error-text rounded hover:bg-error/80 flex items-center gap-2"
         >
           <i class="fas fa-stop"></i>
           {{ t('batchOps.cancel', 'Cancel') }}
@@ -108,7 +108,7 @@
     <!-- Error Message -->
     <div
       v-if="batchStore.error"
-      class="mt-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-xs flex items-center justify-between"
+      class="mt-3 p-2 bg-error/10 border border-error/30 rounded text-error text-xs flex items-center justify-between"
     >
       <span><i class="fas fa-exclamation-circle mr-1"></i>{{ batchStore.error }}</span>
       <button @click="batchStore.clearError()" class="hover:underline">
@@ -128,7 +128,7 @@
       <!-- Progress Bar -->
       <div class="h-1 bg-border">
         <div
-          class="h-full bg-primary transition-all duration-300"
+          class="h-full bg-primary transition-[width] duration-300"
           :style="{ width: batchStore.overallProgress + '%' }"
         ></div>
       </div>
@@ -152,11 +152,11 @@
           <div class="flex-shrink-0 text-xs">
             <span
               v-if="subTask.exitCode !== undefined"
-              :class="subTask.exitCode === 0 ? 'text-green-400' : 'text-red-400'"
+              :class="subTask.exitCode === 0 ? 'text-success' : 'text-error'"
             >
               Exit: {{ subTask.exitCode }}
             </span>
-            <span v-else-if="subTask.status === 'running'" class="text-blue-400">
+            <span v-else-if="subTask.status === 'running'" class="text-primary">
               {{ subTask.progress }}%
             </span>
           </div>
@@ -189,7 +189,7 @@
           </button>
         </div>
         <div class="flex-grow overflow-auto p-4">
-          <pre class="font-mono text-xs text-gray-300 whitespace-pre-wrap">{{
+          <pre class="font-mono text-xs text-text-secondary whitespace-pre-wrap">{{
             selectedOutput.output || t('batchOps.noOutput', 'No output')
           }}</pre>
         </div>
@@ -263,11 +263,11 @@ const statusClass = computed(() => {
 
   const classMap: Record<string, string> = {
     queued: 'text-text-secondary',
-    'in-progress': 'text-blue-400',
-    'partially-completed': 'text-yellow-400',
-    completed: 'text-green-400',
-    failed: 'text-red-400',
-    cancelled: 'text-gray-400',
+    'in-progress': 'text-primary',
+    'partially-completed': 'text-warning',
+    completed: 'text-success',
+    failed: 'text-error',
+    cancelled: 'text-text-secondary',
   };
   return classMap[task.status] || '';
 });
@@ -347,12 +347,12 @@ const StatusBadge = defineComponent({
       if (!props.status) return null;
 
       const config: Record<string, { icon: string; class: string; text: string }> = {
-        queued: { icon: 'fa-clock', class: 'text-gray-400', text: 'Queued' },
-        connecting: { icon: 'fa-spinner fa-spin', class: 'text-yellow-400', text: 'Connecting' },
-        running: { icon: 'fa-spinner fa-spin', class: 'text-blue-400', text: 'Running' },
-        completed: { icon: 'fa-check', class: 'text-green-400', text: 'Done' },
-        failed: { icon: 'fa-times', class: 'text-red-400', text: 'Failed' },
-        cancelled: { icon: 'fa-ban', class: 'text-gray-400', text: 'Cancelled' },
+        queued: { icon: 'fa-clock', class: 'text-text-secondary', text: 'Queued' },
+        connecting: { icon: 'fa-spinner fa-spin', class: 'text-warning', text: 'Connecting' },
+        running: { icon: 'fa-spinner fa-spin', class: 'text-primary', text: 'Running' },
+        completed: { icon: 'fa-check', class: 'text-success', text: 'Done' },
+        failed: { icon: 'fa-times', class: 'text-error', text: 'Failed' },
+        cancelled: { icon: 'fa-ban', class: 'text-text-secondary', text: 'Cancelled' },
       };
 
       const c = config[props.status];
@@ -374,15 +374,15 @@ const StatusIcon = defineComponent({
   setup(props) {
     return () => {
       const config: Record<string, { icon: string; class: string }> = {
-        queued: { icon: 'fa-clock', class: 'text-gray-400' },
-        connecting: { icon: 'fa-spinner fa-spin', class: 'text-yellow-400' },
-        running: { icon: 'fa-spinner fa-spin', class: 'text-blue-400' },
-        completed: { icon: 'fa-check-circle', class: 'text-green-400' },
-        failed: { icon: 'fa-times-circle', class: 'text-red-400' },
-        cancelled: { icon: 'fa-ban', class: 'text-gray-400' },
+        queued: { icon: 'fa-clock', class: 'text-text-secondary' },
+        connecting: { icon: 'fa-spinner fa-spin', class: 'text-warning' },
+        running: { icon: 'fa-spinner fa-spin', class: 'text-primary' },
+        completed: { icon: 'fa-check-circle', class: 'text-success' },
+        failed: { icon: 'fa-times-circle', class: 'text-error' },
+        cancelled: { icon: 'fa-ban', class: 'text-text-secondary' },
       };
 
-      const c = config[props.status] || { icon: 'fa-question', class: 'text-gray-400' };
+      const c = config[props.status] || { icon: 'fa-question', class: 'text-text-secondary' };
       return h('i', { class: `fas ${c.icon} ${c.class}` });
     };
   },

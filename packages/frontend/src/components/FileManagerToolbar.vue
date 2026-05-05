@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
       <div class="flex items-center flex-shrink-0" :class="isMobile ? 'gap-0.5' : 'gap-0'">
         <!-- CD 到终端按钮 -->
         <button
-          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 dark:hover:enabled:bg-white/10 hover:enabled:text-foreground"
           :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
           @click.stop="emit('cd-to-terminal')"
           :disabled="!isConnected || isEditingPath"
@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
         </button>
         <!-- 从终端同步路径按钮 -->
         <button
-          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 dark:hover:enabled:bg-white/10 hover:enabled:text-foreground"
           :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
           @click.stop="emit('sync-from-terminal')"
           :disabled="!isConnected || isEditingPath || isSyncingFromTerminal"
@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
         </button>
         <!-- 刷新按钮 -->
         <button
-          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 dark:hover:enabled:bg-white/10 hover:enabled:text-foreground"
           :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
           @click.stop="emit('refresh')"
           :disabled="!isConnected || isEditingPath"
@@ -210,7 +210,7 @@ onBeforeUnmount(() => {
         </button>
         <!-- 返回上级目录按钮 -->
         <button
-          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+          class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 dark:hover:enabled:bg-white/10 hover:enabled:text-foreground"
           :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
           @click.stop="emit('go-to-parent')"
           :disabled="!isConnected || isAtRoot || isEditingPath"
@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
         <div class="flex items-center flex-shrink-0">
           <button
             v-if="!isSearchActive"
-            class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+            class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 dark:hover:enabled:bg-white/10 hover:enabled:text-foreground"
             :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
             @click.stop="emit('activate-search')"
             :disabled="!isConnected"
@@ -239,6 +239,7 @@ onBeforeUnmount(() => {
             <input
               ref="searchInputRef"
               type="text"
+              aria-label="搜索文件"
               :value="searchQuery"
               @input="emit('update:search-query', ($event.target as HTMLInputElement).value)"
               :placeholder="t('fileManager.searchPlaceholder')"
@@ -256,7 +257,7 @@ onBeforeUnmount(() => {
         <div class="relative flex-shrink-0">
           <button
             ref="favoritePathsButtonRef"
-            class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 hover:enabled:bg-black/10 hover:enabled:text-foreground"
+            class="flex items-center justify-center text-text-secondary rounded transition-colors duration-200 hover:enabled:bg-black/10 dark:hover:enabled:bg-white/10 hover:enabled:text-foreground"
             :class="isMobile ? 'w-6 h-6' : 'w-7 h-7'"
             @click="toggleFavoritePathsModal"
             :title="t('favoritePaths.title', '收藏路径')"
@@ -292,7 +293,7 @@ onBeforeUnmount(() => {
             :title="t('fileManager.editPathTooltip')"
             class="font-medium text-link px-1 rounded transition-colors duration-200"
             :class="{
-              'hover:bg-black/5': isConnected,
+              'hover:bg-black/5 dark:hover:bg-white/5': isConnected,
               'opacity-60 cursor-not-allowed': !isConnected,
             }"
           >
@@ -303,6 +304,7 @@ onBeforeUnmount(() => {
           v-show="isEditingPath || showPathHistoryDropdown"
           ref="pathInputRef"
           type="text"
+          aria-label="编辑路径"
           :value="editablePath"
           @input="emit('update:editable-path', ($event.target as HTMLInputElement).value)"
           class="flex-grow bg-transparent text-foreground p-0.5 outline-none min-w-[100px]"

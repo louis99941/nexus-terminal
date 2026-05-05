@@ -434,15 +434,15 @@ const getSkeletonLineStyle = (index: number) => {
 }
 
 .terminal-preview-dot-red {
-  background-color: #ef4444;
+  background-color: var(--danger-color, #ef4444);
 }
 
 .terminal-preview-dot-yellow {
-  background-color: #f59e0b;
+  background-color: var(--warning-color, #f59e0b);
 }
 
 .terminal-preview-dot-green {
-  background-color: #10b981;
+  background-color: var(--success-color, #10b981);
 }
 
 .terminal-preview-mode-switcher {
@@ -462,7 +462,10 @@ const getSkeletonLineStyle = (index: number) => {
   background-color: var(--terminal-btn-bg, #2d2e33);
   color: var(--terminal-btn-text, #9ca3af);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -475,7 +478,7 @@ const getSkeletonLineStyle = (index: number) => {
 .preview-mode-btn.active {
   background-color: var(--primary, #6366f1);
   border-color: var(--primary, #6366f1);
-  color: #ffffff;
+  color: var(--button-text-color, #ffffff);
   font-weight: 500;
 }
 

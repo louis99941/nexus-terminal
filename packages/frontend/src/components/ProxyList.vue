@@ -56,7 +56,7 @@ const formatTimestamp = (timestamp: number | null): string => {
     </div>
     <div
       v-else-if="proxies.length === 0"
-      class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded"
+      class="p-4 mb-4 border-l-4 border-primary/40 bg-primary/10 text-primary rounded"
     >
       <!-- No proxies state consistent with Notifications (using blue for now) -->
       {{ t('proxies.noProxies') }}

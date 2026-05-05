@@ -59,7 +59,7 @@ const handleCancel = (uploadId: string) => {
           "
           :value="upload.progress"
           max="100"
-          class="w-20 h-2 flex-shrink-0 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-bar]:bg-gray-300 [&::-webkit-progress-value]:bg-blue-600 [&::-moz-progress-bar]:bg-blue-600"
+          class="w-20 h-2 flex-shrink-0 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-bar]:bg-border [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
         ></progress>
         <span
           v-if="upload.status === 'uploading' && upload.progress < 100"
@@ -67,7 +67,7 @@ const handleCancel = (uploadId: string) => {
         >
           {{ upload.progress }}%</span
         >
-        <span v-if="upload.status === 'error'" class="text-red-600 basis-full text-xs">
+        <span v-if="upload.status === 'error'" class="text-error basis-full text-xs">
           {{ t('fileManager.errors.generic') }}: {{ upload.error }}</span
         >
         <span
@@ -75,18 +75,18 @@ const handleCancel = (uploadId: string) => {
             upload.status === 'success' ||
             (upload.status === 'uploading' && upload.progress === 100)
           "
-          class="text-green-600"
+          class="text-success"
         >
           ✅</span
         >
-        <span v-if="upload.status === 'cancelled'" class="text-red-600">
+        <span v-if="upload.status === 'cancelled'" class="text-error">
           ❌ {{ t('fileManager.uploadStatus.cancelled') }}</span
         >
         <!-- 只有在可取消状态时显示取消按钮 -->
         <button
           v-if="['pending', 'uploading', 'paused'].includes(upload.status)"
           @click="handleCancel(upload.id)"
-          class="ml-auto px-1.5 py-0.5 text-xs bg-red-100 border border-red-300 text-red-700 cursor-pointer rounded hover:bg-red-200 flex-shrink-0"
+          class="ml-auto px-1.5 py-0.5 text-xs bg-error/10 border border-error/30 text-error cursor-pointer rounded hover:bg-error/20 flex-shrink-0"
         >
           {{ t('fileManager.actions.cancel') }}
         </button>

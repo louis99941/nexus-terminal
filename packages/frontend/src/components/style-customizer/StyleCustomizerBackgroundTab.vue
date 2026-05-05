@@ -564,7 +564,7 @@ const filteredRemoteHtmlPresets = computed(() => {
         @click="handleToggleTerminalBackground"
         :class="[
           'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
-          localTerminalBackgroundEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+          localTerminalBackgroundEnabled ? 'bg-primary' : 'bg-border',
         ]"
         role="switch"
         :aria-checked="localTerminalBackgroundEnabled"
@@ -678,7 +678,7 @@ const filteredRemoteHtmlPresets = computed(() => {
             'px-4 py-2 -mb-px border-b-2 transition-colors duration-150',
             currentActiveTab === 'local'
               ? 'border-primary text-primary font-semibold'
-              : 'border-transparent hover:border-gray-400 dark:hover:border-gray-500 text-text-secondary hover:text-foreground',
+              : 'border-transparent hover:border-border text-text-secondary hover:text-foreground',
           ]"
         >
           {{ t('styleCustomizer.localThemes') }}
@@ -689,7 +689,7 @@ const filteredRemoteHtmlPresets = computed(() => {
             'px-4 py-2 -mb-px border-b-2 transition-colors duration-150',
             currentActiveTab === 'remote'
               ? 'border-primary text-primary font-semibold'
-              : 'border-transparent hover:border-gray-400 dark:hover:border-gray-500 text-text-secondary hover:text-foreground',
+              : 'border-transparent hover:border-border text-text-secondary hover:text-foreground',
           ]"
         >
           {{ t('styleCustomizer.remoteThemes') }}
@@ -740,13 +740,13 @@ const filteredRemoteHtmlPresets = computed(() => {
               >
               <span
                 v-if="preset.type === 'preset'"
-                class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-200"
+                class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/20 text-primary"
               >
                 {{ t('styleCustomizer.presetTag', '预设') }}
               </span>
               <span
                 v-else-if="preset.type === 'custom'"
-                class="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-200"
+                class="px-2 py-0.5 text-xs font-semibold rounded-full bg-success/20 text-success"
               >
                 {{ t('styleCustomizer.customTag', '自定义') }}
               </span>
@@ -804,7 +804,7 @@ const filteredRemoteHtmlPresets = computed(() => {
         </ul>
         <div
           v-else-if="htmlPresetError"
-          class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800"
+          class="p-4 mb-4 text-sm text-error bg-error/10 rounded-lg"
           role="alert"
         >
           {{ htmlPresetError }}
@@ -876,7 +876,7 @@ const filteredRemoteHtmlPresets = computed(() => {
         </div>
         <div
           v-else-if="htmlPresetError && currentActiveTab === 'remote'"
-          class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800"
+          class="p-4 mb-4 text-sm text-error bg-error/10 rounded-lg"
           role="alert"
         >
           {{ htmlPresetError }}
