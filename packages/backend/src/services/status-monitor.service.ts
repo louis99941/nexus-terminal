@@ -95,13 +95,26 @@ class HealthCheckCollector {
   splitSections(raw: string): Map<string, string> {
     const sections = new Map<string, string>();
     const delimiterEntries = Object.entries(BATCH_DELIMITERS);
+    let lastEnd = 0; // 上一段结束位置，用于容错回退
     for (let i = 0; i < delimiterEntries.length; i++) {
       const [key, delimiter] = delimiterEntries[i];
-      const start =
-        i === 0 ? 0 : raw.indexOf(delimiterEntries[i - 1][1]) + delimiterEntries[i - 1][1].length;
-      const end = raw.indexOf(delimiter);
-      if (end === -1) continue;
+      // 计算起始位置：第一段从头开始，后续段取上一个分隔符之后的位置
+      let start: number;
+      if (i === 0) {
+        start = 0;
+      } else {
+        const prevPos = raw.indexOf(delimiterEntries[i - 1][1]);
+        start = prevPos !== -1 ? prevPos + delimiterEntries[i - 1][1].length : lastEnd;
+      }
+      const end = raw.indexOf(delimiter, start);
+      if (end === -1) {
+        console.warn(
+          `[StatusMonitor] splitSections: 未找到分隔符 "${delimiter}" (${key})，跳过该段`
+        );
+        continue;
+      }
       sections.set(key, raw.substring(start, end).trim());
+      lastEnd = end + delimiter.length;
     }
     // 最后一段（PROC_STAT 之后无后续标识符）
     const lastDelimiter = delimiterEntries[delimiterEntries.length - 1][1];
@@ -418,14 +431,28 @@ class HealthCheckCollector {
     ServerStatus,
     'memTotal' | 'memUsed' | 'memPercent' | 'swapTotal' | 'swapUsed' | 'swapPercent'
   > {
-    const result = { swapTotal: 0, swapUsed: 0, swapPercent: 0 };
+    const result = {
+      memTotal: undefined as number | undefined,
+      memUsed: undefined as number | undefined,
+      memPercent: undefined as number | undefined,
+      swapTotal: 0,
+      swapUsed: 0,
+      swapPercent: 0,
+    };
     try {
       // 通过表头判断是否为 BusyBox（无表头）或本地化系统（表头非英文）
       // BusyBox 的 free 输出没有 "total used free" 表头，且单位为 KB
       const hasStandardHeader = /^\s*total\s+used\s+free/m.test(raw);
       const lines = raw.split('\n');
-      const memLine = lines.find((line) => line.startsWith('Mem:'));
-      const swapLine = lines.find((line) => line.startsWith('Swap:'));
+      // 兼容前导空格：部分 free 版本在 Mem:/Swap: 前有空白填充
+      const memLine = lines.find((line) => line.trimStart().startsWith('Mem:'));
+      const swapLine = lines.find((line) => line.trimStart().startsWith('Swap:'));
+      if (!memLine) {
+        console.warn(
+          '[StatusMonitor] parseMemoryStats: 未找到 Mem: 行，free 原始输出前 120 字符:',
+          raw.substring(0, 120)
+        );
+      }
       if (memLine) {
         const parts = memLine.split(/\s+/);
         if (parts.length >= 3) {
@@ -544,7 +571,10 @@ class HealthCheckCollector {
 
 // --- 数据聚合器：计算 CPU 使用率和网络速率 ---
 class StatusDataAggregator {
-  private cpuStats = new Map<string, { total: number; idle: number; timestamp: number }>();
+  private cpuStats = new Map<
+    string,
+    { total: number; idle: number; timestamp: number; lastPercent: number }
+  >();
   private netStats = new Map<string, { rx: number; tx: number; timestamp: number }>();
 
   /** 计算 CPU 使用率 */
@@ -560,13 +590,23 @@ class StatusDataAggregator {
       const timeDiffMs = now - prev.timestamp;
       if (totalDiff > 0 && timeDiffMs > 100) {
         const usageRatio = 1.0 - idleDiff / totalDiff;
-        this.cpuStats.set(sessionId, { ...currentCpuTimes, timestamp: now });
-        return parseFloat(Math.max(0, Math.min(100, usageRatio * 100)).toFixed(1));
+        const percent = parseFloat(Math.max(0, Math.min(100, usageRatio * 100)).toFixed(1));
+        this.cpuStats.set(sessionId, {
+          ...currentCpuTimes,
+          timestamp: now,
+          lastPercent: percent,
+        });
+        return percent;
       }
     }
-    this.cpuStats.set(sessionId, { ...currentCpuTimes, timestamp: now });
-    if (!prev?.total) return 0;
-    return prev.total > 0 ? 0 : undefined;
+    // 首次采集无法计算差值，返回 0；后续返回上次已知值
+    const lastKnown = prev?.lastPercent ?? 0;
+    this.cpuStats.set(sessionId, {
+      ...currentCpuTimes,
+      timestamp: now,
+      lastPercent: lastKnown,
+    });
+    return lastKnown;
   }
 
   /** 计算网络速率 */
@@ -689,7 +729,19 @@ export class StatusMonitorService {
 
       const freeRaw = sections.get('FREE');
       if (freeRaw && !freeRaw.includes('FREE_FAIL')) {
-        Object.assign(status, collector.parseMemoryStats(freeRaw));
+        const memStats = collector.parseMemoryStats(freeRaw);
+        if (memStats.memTotal === undefined) {
+          console.warn(
+            `[StatusMonitor] ${sessionId} parseMemoryStats 返回无 memTotal，freeRaw 前 150 字符:`,
+            freeRaw.substring(0, 150)
+          );
+        }
+        Object.assign(status, memStats);
+      } else {
+        console.warn(
+          `[StatusMonitor] ${sessionId} FREE 段落缺失或包含 FREE_FAIL:`,
+          freeRaw ? '包含 FREE_FAIL' : '未找到 FREE 段落'
+        );
       }
 
       const dfRaw = sections.get('DF');
