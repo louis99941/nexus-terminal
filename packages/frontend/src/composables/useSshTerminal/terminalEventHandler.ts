@@ -195,11 +195,17 @@ export function createEventHandlers(deps: EventHandlerDeps) {
   const handleSshStatus = (payload: unknown, message?: WebSocketMessage) => {
     if (message?.sessionId && message.sessionId !== sessionId) return;
 
-    const payloadObj =
-      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
-    const statusKey = payloadObj.key || 'unknown';
-    const statusParams = payloadObj.params || {};
-    console.info(`[会话 ${sessionId}][SSH终端模块] 收到 SSH 状态更新:`, statusKey, statusParams);
+    // 兼容后端两种 payload 格式：纯字符串 或 { key, params } 结构化对象
+    if (typeof payload === 'string') {
+      console.info(`[会话 ${sessionId}][SSH终端模块] 收到 SSH 状态更新:`, payload);
+    } else if (typeof payload === 'object' && payload !== null) {
+      const payloadObj = payload as Record<string, unknown>;
+      const statusKey = payloadObj.key || 'unknown';
+      const statusParams = payloadObj.params || {};
+      console.info(`[会话 ${sessionId}][SSH终端模块] 收到 SSH 状态更新:`, statusKey, statusParams);
+    } else {
+      console.info(`[会话 ${sessionId}][SSH终端模块] 收到 SSH 状态更新:`, 'unknown');
+    }
   };
 
   /**
