@@ -209,6 +209,166 @@ describe('SFTP WebSocket Handler', () => {
       expect(sent.payload.requestId).toBe('req-4c');
     });
 
+    it('writefile 缺少 path 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:writefile', { content: 'data' }, 'req-4d');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'path' in payload for writefile")
+      );
+    });
+
+    it('writefile 当 content 和 data 同时存在时应优先使用 content', async () => {
+      const { sftpService } = await import('../state');
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(
+        mockWs,
+        'sftp:writefile',
+        { path: '/home/test.txt', content: 'from-content', data: 'from-data' },
+        'req-4e'
+      );
+
+      expect(sftpService.writefile).toHaveBeenCalledWith(
+        'test-session',
+        '/home/test.txt',
+        'from-content',
+        'req-4e',
+        undefined
+      );
+    });
+
+    it('writefile 当 content 不存在时应回退到 data', async () => {
+      const { sftpService } = await import('../state');
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(
+        mockWs,
+        'sftp:writefile',
+        { path: '/home/test.txt', data: 'from-data' },
+        'req-4f'
+      );
+
+      expect(sftpService.writefile).toHaveBeenCalledWith(
+        'test-session',
+        '/home/test.txt',
+        'from-data',
+        'req-4f',
+        undefined
+      );
+    });
+
+    it('writefile 当 content 和 data 都不存在时应写入空字符串', async () => {
+      const { sftpService } = await import('../state');
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:writefile', { path: '/home/test.txt' }, 'req-4g');
+
+      expect(sftpService.writefile).toHaveBeenCalledWith(
+        'test-session',
+        '/home/test.txt',
+        '',
+        'req-4g',
+        undefined
+      );
+    });
+
+    it('writefile 当 payload 非对象时应安全降级', async () => {
+      const { sftpService } = await import('../state');
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      // payload 为 undefined/空对象时不应崩溃
+      await handleSftpOperation(mockWs, 'sftp:writefile', {}, 'req-4h');
+
+      // 缺少 path 应报错
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'path' in payload for writefile")
+      );
+    });
+
+    it('mkdir 缺少 path 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:mkdir', {}, 'req-5b');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'path' in payload for mkdir")
+      );
+    });
+
+    it('unlink 缺少 path 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:unlink', {}, 'req-7b');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'path' in payload for unlink")
+      );
+    });
+
+    it('rename 缺少 newPath 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:rename', { oldPath: '/home/old.txt' }, 'req-8b');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'oldPath' or 'newPath' in payload for rename")
+      );
+    });
+
+    it('chmod 缺少 mode 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:chmod', { path: '/home/file.txt' }, 'req-9b');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'path' or invalid 'mode' in payload for chmod")
+      );
+    });
+
+    it('copy 缺少 destination 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:copy', { sources: ['/home/file1.txt'] }, 'req-11b');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'sources' (array) or 'destination' in payload for copy")
+      );
+    });
+
+    it('move 缺少 sources 时应抛出错误', async () => {
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(mockWs, 'sftp:move', { destination: '/backup' }, 'req-12b');
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining("Missing 'sources' (array) or 'destination' in payload for move")
+      );
+    });
+
     it('应正确传递 encoding 参数给 writefile', async () => {
       const { sftpService } = await import('../state');
       mockWs.sessionId = 'test-session';
