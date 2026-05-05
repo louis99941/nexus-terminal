@@ -153,30 +153,44 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
     );
 
     // 标记旧 ID 为已 remap，防止 watcher 误删
-    // watcher 在同一微任务队列中处理，无需定时器
     _remappedSessionIds.add(oldSessionId);
 
-    // 更新所有使用旧 sessionId 的标签页
-    const updatedTabs = new Map(tabs.value);
-    let updated = false;
-    updatedTabs.forEach((tab, tabId) => {
+    // 就地修改标签页属性，避免替换对象导致其他代码持有的旧引用失效
+    const keysToUpdate: string[] = [];
+    tabs.value.forEach((tab, tabId) => {
       if (tab.sessionId === oldSessionId) {
-        const newTabId = tabId.replace(`${oldSessionId}:`, `${newSessionId}:`);
-        const updatedTab: FileTab = { ...tab, sessionId: newSessionId, id: newTabId };
-        updatedTabs.delete(tabId);
-        updatedTabs.set(newTabId, updatedTab);
-        updated = true;
-        console.info(`[文件编辑器 Store] 标签页 ${tabId} → ${newTabId} (文件: ${tab.filename})`);
-
-        // 更新 activeTabId
-        if (activeTabId.value === tabId) {
-          activeTabId.value = newTabId;
-        }
+        keysToUpdate.push(tabId);
       }
     });
 
-    if (updated) {
-      tabs.value = updatedTabs;
+    for (const oldTabId of keysToUpdate) {
+      const tab = tabs.value.get(oldTabId);
+      if (!tab) continue;
+
+      const newTabId = oldTabId.replace(`${oldSessionId}:`, `${newSessionId}:`);
+      // 就地修改属性
+      tab.sessionId = newSessionId;
+      tab.id = newTabId;
+      console.info(
+        `[文件编辑器 Store] 标签页 ${oldTabId} → ${newTabId} (文件: ${tab.filename})`
+      );
+
+      // 更新 activeTabId
+      if (activeTabId.value === oldTabId) {
+        activeTabId.value = newTabId;
+      }
+
+      // 更新 Map key（Vue Map 代理追踪 delete + set）
+      if (oldTabId !== newTabId) {
+        if (tabs.value.has(newTabId)) {
+          console.warn(
+            `[文件编辑器 Store] remap key 冲突: ${newTabId} 已存在，跳过 ${oldTabId} 的 key 更新`
+          );
+          continue;
+        }
+        tabs.value.delete(oldTabId);
+        tabs.value.set(newTabId, tab);
+      }
     }
   };
 
@@ -218,6 +232,9 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
       return;
     }
 
+    // 保存原始对象引用，用于 await 后定位（_onSessionRemapped 可能更改了 tab.id/key）
+    const originalTabRef = tab;
+
     tab.isLoading = true;
     tab.loadingError = null;
 
@@ -227,7 +244,22 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         `[文件编辑器 Store] 文件 ${filePath} 原始数据读取成功。后端使用编码: ${fileData.encodingUsed}`
       );
 
-      const tabToUpdate = tabs.value.get(tabId);
+      // await 后定位当前 tab 对象：
+      // 优先用原 tabId 查找（未发生 remap 的常见路径），
+      // 若找不到则通过对象身份匹配（_onSessionRemapped 就地修改了属性但对象引用不变）
+      let tabToUpdate = tabs.value.get(tabId);
+      if (!tabToUpdate) {
+        for (const [, t] of tabs.value) {
+          if (t === originalTabRef) {
+            tabToUpdate = t;
+            console.info(
+              `[文件编辑器 Store] 通过对象引用定位到重映射后的标签页: ${t.id}`
+            );
+            break;
+          }
+        }
+      }
+
       if (!tabToUpdate) {
         console.error(`[文件编辑器 Store] 无法更新标签页 ${tabId}，因为它在加载完成前被关闭了。`);
         return;
@@ -244,13 +276,22 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
       tabToUpdate.loadingError = null;
 
       console.info(
-        `[文件编辑器 Store] 文件 ${filePath} 内容已解码 (${fileData.encodingUsed}) 并设置到标签页 ${tabId}。`
+        `[文件编辑器 Store] 文件 ${filePath} 内容已解码 (${fileData.encodingUsed}) 并设置到标签页 ${tabToUpdate.id}。`
       );
     } catch (err: unknown) {
       console.error(`[文件编辑器 Store] 读取文件 ${filePath} 失败:`, err);
       const errorMessage = err instanceof Error ? err.message : String(err);
       const errorMsg = `${t('fileManager.errors.readFileFailed')}: ${errorMessage}`;
-      const tabToUpdate = tabs.value.get(tabId);
+      // 错误处理同样需要定位当前 tab（对象身份匹配）
+      let tabToUpdate = tabs.value.get(tabId);
+      if (!tabToUpdate) {
+        for (const [, t] of tabs.value) {
+          if (t === originalTabRef) {
+            tabToUpdate = t;
+            break;
+          }
+        }
+      }
       if (tabToUpdate) {
         tabToUpdate.isLoading = false;
         tabToUpdate.loadingError = errorMsg;
@@ -499,44 +540,51 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
     tab.saveStatus = 'saving';
     tab.saveError = null;
 
-    const contentToSave = tab.content;
-    const encodingToUse = tab.selectedEncoding;
+    // 统一引用：重新从 Map 获取，确保读写都基于同一个对象
+    const resolvedTab = tabs.value.get(targetTabId) ?? tab;
+    const contentToSave = resolvedTab.content;
+    const encodingToUse = resolvedTab.selectedEncoding;
+
+    // 诊断日志：保存前检查内容状态
+    console.info(
+      `[文件编辑器 Store] 保存诊断: content长度=${contentToSave?.length ?? 'null'}, rawContentBase64=${resolvedTab.rawContentBase64 ? '有数据' : 'null/空'}, encoding=${encodingToUse}`
+    );
 
     // 防御性检查：content 不应为 undefined/null（空字符串是合法的空文件内容）
     if (contentToSave == null) {
-      console.error(`[文件编辑器 Store] 保存中止：content 为 null/undefined。Tab ID: ${tab.id}`);
-      tab.isSaving = false;
-      tab.saveStatus = 'error';
-      tab.saveError = t('fileManager.errors.saveFailed');
+      console.error(`[文件编辑器 Store] 保存中止：content 为 null/undefined。Tab ID: ${resolvedTab.id}`);
+      resolvedTab.isSaving = false;
+      resolvedTab.saveStatus = 'error';
+      resolvedTab.saveError = t('fileManager.errors.saveFailed');
       return;
     }
 
     try {
       // --- 修改：传递 selectedEncoding 给 writeFile ---
-      await sftpManager.writeFile(tab.filePath, contentToSave, encodingToUse);
-      console.info(`[文件编辑器 Store] 文件 ${tab.filePath} 使用编码 ${encodingToUse} 保存成功。`);
-      tab.isSaving = false;
-      tab.saveStatus = 'success';
-      tab.saveError = null;
-      tab.originalContent = contentToSave; // 更新原始内容
-      tab.isModified = false; // 重置修改状态
+      await sftpManager.writeFile(resolvedTab.filePath, contentToSave, encodingToUse);
+      console.info(`[文件编辑器 Store] 文件 ${resolvedTab.filePath} 使用编码 ${encodingToUse} 保存成功。`);
+      resolvedTab.isSaving = false;
+      resolvedTab.saveStatus = 'success';
+      resolvedTab.saveError = null;
+      resolvedTab.originalContent = contentToSave; // 更新原始内容
+      resolvedTab.isModified = false; // 重置修改状态
 
       setTimeout(() => {
-        if (tab.saveStatus === 'success') {
-          tab.saveStatus = 'idle';
+        if (resolvedTab.saveStatus === 'success') {
+          resolvedTab.saveStatus = 'idle';
         }
       }, 2000);
     } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err, String(err));
-      console.error(`[文件编辑器 Store] 保存文件 ${tab.filePath} 失败:`, err);
-      tab.isSaving = false;
-      tab.saveStatus = 'error';
-      tab.saveError = `${t('fileManager.errors.saveFailed')}: ${errorMessage}`;
+      console.error(`[文件编辑器 Store] 保存文件 ${resolvedTab.filePath} 失败:`, err);
+      resolvedTab.isSaving = false;
+      resolvedTab.saveStatus = 'error';
+      resolvedTab.saveError = `${t('fileManager.errors.saveFailed')}: ${errorMessage}`;
 
       setTimeout(() => {
-        if (tab.saveStatus === 'error') {
-          tab.saveStatus = 'idle';
-          tab.saveError = null;
+        if (resolvedTab.saveStatus === 'error') {
+          resolvedTab.saveStatus = 'idle';
+          resolvedTab.saveError = null;
         }
       }, 5000);
     }
@@ -711,34 +759,25 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
       // 使用新编码解码存储的原始数据
       const newContent = decodeRawContent(tab.rawContentBase64, newEncoding);
 
-      // 更新标签页状态
-      const updatedTab: FileTab = {
-        ...tab,
-        content: newContent,
-        selectedEncoding: newEncoding, // 更新选择的编码
-        isLoading: false, // 解码完成
-        loadingError: null,
-        // isModified 状态保持不变
-      };
-      tabs.value.set(tabId, updatedTab);
+      // 就地修改属性，避免替换对象导致外部引用失效
+      tab.content = newContent;
+      tab.selectedEncoding = newEncoding;
+      tab.isLoading = false;
+      tab.loadingError = null;
+      // isModified 状态保持不变
       console.info(
         `[文件编辑器 Store] 文件 ${tab.filePath} 使用新编码 "${newEncoding}" 解码完成。`
       );
     } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err, String(err));
-      // catch 应该在 decodeRawContent 内部处理了，但以防万一
       console.error(
         `[文件编辑器 Store] 使用编码 "${newEncoding}" 在前端解码文件 ${tab.filePath} 失败:`,
         err
       );
       const errorMsg = `前端解码失败 (编码: ${newEncoding}): ${errorMessage}`;
-      // 更新错误状态
-      const errorTab: FileTab = {
-        ...tab,
-        isLoading: false,
-        loadingError: errorMsg,
-      };
-      tabs.value.set(tabId, errorTab);
+      // 就地修改错误状态
+      tab.isLoading = false;
+      tab.loadingError = errorMsg;
     }
     // finally {
     //     if (tab) tab.isLoading = false; // 确保加载状态被重置
