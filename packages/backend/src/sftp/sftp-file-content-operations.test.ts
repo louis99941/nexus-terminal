@@ -206,6 +206,108 @@ describe('sftp-file-content-operations', () => {
       expect(stream.end).toHaveBeenCalled();
     });
 
+    it('写入内容应与发送内容完全一致（UTF-8）', async () => {
+      const state = createState();
+      const stream = new MockWriteStream();
+      const endSpy = vi.fn((_: Buffer) => {
+        setTimeout(() => stream.emit('close'), 0);
+      });
+      stream.end = endSpy;
+      state.sftp.createWriteStream.mockReturnValue(stream);
+      state.sftp.lstat.mockImplementation(
+        (
+          _path: string,
+          callback: (err: Error | null, stats?: ReturnType<typeof createMockStats>) => void
+        ) => {
+          callback(null, createMockStats());
+        }
+      );
+
+      const testContent = '你好世界 Hello World こんにちは';
+      await executeWriteFileContentOperation(
+        state,
+        sessionId,
+        '/tmp/a.txt',
+        testContent,
+        requestId
+      );
+      await flushAsync();
+
+      // 验证写入流的 buffer 内容与原始内容一致
+      expect(endSpy).toHaveBeenCalledTimes(1);
+      const writtenBuffer = endSpy.mock.calls[0][0] as Buffer;
+      expect(writtenBuffer.toString('utf-8')).toBe(testContent);
+    });
+
+    it('写入内容应保持 CRLF 不被转换', async () => {
+      const state = createState();
+      const stream = new MockWriteStream();
+      const endSpy = vi.fn((_: Buffer) => {
+        setTimeout(() => stream.emit('close'), 0);
+      });
+      stream.end = endSpy;
+      state.sftp.createWriteStream.mockReturnValue(stream);
+      state.sftp.lstat.mockImplementation(
+        (
+          _path: string,
+          callback: (err: Error | null, stats?: ReturnType<typeof createMockStats>) => void
+        ) => {
+          callback(null, createMockStats());
+        }
+      );
+
+      const contentWithCRLF = 'line1\r\nline2\rline3\nline4';
+      await executeWriteFileContentOperation(
+        state,
+        sessionId,
+        '/tmp/a.txt',
+        contentWithCRLF,
+        requestId
+      );
+      await flushAsync();
+
+      const writtenBuffer = endSpy.mock.calls[0][0] as Buffer;
+      // CRLF 应保持不变，不被转换为 LF
+      expect(writtenBuffer.toString('utf-8')).toBe(contentWithCRLF);
+      // 验证 buffer 中确实包含 \r\n 字节序列（0x0D 0x0A）
+      const bufferStr = writtenBuffer.toString('latin1');
+      expect(bufferStr).toContain('\r\n');
+    });
+
+    it('写入 GBK 编码内容应正确编码', async () => {
+      const state = createState();
+      const stream = new MockWriteStream();
+      const endSpy = vi.fn((_: Buffer) => {
+        setTimeout(() => stream.emit('close'), 0);
+      });
+      stream.end = endSpy;
+      state.sftp.createWriteStream.mockReturnValue(stream);
+      state.sftp.lstat.mockImplementation(
+        (
+          _path: string,
+          callback: (err: Error | null, stats?: ReturnType<typeof createMockStats>) => void
+        ) => {
+          callback(null, createMockStats());
+        }
+      );
+
+      // iconv.encode mock 返回 Buffer.from(content, 'utf8')
+      const testContent = 'test content';
+      await executeWriteFileContentOperation(
+        state,
+        sessionId,
+        '/tmp/a.txt',
+        testContent,
+        requestId,
+        'gbk'
+      );
+      await flushAsync();
+
+      // 验证 iconv.encode 被正确调用
+      expect(vi.mocked(iconv.encode)).toHaveBeenCalledWith(testContent, 'gbk');
+      expect(endSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('写入成功但 lstat 失败时返回 success 且 payload=null', async () => {
       const state = createState();
       const stream = new MockWriteStream();

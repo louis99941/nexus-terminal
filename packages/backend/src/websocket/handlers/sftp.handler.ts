@@ -92,10 +92,8 @@ export async function handleSftpOperation(
         const fileContent = payload?.content ?? payload?.data ?? '';
         const encoding = payload?.encoding;
         if (payload?.path) {
-          let dataToSend = typeof fileContent === 'string' ? fileContent : '';
-          // Convert only true line endings (CRLF and standalone CR not followed by LF) to LF to ensure Unix-compatible line endings
-          dataToSend = dataToSend.replace(/\r\n/g, '\n').replace(/\r(?!\n)/g, '\n');
-          sftpService.writefile(sessionId, payload.path, dataToSend, requestId, encoding);
+          const dataToSend = typeof fileContent === 'string' ? fileContent : '';
+          await sftpService.writefile(sessionId, payload.path, dataToSend, requestId, encoding);
         } else throw new Error("Missing 'path' in payload for writefile");
         break;
       case 'sftp:mkdir':

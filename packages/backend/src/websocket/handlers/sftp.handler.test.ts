@@ -163,7 +163,7 @@ describe('SFTP WebSocket Handler', () => {
       );
     });
 
-    it('应正确处理 sftp:writefile 操作并转换换行符', async () => {
+    it('应正确处理 sftp:writefile 操作并保持原始内容', async () => {
       const { sftpService } = await import('../state');
       mockWs.sessionId = 'test-session';
       const state = createMockClientState(mockWs);
@@ -176,13 +176,58 @@ describe('SFTP WebSocket Handler', () => {
         'req-4'
       );
 
-      // 应转换 CRLF 和 CR 为 LF
+      // 不再进行 CRLF 转换，保持原始内容不变
       expect(sftpService.writefile).toHaveBeenCalledWith(
         'test-session',
         '/home/test.txt',
-        'line1\nline2\nline3',
+        'line1\r\nline2\rline3',
         'req-4',
         undefined
+      );
+    });
+
+    it('writefile 拒绝时应发送 sftp_error', async () => {
+      const { sftpService } = await import('../state');
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      vi.mocked(sftpService.writefile).mockRejectedValueOnce(new Error('disk full'));
+
+      await handleSftpOperation(
+        mockWs,
+        'sftp:writefile',
+        { path: '/home/test.txt', content: 'data' },
+        'req-4c'
+      );
+
+      expect(mockWs.send).toHaveBeenCalledWith(
+        expect.stringContaining('处理 SFTP 请求 sftp:writefile 时出错')
+      );
+      const sent = JSON.parse(mockWs.send.mock.calls[0][0] as string);
+      expect(sent.type).toBe('sftp_error');
+      expect(sent.payload.requestId).toBe('req-4c');
+    });
+
+    it('应正确传递 encoding 参数给 writefile', async () => {
+      const { sftpService } = await import('../state');
+      mockWs.sessionId = 'test-session';
+      const state = createMockClientState(mockWs);
+      clientStates.set('test-session', state);
+
+      await handleSftpOperation(
+        mockWs,
+        'sftp:writefile',
+        { path: '/home/test.txt', content: 'hello', encoding: 'gbk' },
+        'req-4b'
+      );
+
+      expect(sftpService.writefile).toHaveBeenCalledWith(
+        'test-session',
+        '/home/test.txt',
+        'hello',
+        'req-4b',
+        'gbk'
       );
     });
 
