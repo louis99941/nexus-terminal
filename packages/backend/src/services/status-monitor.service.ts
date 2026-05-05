@@ -200,7 +200,9 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          if (isBusyBox) {
+          // BusyBox 可能忽略 -m 标志或本地化系统输出非 MB 单位，通过值域兜底检测
+          const needsConversion = isBusyBox || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          if (needsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
           }
@@ -217,7 +219,9 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          if (isBusyBox) {
+          const swapNeedsConversion =
+            isBusyBox || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          if (swapNeedsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
           }
@@ -416,8 +420,9 @@ class HealthCheckCollector {
   > {
     const result = { swapTotal: 0, swapUsed: 0, swapPercent: 0 };
     try {
-      // BusyBox 的 free 输出没有表头行（如 "total used free"），且单位为 KB
-      const isBusyBox = !raw.includes('total') || !raw.match(/^\s*total\s+used\s+free/m);
+      // 通过表头判断是否为 BusyBox（无表头）或本地化系统（表头非英文）
+      // BusyBox 的 free 输出没有 "total used free" 表头，且单位为 KB
+      const hasStandardHeader = /^\s*total\s+used\s+free/m.test(raw);
       const lines = raw.split('\n');
       const memLine = lines.find((line) => line.startsWith('Mem:'));
       const swapLine = lines.find((line) => line.startsWith('Swap:'));
@@ -426,7 +431,10 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          if (isBusyBox) {
+          // 需要 KB→MB 转换的情况：无表头（BusyBox）或值过大（本地化系统输出 KB/bytes）
+          const needsConversion =
+            !hasStandardHeader || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          if (needsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
           }
@@ -444,7 +452,9 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          if (isBusyBox) {
+          const swapNeedsConversion =
+            !hasStandardHeader || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          if (swapNeedsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
           }
