@@ -206,15 +206,16 @@ class HealthCheckCollector {
       }
       const freeOutput = await this.executeSshCommand(sshClient, freeCommand);
       const lines = freeOutput.split('\n');
-      const memLine = lines.find((line) => line.startsWith('Mem:'));
-      const swapLine = lines.find((line) => line.startsWith('Swap:'));
+      // 兼容多语言 locale：匹配英文 Mem:/Swap: 和中文 内存：/交换： 等常见变体
+      const memLine = lines.find((line) => /^\s*(Mem|内存|メモリ|RAM)[:：]/.test(line));
+      const swapLine = lines.find((line) => /^\s*(Swap|交换|スワップ)[:：]/.test(line));
       if (memLine) {
         const parts = memLine.split(/\s+/);
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          // BusyBox 可能忽略 -m 标志或本地化系统输出非 MB 单位，通过值域兜底检测
-          const needsConversion = isBusyBox || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          // 仅 BusyBox 需要 KB→MB 转换；free -m 输出值已是 MB
+          const needsConversion = isBusyBox;
           if (needsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
@@ -232,8 +233,7 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          const swapNeedsConversion =
-            isBusyBox || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          const swapNeedsConversion = isBusyBox;
           if (swapNeedsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
@@ -444,12 +444,12 @@ class HealthCheckCollector {
       // BusyBox 的 free 输出没有 "total used free" 表头，且单位为 KB
       const hasStandardHeader = /^\s*total\s+used\s+free/m.test(raw);
       const lines = raw.split('\n');
-      // 兼容前导空格：部分 free 版本在 Mem:/Swap: 前有空白填充
-      const memLine = lines.find((line) => line.trimStart().startsWith('Mem:'));
-      const swapLine = lines.find((line) => line.trimStart().startsWith('Swap:'));
+      // 兼容多语言 locale：匹配英文 Mem:/Swap: 和中文 内存：/交换： 等常见变体
+      const memLine = lines.find((line) => /^\s*(Mem|内存|メモリ|RAM)[:：]/.test(line));
+      const swapLine = lines.find((line) => /^\s*(Swap|交换|スワップ)[:：]/.test(line));
       if (!memLine) {
         console.warn(
-          '[StatusMonitor] parseMemoryStats: 未找到 Mem: 行，free 原始输出前 120 字符:',
+          '[StatusMonitor] parseMemoryStats: 未找到内存行（Mem:/内存：），free 原始输出前 120 字符:',
           raw.substring(0, 120)
         );
       }
@@ -458,9 +458,8 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          // 需要 KB→MB 转换的情况：无表头（BusyBox）或值过大（本地化系统输出 KB/bytes）
-          const needsConversion =
-            !hasStandardHeader || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          // 仅 BusyBox（无表头）需要 KB→MB 转换；free -m 有标准表头且值已是 MB
+          const needsConversion = !hasStandardHeader;
           if (needsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
@@ -479,8 +478,7 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          const swapNeedsConversion =
-            !hasStandardHeader || (!Number.isNaN(totalVal) && totalVal > 1_000_000);
+          const swapNeedsConversion = !hasStandardHeader;
           if (swapNeedsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
@@ -730,6 +728,11 @@ export class StatusMonitorService {
       const freeRaw = sections.get('FREE');
       if (freeRaw && !freeRaw.includes('FREE_FAIL')) {
         const memStats = collector.parseMemoryStats(freeRaw);
+        console.debug(
+          `[StatusMonitor] ${sessionId} parseMemoryStats 结果:`,
+          `memTotal=${memStats.memTotal}MB memUsed=${memStats.memUsed}MB`,
+          `swapTotal=${memStats.swapTotal}MB swapUsed=${memStats.swapUsed}MB`
+        );
         if (memStats.memTotal === undefined) {
           console.warn(
             `[StatusMonitor] ${sessionId} parseMemoryStats 返回无 memTotal，freeRaw 前 150 字符:`,

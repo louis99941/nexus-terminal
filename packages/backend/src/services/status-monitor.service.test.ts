@@ -678,6 +678,42 @@ describe('StatusMonitorService', () => {
       expect(mockWs.send).toHaveBeenCalledWith(expect.stringContaining('"type":"status_update"'));
     });
 
+    it('应正确解析中文 locale 的 free 输出（内存：/交换：）', async () => {
+      const mockClient = createMockSshClient();
+      // 模拟 Debian 13 中文 locale 的 free -m 输出
+      const batchOutput = buildBatchOutputInner({
+        FREE: '              total        used        free      shared  buff/cache   available\n内存：        4016760     450940      553884       472     3011936     3306628\n交换：          999936       1496      998440',
+      });
+
+      mockClient.exec.mockImplementation(
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+          const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+          const stream = createMockStream(batchOutput);
+          cb(null, stream);
+        }
+      );
+
+      const mockWs = createMockWebSocket(1);
+      clientStates.set('session-zh-locale', {
+        sshClient: mockClient,
+        ws: mockWs,
+        dbConnectionId: 1,
+        statusIntervalId: undefined,
+      });
+
+      await service.startStatusPolling('session-zh-locale');
+      await vi.advanceTimersByTimeAsync(3000);
+
+      const sentData = JSON.parse(mockWs.send.mock.calls[0][0]);
+      // free -m 输出的值单位为 MB，不应再被转换
+      expect(sentData.payload.status.memTotal).toBe(4016760);
+      expect(sentData.payload.status.memUsed).toBe(450940);
+      expect(sentData.payload.status.memPercent).toBeGreaterThan(0);
+      expect(sentData.payload.status.swapTotal).toBe(999936);
+      expect(sentData.payload.status.swapUsed).toBe(1496);
+      expect(sentData.payload.status.swapPercent).toBeGreaterThan(0);
+    });
+
     it('应正确解析网络速率（需要两次采样）', async () => {
       const mockClient = createMockSshClient();
       let callCount = 0;
