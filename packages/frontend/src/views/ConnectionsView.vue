@@ -525,7 +525,7 @@ const handleConnectAllFilteredConnections = async () => {
 </script>
 
 <template>
-  <div class="p-4 md:p-6 lg:p-8 bg-background text-foreground">
+  <div class="p-4 md:p-6 bg-background text-foreground">
     <!-- 最外层，负责背景和整体内边距 -->
     <div class="max-w-screen-lg mx-auto">
       <!-- 将 xl 修改为 lg -->
@@ -536,18 +536,16 @@ const handleConnectAllFilteredConnections = async () => {
       >
         <!-- 移除了 max-w-screen-2xl mx-auto -->
         <div
-          class="px-4 py-3 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2"
+          class="px-4 py-3 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
         >
           <h2 class="text-lg font-medium flex-shrink-0">
             {{ t('dashboard.connectionList', '连接列表') }} ({{
               filteredAndSortedConnections.length
             }})
           </h2>
-          <div
-            class="w-full sm:w-auto flex flex-wrap sm:flex-nowrap items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2"
-          >
+          <div class="w-full sm:w-auto flex flex-wrap items-center gap-2">
             <!-- Batch Edit Toggle -->
-            <div class="flex items-center mr-3">
+            <div class="flex items-center">
               <label for="batch-edit-toggle" class="mr-2 text-sm font-medium text-text-secondary">{{
                 t('connections.batchEdit.toggleLabel', '批量修改')
               }}</label>
@@ -571,13 +569,16 @@ const handleConnectAllFilteredConnections = async () => {
               </button>
             </div>
 
-            <input
-              type="text"
-              v-model="searchQuery"
-              :placeholder="t('dashboard.searchConnectionsPlaceholder', '搜索连接...')"
-              class="h-8 px-3 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-48"
-            />
-            <div class="flex items-center space-x-2">
+            <div class="hidden sm:block w-px h-5 bg-border"></div>
+
+            <!-- Search & Filter Group -->
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                v-model="searchQuery"
+                :placeholder="t('dashboard.searchConnectionsPlaceholder', '搜索连接...')"
+                class="h-8 px-3 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-48"
+              />
               <select
                 v-model="selectedTagId"
                 class="h-8 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none bg-no-repeat bg-right pr-8"
@@ -595,7 +596,6 @@ const handleConnectAllFilteredConnections = async () => {
                   {{ tag.name }}
                 </option>
               </select>
-
               <select
                 v-model="localSortBy"
                 class="h-8 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none bg-no-repeat bg-right pr-8"
@@ -610,7 +610,6 @@ const handleConnectAllFilteredConnections = async () => {
                   {{ t(option.labelKey, option.value.replace('_', ' ')) }}
                 </option>
               </select>
-
               <button
                 @click="toggleSortOrder"
                 class="h-8 px-1.5 py-1 border border-border rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary flex items-center justify-center"
@@ -622,45 +621,54 @@ const handleConnectAllFilteredConnections = async () => {
                 ></i>
               </button>
             </div>
-            <button
-              @click="openAddConnectionForm"
-              :title="t('connections.addConnection', 'Add Connection')"
-              :aria-label="t('connections.addConnection', 'Add Connection')"
-              class="h-8 w-8 bg-button rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
-            >
-              <i class="fas fa-plus text-white"></i>
-            </button>
-            <!-- Test All Filtered Connections Button -->
-            <button
-              @click="handleTestAllFilteredConnections"
-              :disabled="
-                isTestingAll ||
-                isLoadingConnections ||
-                !filteredAndSortedConnections.some((c) => c.type === 'SSH')
-              "
-              class="h-8 px-3 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
-              :title="t('connections.actions.testAllFiltered', '测试全部筛选的SSH连接')"
-            >
-              <i v-if="isTestingAll" class="fas fa-spinner fa-spin mr-1 sm:mr-2 text-white"></i>
-              <i v-else class="fas fa-check-double mr-1 sm:mr-2 text-white"></i>
-              <span class="hidden sm:inline">{{ t('connections.actions.testAllFiltered') }}</span>
-            </button>
-            <!-- Connect All Filtered Connections Button -->
-            <button
-              @click="handleConnectAllFilteredConnections"
-              :disabled="
-                isConnectingAll ||
-                isLoadingConnections ||
-                !filteredAndSortedConnections.some((c) => c.type === 'SSH')
-              "
-              class="h-8 px-3 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0 ml-2 sm:ml-0"
-            >
-              <i v-if="isConnectingAll" class="fas fa-spinner fa-spin mr-1 sm:mr-2 text-white"></i>
-              <i v-else class="fas fa-network-wired mr-1 sm:mr-2 text-white"></i>
-              <span class="hidden sm:inline">{{
-                t('workspaceConnectionList.connectAllSshInGroupMenu', '连接全部')
-              }}</span>
-            </button>
+
+            <div class="hidden sm:block w-px h-5 bg-border"></div>
+
+            <!-- Action Buttons Group -->
+            <div class="flex items-center gap-2">
+              <button
+                @click="openAddConnectionForm"
+                :title="t('connections.addConnection', 'Add Connection')"
+                :aria-label="t('connections.addConnection', 'Add Connection')"
+                class="h-8 w-8 bg-button rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0"
+              >
+                <i class="fas fa-plus text-white"></i>
+              </button>
+              <!-- Test All Filtered Connections Button -->
+              <button
+                @click="handleTestAllFilteredConnections"
+                :disabled="
+                  isTestingAll ||
+                  isLoadingConnections ||
+                  !filteredAndSortedConnections.some((c) => c.type === 'SSH')
+                "
+                class="h-8 px-3 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0"
+                :title="t('connections.actions.testAllFiltered', '测试全部筛选的SSH连接')"
+              >
+                <i v-if="isTestingAll" class="fas fa-spinner fa-spin mr-1 sm:mr-2 text-white"></i>
+                <i v-else class="fas fa-check-double mr-1 sm:mr-2 text-white"></i>
+                <span class="hidden sm:inline">{{ t('connections.actions.testAllFiltered') }}</span>
+              </button>
+              <!-- Connect All Filtered Connections Button -->
+              <button
+                @click="handleConnectAllFilteredConnections"
+                :disabled="
+                  isConnectingAll ||
+                  isLoadingConnections ||
+                  !filteredAndSortedConnections.some((c) => c.type === 'SSH')
+                "
+                class="h-8 px-3 py-1.5 text-sm bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out flex items-center justify-center flex-shrink-0"
+              >
+                <i
+                  v-if="isConnectingAll"
+                  class="fas fa-spinner fa-spin mr-1 sm:mr-2 text-white"
+                ></i>
+                <i v-else class="fas fa-network-wired mr-1 sm:mr-2 text-white"></i>
+                <span class="hidden sm:inline">{{
+                  t('workspaceConnectionList.connectAllSshInGroupMenu', '连接全部')
+                }}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -719,7 +727,7 @@ const handleConnectAllFilteredConnections = async () => {
           >
             {{ t('common.loading') }}
           </div>
-          <ul v-else-if="filteredAndSortedConnections.length > 0" class="space-y-3">
+          <ul v-else-if="filteredAndSortedConnections.length > 0" class="space-y-2">
             <li
               v-for="conn in filteredAndSortedConnections"
               :key="conn.id"

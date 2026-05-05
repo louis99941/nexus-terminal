@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 bg-background text-foreground h-full flex flex-col">
+  <div class="p-4 md:p-6 bg-background text-foreground h-full flex flex-col">
     <!-- Full height flex container -->
     <div class="max-w-7xl mx-auto w-full flex flex-col h-full">
       <h1
@@ -10,7 +10,7 @@
 
       <!-- Filtering Controls -->
       <div
-        class="flex flex-wrap items-center gap-4 mb-4 p-4 border border-border rounded-lg bg-header/50 flex-shrink-0"
+        class="flex flex-wrap items-center gap-3 mb-4 p-3 border border-border rounded-lg bg-header/50 flex-shrink-0"
       >
         <div class="flex-grow min-w-[200px]">
           <label for="search-term" class="block text-sm font-medium text-text-secondary mb-1">{{

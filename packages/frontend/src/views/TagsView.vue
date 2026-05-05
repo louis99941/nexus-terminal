@@ -40,61 +40,43 @@ const onTagSaved = () => {
 </script>
 
 <template>
-  <div class="tags-view">
-    <h2>{{ t('tags.title') }}</h2>
+  <div class="p-4 md:p-6 bg-background text-foreground">
+    <div class="max-w-screen-lg mx-auto">
+      <h2 class="text-xl font-semibold text-foreground mb-4">{{ t('tags.title') }}</h2>
 
-    <div class="actions-bar">
-      <button @click="openAddForm">{{ t('tags.addTag') }}</button>
-    </div>
+      <div class="mb-4">
+        <button
+          @click="openAddForm"
+          class="px-4 py-2 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        >
+          {{ t('tags.addTag') }}
+        </button>
+      </div>
 
-    <div v-if="tagsStore.isLoading" class="loading-message">
-      {{ t('tags.loading') }}
-    </div>
-    <div v-else-if="tagsStore.error" class="error-message">
-      {{ t('tags.error', { error: tagsStore.error }) }}
-    </div>
-    <div v-else-if="tagsStore.tags.length === 0" class="no-data-message">
-      {{ t('tags.noTags') }}
-    </div>
-    <TagList v-else :tags="tagsStore.tags" @edit-tag="openEditForm" />
+      <div v-if="tagsStore.isLoading" class="p-6 text-center text-text-secondary text-sm">
+        {{ t('tags.loading') }}
+      </div>
+      <div
+        v-else-if="tagsStore.error"
+        class="p-4 border-l-4 border-error bg-error/10 text-error rounded"
+      >
+        {{ t('tags.error', { error: tagsStore.error }) }}
+      </div>
+      <div
+        v-else-if="tagsStore.tags.length === 0"
+        class="p-6 text-center text-text-secondary text-sm"
+      >
+        {{ t('tags.noTags') }}
+      </div>
+      <TagList v-else :tags="tagsStore.tags" @edit-tag="openEditForm" />
 
-    <!-- 添加/编辑标签表单 (模态框) -->
-    <AddTagForm
-      v-if="showAddTagForm"
-      :tag-to-edit="tagToEdit"
-      @close="closeForm"
-      @tag-saved="onTagSaved"
-    />
+      <!-- 添加/编辑标签表单 (模态框) -->
+      <AddTagForm
+        v-if="showAddTagForm"
+        :tag-to-edit="tagToEdit"
+        @close="closeForm"
+        @tag-saved="onTagSaved"
+      />
+    </div>
   </div>
 </template>
-
-<style scoped>
-.tags-view {
-  padding: 1rem;
-}
-
-h2 {
-  margin-bottom: 1rem;
-}
-
-.actions-bar {
-  margin-bottom: 1rem;
-}
-
-.actions-bar button {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-}
-
-.loading-message,
-.error-message,
-.no-data-message {
-  margin-top: 1rem;
-  text-align: center;
-  color: var(--text-color-secondary, #666);
-}
-
-.error-message {
-  color: red;
-}
-</style>

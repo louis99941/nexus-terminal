@@ -315,7 +315,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 <template>
   <div class="dashboard p-4 md:p-6 min-h-full bg-background text-foreground animate-fade-in">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
       <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
         {{ t('dashboard.title') }}
       </h1>
@@ -379,7 +379,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
       <!-- Active Sessions -->
       <div class="stat-card group">
         <div class="flex justify-between items-start">
@@ -437,7 +437,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     </div>
 
     <!-- Security Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
       <div
         class="stat-card group border-l-4 border-l-error/50 hover:border-l-error transition-colors duration-200"
       >
@@ -486,7 +486,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     </div>
 
     <!-- Health & Recent Connections Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
       <!-- Asset Health -->
       <div class="content-card border-t-2 border-t-success/30">
         <div class="card-header border-b border-border/50 bg-surface/30">
@@ -616,7 +616,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
     </div>
 
     <!-- Charts & Resources Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
       <!-- Session Duration Chart -->
       <div class="content-card">
         <div class="card-header">
