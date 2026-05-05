@@ -426,7 +426,8 @@ class HealthCheckCollector {
 
   /** 从原始 free 输出解析内存和 Swap */
   parseMemoryStats(
-    raw: string
+    raw: string,
+    isMB?: boolean
   ): Pick<
     ServerStatus,
     'memTotal' | 'memUsed' | 'memPercent' | 'swapTotal' | 'swapUsed' | 'swapPercent'
@@ -458,8 +459,8 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          // 仅 BusyBox（无表头）需要 KB→MB 转换；free -m 有标准表头且值已是 MB
-          const needsConversion = !hasStandardHeader;
+          // isMB=true 表示 free -m 输出（值已是 MB），无需转换；否则按表头判断（BusyBox 无表头需转换）
+          const needsConversion = isMB === undefined ? !hasStandardHeader : !isMB;
           if (needsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
@@ -478,7 +479,7 @@ class HealthCheckCollector {
         if (parts.length >= 3) {
           let totalVal = parseInt(parts[1], 10);
           let usedVal = parseInt(parts[2], 10);
-          const swapNeedsConversion = !hasStandardHeader;
+          const swapNeedsConversion = isMB === undefined ? !hasStandardHeader : !isMB;
           if (swapNeedsConversion) {
             totalVal = Math.round(totalVal / 1024);
             usedVal = Math.round(usedVal / 1024);
@@ -727,7 +728,9 @@ export class StatusMonitorService {
 
       const freeRaw = sections.get('FREE');
       if (freeRaw && !freeRaw.includes('FREE_FAIL')) {
-        const memStats = collector.parseMemoryStats(freeRaw);
+        // 通过表头判断 free 输出单位：有标准表头 = free -m (MB)，无表头 = BusyBox free (KB)
+        const hasStandardHeader = /^\s*total\s+used\s+free/m.test(freeRaw);
+        const memStats = collector.parseMemoryStats(freeRaw, hasStandardHeader);
         console.debug(
           `[StatusMonitor] ${sessionId} parseMemoryStats 结果:`,
           `memTotal=${memStats.memTotal}MB memUsed=${memStats.memUsed}MB`,
@@ -761,7 +764,16 @@ export class StatusMonitorService {
         const cpuTimes = collector.parseProcStat(procStatRaw);
         if (cpuTimes) {
           status.cpuPercent = this.dataAggregator.calculateCpuPercent(sessionId, cpuTimes);
+        } else {
+          console.debug(
+            `[StatusMonitor] ${sessionId} parseProcStat 返回 null，procStatRaw 前 150 字符:`,
+            procStatRaw.substring(0, 150)
+          );
         }
+      } else {
+        console.debug(
+          `[StatusMonitor] ${sessionId} PROC_STAT 段落缺失`
+        );
       }
 
       // 网络速率（需要历史数据差值计算）
