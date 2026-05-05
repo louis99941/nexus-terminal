@@ -116,15 +116,6 @@ class HealthCheckCollector {
       sections.set(key, raw.substring(start, end).trim());
       lastEnd = end + delimiter.length;
     }
-    // 最后一段（PROC_STAT 之后无后续标识符）
-    const lastDelimiter = delimiterEntries[delimiterEntries.length - 1][1];
-    const lastStart = raw.indexOf(lastDelimiter);
-    if (lastStart !== -1) {
-      sections.set(
-        delimiterEntries[delimiterEntries.length - 1][0],
-        raw.substring(lastStart + lastDelimiter.length).trim()
-      );
-    }
     return sections;
   }
 
@@ -771,9 +762,7 @@ export class StatusMonitorService {
           );
         }
       } else {
-        console.debug(
-          `[StatusMonitor] ${sessionId} PROC_STAT 段落缺失`
-        );
+        console.debug(`[StatusMonitor] ${sessionId} PROC_STAT 段落缺失`);
       }
 
       // 网络速率（需要历史数据差值计算）

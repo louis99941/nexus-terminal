@@ -714,6 +714,48 @@ describe('StatusMonitorService', () => {
       expect(sentData.payload.status.swapPercent).toBeGreaterThan(0);
     });
 
+    it('应正确提取 PROC_STAT 段落并计算 CPU 使用率（回归测试）', async () => {
+      const mockClient = createMockSshClient();
+      let callCount = 0;
+      // 两次采样模拟 CPU 差值
+      const procStatLines = [
+        'cpu  1000 100 500 5000 50 0 10 0 0 0',
+        'cpu  1200 110 520 5000 50 0 10 0 0 0',
+      ];
+
+      mockClient.exec.mockImplementation(
+        (_cmd: string, optionsOrCallback: unknown, callback?: Function) => {
+          const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+          const idx = Math.min(callCount++, 1);
+          const output = buildBatchOutput({
+            PROC_STAT: procStatLines[idx],
+          });
+          const stream = createMockStream(output);
+          cb(null, stream);
+        }
+      );
+
+      const mockWs = createMockWebSocket(1);
+      clientStates.set('session-procstat', {
+        sshClient: mockClient,
+        ws: mockWs,
+        dbConnectionId: 1,
+        statusIntervalId: undefined,
+      });
+
+      await service.startStatusPolling('session-procstat');
+
+      // 第一次采样（建立基线）
+      await vi.advanceTimersByTimeAsync(3000);
+      // 第二次采样（计算差值）
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(mockWs.send).toHaveBeenCalledTimes(2);
+      const secondData = JSON.parse(mockWs.send.mock.calls[1][0]);
+      // CPU 使用率应大于 0（第二次采样有增量）
+      expect(secondData.payload.status.cpuPercent).toBeGreaterThan(0);
+    });
+
     it('应正确解析网络速率（需要两次采样）', async () => {
       const mockClient = createMockSshClient();
       let callCount = 0;
