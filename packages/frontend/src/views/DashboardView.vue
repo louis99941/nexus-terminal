@@ -884,13 +884,13 @@ const formatDuration = (seconds: number | null | undefined): string => {
 }
 
 /* Dark mode specific adjustments for card backgrounds if variables aren't defined */
-:deep(.dark) .stat-card,
-:deep(.dark) .content-card {
+.dark .stat-card,
+.dark .content-card {
   --card-bg: rgba(15, 23, 42, 0.4);
   --card-border: rgba(255, 255, 255, 0.08);
 }
 
-:deep(.dark) .stat-card:hover {
+.dark .stat-card:hover {
   --card-hover-bg: rgba(15, 23, 42, 0.6);
 }
 

@@ -52,12 +52,15 @@
                   :class="[
                     item.icon,
                     'w-5 text-center',
-                    selectedIndex === index ? 'text-white' : 'text-gray-400',
+                    selectedIndex === index ? 'text-white' : 'text-[var(--editor-text-color)]',
                   ]"
                 ></i>
-                <span :class="selectedIndex === index ? 'text-white' : 'text-gray-300'">{{
-                  item.label
-                }}</span>
+                <span
+                  :class="
+                    selectedIndex === index ? 'text-white' : 'text-[var(--editor-text-color)]'
+                  "
+                  >{{ item.label }}</span
+                >
               </div>
               <span v-if="item.shortcut" class="text-xs text-gray-500 font-mono">{{
                 item.shortcut
