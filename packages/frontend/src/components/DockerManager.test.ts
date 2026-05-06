@@ -253,7 +253,7 @@ describe('DockerManager.vue', () => {
 
       const wrapper = mount(DockerManager);
 
-      const statusBadges = wrapper.findAll('.bg-green-500');
+      const statusBadges = wrapper.findAll('.bg-success');
       expect(statusBadges.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -264,7 +264,7 @@ describe('DockerManager.vue', () => {
 
       const wrapper = mount(DockerManager);
 
-      const statusBadges = wrapper.findAll('.bg-red-500');
+      const statusBadges = wrapper.findAll('.bg-error');
       expect(statusBadges.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -561,7 +561,7 @@ describe('DockerManager.vue', () => {
 
       const wrapper = mount(DockerManager);
 
-      expect(wrapper.find('.bg-yellow-500').exists()).toBe(true);
+      expect(wrapper.find('.bg-warning').exists()).toBe(true);
     });
 
     it('restarting 状态应有蓝色标签', () => {
@@ -580,7 +580,7 @@ describe('DockerManager.vue', () => {
 
       const wrapper = mount(DockerManager);
 
-      expect(wrapper.find('.bg-blue-500').exists()).toBe(true);
+      expect(wrapper.find('.bg-primary').exists()).toBe(true);
     });
 
     it('其他状态应有灰色标签', () => {
@@ -599,7 +599,7 @@ describe('DockerManager.vue', () => {
 
       const wrapper = mount(DockerManager);
 
-      expect(wrapper.find('.bg-gray-500').exists()).toBe(true);
+      expect(wrapper.find('.bg-text-secondary').exists()).toBe(true);
     });
   });
 });

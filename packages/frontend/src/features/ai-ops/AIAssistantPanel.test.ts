@@ -453,8 +453,8 @@ describe('AIAssistantPanel.vue', () => {
       const toggleButton = wrapper.find('.fa-lightbulb').element.closest('button');
       await (toggleButton as HTMLButtonElement)?.click();
 
-      // 应有红色样式
-      expect(wrapper.html()).toContain('border-red-500');
+      // 应有错误级别样式
+      expect(wrapper.html()).toContain('border-error');
     });
 
     it('应显示建议操作', async () => {
@@ -616,11 +616,11 @@ describe('AIAssistantPanel.vue', () => {
 
   describe('严重级别样式', () => {
     it.each([
-      ['info', 'border-blue-500'],
-      ['low', 'border-green-500'],
-      ['medium', 'border-yellow-500'],
-      ['high', 'border-orange-500'],
-      ['critical', 'border-red-500'],
+      ['info', 'border-primary'],
+      ['low', 'border-success'],
+      ['medium', 'border-warning'],
+      ['high', 'border-warning'],
+      ['critical', 'border-error'],
     ] as const)('severity %s 应应用 %s 样式', async (severity, expectedClass) => {
       mockState.insights = [createMockInsight({ severity, title: `${severity} insight` })];
 

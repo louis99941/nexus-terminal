@@ -1,4 +1,5 @@
 // packages/frontend/src/composables/workspaceEvents.ts
+import { onBeforeUnmount } from 'vue';
 import mitt from 'mitt';
 import type { Terminal as XtermTerminal } from '@xterm/xterm';
 import type { SearchAddon } from '@xterm/addon-search';
@@ -84,4 +85,20 @@ export function useWorkspaceEventSubscriber() {
  */
 export function useWorkspaceEventOff() {
   return workspaceEmitter.off;
+}
+
+/**
+ * 自动清理的事件订阅 composable
+ * 在组件卸载时自动取消订阅，防止内存泄漏
+ * @param event 事件名称
+ * @param handler 事件处理函数
+ */
+export function useOnWorkspaceEvent<K extends keyof WorkspaceEventPayloads>(
+  event: K,
+  handler: (payload: WorkspaceEventPayloads[K]) => void
+): void {
+  workspaceEmitter.on(event, handler);
+  onBeforeUnmount(() => {
+    workspaceEmitter.off(event, handler);
+  });
 }
