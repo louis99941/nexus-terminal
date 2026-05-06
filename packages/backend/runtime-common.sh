@@ -144,10 +144,10 @@ _fuck_persist_static_cache() {
 
     # Write cached variables to temporary file
     {
-        printf '_FUCK_CACHED_DISTRO=%q\\n' "${_FUCK_CACHED_DISTRO:-}"
-        printf '_FUCK_CACHED_KERNEL=%q\\n' "${_FUCK_CACHED_KERNEL:-}"
-        printf '_FUCK_CACHED_ARCH=%q\\n' "${_FUCK_CACHED_ARCH:-}"
-        printf '_FUCK_CACHED_PKG_MANAGER=%q\\n' "${_FUCK_CACHED_PKG_MANAGER:-}"
+        printf '_FUCK_CACHED_DISTRO=%q\n' "${_FUCK_CACHED_DISTRO:-}"
+        printf '_FUCK_CACHED_KERNEL=%q\n' "${_FUCK_CACHED_KERNEL:-}"
+        printf '_FUCK_CACHED_ARCH=%q\n' "${_FUCK_CACHED_ARCH:-}"
+        printf '_FUCK_CACHED_PKG_MANAGER=%q\n' "${_FUCK_CACHED_PKG_MANAGER:-}"
     } > "$tmp_file"
 
     # Atomic move to final location
@@ -391,10 +391,6 @@ _fuck_define_aliases() {
     if [ -n "${FUCK_ALIAS:-}" ] && [ "$FUCK_ALIAS" != "$default_alias" ]; then
         alias "$FUCK_ALIAS"='_fuck_execute_prompt'
     fi
-}
-
-_fuck_detect_dangerous_command() {
-    _fuck_security_evaluate_command "$1"
 }
 
 _fuck_local_system_prompt() {

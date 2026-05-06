@@ -50,7 +50,7 @@ export async function handleSftpOperation(
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!sessionId || !state) {
-    logger.warn(`WebSocket: 收到来自 ${ws.username} 的 SFTP 请求 (${type})，但无活动会话。`);
+    logger.warn({ username: ws.username, type }, 'WebSocket: SFTP 请求收到但无活动会话');
     const errPayload: { message: string; requestId?: string } = { message: '无效的会话' };
     if (requestId) errPayload.requestId = requestId;
     if (ws.readyState === WebSocket.OPEN)
@@ -59,7 +59,8 @@ export async function handleSftpOperation(
   }
   if (!requestId) {
     logger.error(
-      `WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 SFTP 请求 (${type})，但缺少 requestId。`
+      { username: ws.username, sessionId, type },
+      'WebSocket: SFTP 请求收到但缺少 requestId'
     );
     if (ws.readyState === WebSocket.OPEN)
       ws.send(
