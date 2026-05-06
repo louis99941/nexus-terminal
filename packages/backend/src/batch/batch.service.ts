@@ -106,10 +106,20 @@ export async function execCommandBatch(
   taskAbortControllers.set(taskId, abortController);
 
   // 异步执行任务（不阻塞返回）
-  processTask(taskId, userId, payload, abortController.signal).catch((error: unknown) => {
-    if (!(error instanceof Error && error.name === 'AbortError')) {
-      logger.error(`[BatchService] 任务 ${taskId} 后台处理出错:`, error);
+  processTask(taskId, userId, payload, abortController.signal).catch(async (error: unknown) => {
+    taskAbortControllers.delete(taskId);
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      return;
     }
+
+    logger.error(`[BatchService] 任务 ${taskId} 后台处理出错:`, error);
+    await updateTaskStatus(taskId, 'failed', {
+      endedAt: new Date(),
+      message: getErrorMessage(error),
+    }).catch((statusError: unknown) => {
+      logger.error(`[BatchService] 任务 ${taskId} 状态回写失败:`, statusError);
+    });
   });
 
   return task;

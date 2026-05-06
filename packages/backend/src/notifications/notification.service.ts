@@ -645,7 +645,10 @@ export class NotificationService {
       );
       body = defaultBodyText;
     }
-    logger.debug(`[_sendEmail] Final email body for event ${payload.event}:\n${body}`);
+    logger.debug(`[_sendEmail] Final email body rendered for event ${payload.event}`, {
+      settingId: setting.id,
+      bodyLength: body.length,
+    });
 
     const mailOptions: Mail.Options = {
       from: config.from,
@@ -679,7 +682,10 @@ export class NotificationService {
     logger.debug(
       `[_sendTelegram] Initiating for event: ${payload.event}, Setting ID: ${setting.id}, Lang: ${userLang}, Timezone: ${userTimezone}`
     );
-    logger.debug(`[_sendTelegram] Received payload:`, JSON.stringify(payload, null, 2));
+    logger.debug('[_sendTelegram] Received payload', {
+      event: payload.event,
+      settingId: setting.id,
+    });
     const config = setting.config as TelegramConfig;
     if (!config.botToken || !config.chatId) {
       logger.error(`[通知] Telegram 设置 ID ${setting.id} 缺少 botToken 或 chatId。`);

@@ -139,7 +139,7 @@ export class SftpArchiveManager {
 
         stream.on('error', (streamErr: Error) => {
           logger.error(`[SFTP Compress ${sessionId}] Stream error (ID: ${requestId}):`, streamErr);
-          if (!stderrData && code === undefined) {
+          if (!stderrData && code === null) {
             this.sendCompressError(state.ws, '压缩命令流错误', requestId, streamErr.message);
           }
         });
@@ -277,7 +277,7 @@ export class SftpArchiveManager {
             `[SFTP Decompress ${sessionId}] Stream error (ID: ${requestId}):`,
             streamErr
           );
-          if (!stderrData && code === undefined) {
+          if (!stderrData && code === null) {
             this.sendDecompressError(state.ws, '解压命令流错误', requestId, streamErr.message);
           }
         });

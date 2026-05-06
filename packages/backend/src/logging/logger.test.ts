@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { redactSensitiveData, redactLogArgs, type LogLevel } from './logger';
 
 describe('logging/logger', () => {
-  describe('re-exports from redaction', () => {
+  describe('从 redaction 模块重新导出', () => {
     it('应该导出 redactSensitiveData 函数', () => {
       expect(typeof redactSensitiveData).toBe('function');
     });
@@ -24,7 +24,7 @@ describe('logging/logger', () => {
     });
   });
 
-  describe('LogLevel type', () => {
+  describe('LogLevel 类型', () => {
     it('应该包含所有有效的日志等级', () => {
       const validLevels: LogLevel[] = ['debug', 'info', 'warn', 'error', 'silent'];
       expect(validLevels).toHaveLength(5);

@@ -36,10 +36,11 @@ class NotificationProcessorService extends EventEmitter {
 
   private async initialize(): Promise<void> {
     try {
+      // 先注册监听器，避免启动期间的事件丢失
+      logger.debug('[NotificationProcessor] 注册事件监听器...');
+      this.registerEventListeners();
       logger.debug('[NotificationProcessor] 等待 i18n 初始化...');
       await i18nInitializationPromise;
-      logger.debug('[NotificationProcessor] i18n 初始化完成。正在注册事件监听器...');
-      this.registerEventListeners();
       this.isInitialized = true;
       logger.info('[NotificationProcessor] 初始化完成。');
     } catch (error: unknown) {

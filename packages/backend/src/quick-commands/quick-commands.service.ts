@@ -160,7 +160,7 @@ export const assignTagToCommands = async (commandIds: number[], tagId: number): 
       `[Service] assignTagToCommands: Calling repo with commandIds: ${JSON.stringify(commandIds)}, tagId: ${tagId}`
     );
     await QuickCommandTagRepository.addTagToCommands(commandIds, tagId);
-    logger.info(`[Service] assignTagToCommands: Repo call finished for tag ${tagId}.`); // +++ 修改日志 +++
+    logger.info(`[Service] assignTagToCommands: Repo call finished for tag ${tagId}.`);
     // 可以在这里添加额外的业务逻辑，例如发送事件通知等
   } catch (error: unknown) {
     logger.error(

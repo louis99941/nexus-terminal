@@ -126,7 +126,7 @@ export const createConnection = async (
     'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'
   > & { jump_chain?: number[] | null; proxy_type?: 'proxy' | 'jump' | null };
 
-  logger.debug('[Service:createConnection] Received input:', JSON.stringify(input, null, 2)); // Log input
+  logger.debug('[Service:createConnection] Received input:', input);
 
   // 0. 处理和验证 jump_chain
   const processedJumpChain = await _validateAndProcessJumpChain(input.jump_chain, input.proxy_id);

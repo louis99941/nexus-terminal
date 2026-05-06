@@ -12,7 +12,6 @@ const SENSITIVE_FIELD_PATTERNS = [
   /pwd/i,
   /token/i,
   /secret/i,
-  /key/i,
   /auth/i,
   /authorization/i,
   /credential/i,
@@ -22,6 +21,7 @@ const SENSITIVE_FIELD_PATTERNS = [
   /session/i,
   /apikey/i,
   /api_key/i,
+  /username/i,
 ];
 
 const REDACTED_PLACEHOLDER = '[REDACTED]';
@@ -42,7 +42,7 @@ export function redactSensitiveData(value: unknown, depth = 0, seen = new WeakSe
   if (typeof value === 'string') {
     let redactedStr = value;
     redactedStr = redactedStr.replace(
-      /(\b(?:cookie|authorization|token|api[_-]?key|password|secret|passwd|pwd)\s*[:=]\s*)([^\s;,&"']+)/gi,
+      /(\b(?:cookie|authorization|token|api[_-]?key|password|secret|passwd|pwd)\s*[:=]\s*["']?)([^\s;,&"']+)/gi,
       '$1[REDACTED]'
     );
     redactedStr = redactedStr.replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+/gi, 'Bearer [REDACTED]');
@@ -73,18 +73,14 @@ export function redactSensitiveData(value: unknown, depth = 0, seen = new WeakSe
     }
   }
 
-  // 处理对象（包括 null-prototype 对象）
-  const isPlainObject =
-    value.constructor === Object ||
-    value.constructor === undefined ||
-    (value.constructor && value.constructor.name === 'Object');
-
-  if (isPlainObject) {
-    seen.add(value);
-    const objectValue = value as Record<string, unknown>;
-    const redacted: Record<string, unknown> = {};
-    try {
-      const keys = Object.keys(value);
+  // 处理对象：包括普通对象、null-prototype 对象和类实例
+  // 只要对象有可枚举的自有属性就尝试脱敏，避免类实例中的敏感字段泄露
+  try {
+    const keys = Object.keys(value);
+    if (keys.length > 0) {
+      seen.add(value);
+      const objectValue = value as Record<string, unknown>;
+      const redacted: Record<string, unknown> = {};
       const processKeys = keys.slice(0, MAX_KEYS);
       if (keys.length > MAX_KEYS) {
         redacted['[truncated]'] = `${keys.length - MAX_KEYS} more keys...`;
@@ -103,9 +99,9 @@ export function redactSensitiveData(value: unknown, depth = 0, seen = new WeakSe
         }
       }
       return redacted;
-    } catch {
-      return '[Object Processing Error]';
     }
+  } catch {
+    return '[Object Processing Error]';
   }
 
   // Error 对象：保持原样，交给 pino 原生 serializers 处理

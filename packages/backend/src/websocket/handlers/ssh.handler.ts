@@ -738,7 +738,7 @@ export async function handleSshConnect(
             const processedOutput = processSshStreamOutput(newSessionId, data.toString('utf8'));
             if (processedOutput) {
               logger.error(
-                `SSH Stderr (会话: ${newSessionId}): ${processedOutput.substring(0, 100)}...`
+                `SSH Stderr (会话: ${newSessionId})，数据长度: ${processedOutput.length}`
               );
             }
             if (ws.readyState === WebSocket.OPEN) {

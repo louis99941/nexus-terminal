@@ -57,7 +57,7 @@ export function setVerbose(enabled: boolean): void {
  * 日志工具对象
  *
  * - info / warn / error：始终输出
- * - debug：dev 模式下始终输出；prod 模式下需 verbose 激活
+ * - debug：dev 模式下需 verbose 激活（?log=debug）；prod 模式下不输出
  *
  * 使用示例：
  *   import { log } from '@/utils/log';
@@ -68,22 +68,16 @@ export function setVerbose(enabled: boolean): void {
  */
 export const log = {
   info: (...args: unknown[]) => {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.info(...args);
-    }
+    // eslint-disable-next-line no-console
+    console.info(...args);
   },
   warn: (...args: unknown[]) => {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.warn(...args);
-    }
+    // eslint-disable-next-line no-console
+    console.warn(...args);
   },
   error: (...args: unknown[]) => {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.error(...args);
-    }
+    // eslint-disable-next-line no-console
+    console.error(...args);
   },
   debug: (...args: unknown[]) => {
     if (import.meta.env.DEV && _isVerbose) {

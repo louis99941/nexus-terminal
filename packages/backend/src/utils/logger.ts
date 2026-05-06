@@ -16,25 +16,30 @@ const logPretty =
 const logRedact = process.env.LOG_REDACT !== 'false'; // 默认开启脱敏
 
 // 自定义 timestamp：支持 LOG_TZ 环境变量
+// Intl.DateTimeFormat 实例化成本高，在模块加载时一次性创建并缓存
+const logTz = process.env.LOG_TZ || process.env.TZ || 'UTC';
+let cachedFormatter: Intl.DateTimeFormat | null = null;
+try {
+  cachedFormatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: logTz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+} catch {
+  // 时区无效时 cachedFormatter 保持 null，回退到 ISO 格式
+}
+
 const customTimestamp = () => {
-  const tz = process.env.LOG_TZ || process.env.TZ || 'UTC';
   const time = new Date();
-  try {
-    const formatter = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-    return `,"time":"${formatter.format(time)}.${String(time.getMilliseconds()).padStart(3, '0')}"`;
-  } catch {
-    // 时区无效时回退到 UTC
-    return `,"time":"${time.toISOString()}"`;
+  if (cachedFormatter) {
+    return `,"time":"${cachedFormatter.format(time)}.${String(time.getMilliseconds()).padStart(3, '0')}"`;
   }
+  return `,"time":"${time.toISOString()}"`;
 };
 
 /**
@@ -71,12 +76,13 @@ try {
 /**
  * 包装函数：在 pino 调用前执行脱敏 + 参数归一化
  *
- * pino 的结构化日志要求 Error 对象放在 merge 对象的 err 属性中：
- *   logger.error({ err }, 'message')  ← 正确，Error 被序列化
- *   logger.error('message', err)      ← 丢失堆栈，err 不被序列化
+ * pino 的结构化日志要求 merge 对象放在第一个参数：
+ *   logger.info({ key: val }, 'message')  ← 正确，字段被合并到 JSON 记录
+ *   logger.info('message', { key: val })  ← 丢失，对象被当作 printf 参数丢弃
  *
- * 但大量业务代码使用 Node.js 回调风格 logger.error('msg', err)，
- * 因此在 wrapper 层做自动归一化：当第一个参数是字符串、最后一个参数是 Error 时，
+ * 但大量业务代码使用 Node.js/console 风格 logger.info('msg', obj)，
+ * 因此在 wrapper 层做自动归一化：当第一个参数是字符串、后续有对象参数时，
+ * 将所有非 Error 对象合并到一个 merge 对象中，Error 放入 err 属性，
  * 重组为 pino 期望的 mergeObject + message 格式。
  */
 function createLogger() {
@@ -85,18 +91,23 @@ function createLogger() {
     (...args: unknown[]) => {
       let normalizedArgs = args;
 
-      // 归一化：logger.error('msg', err) → logger.error({ err }, 'msg')
       if (args.length >= 2 && typeof args[0] === 'string') {
-        const lastArg = args[args.length - 1];
-        if (lastArg instanceof Error) {
-          const mergeObj: Record<string, unknown> = { err: lastArg };
-          // 中间参数作为额外 merge 字段（如 logger.error('msg', err, { extra: 1 })）
-          for (let i = 1; i < args.length - 1; i++) {
-            const arg = args[i];
-            if (arg !== null && typeof arg === 'object' && !(arg instanceof Error)) {
-              Object.assign(mergeObj, arg);
-            }
+        const mergeObj: Record<string, unknown> = {};
+        let hasMergeFields = false;
+
+        for (let i = 1; i < args.length; i++) {
+          const arg = args[i];
+          if (arg instanceof Error) {
+            mergeObj.err = arg;
+            hasMergeFields = true;
+          } else if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
+            Object.assign(mergeObj, arg);
+            hasMergeFields = true;
           }
+        }
+
+        // 仅当存在可合并的结构化字段时才重组参数顺序
+        if (hasMergeFields) {
           normalizedArgs = [mergeObj, args[0]];
         }
       }

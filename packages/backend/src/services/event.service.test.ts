@@ -67,7 +67,7 @@ describe('EventService', () => {
       expect(listener2).toHaveBeenCalledTimes(1);
     });
 
-    it('应在控制台打印事件日志', () => {
+    it('应通过 logger.info 打印事件日志', () => {
       eventService.emitEvent(AppEventType.SettingsUpdated, { details: { key: 'theme' } });
 
       expect(mockLogger.info).toHaveBeenCalledWith(

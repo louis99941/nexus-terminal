@@ -268,13 +268,13 @@ const ENV_SCHEMA: Record<keyof EnvironmentConfig, EnvVarSchema> = {
     required: false,
     type: 'enum',
     enum: ['error', 'warn', 'info', 'debug', 'silent'],
-    default: 'info',
+    default: (process.env.NODE_ENV ?? 'development') === 'development' ? 'debug' : 'info',
   },
   LOG_PRETTY: {
     required: false,
     type: 'enum',
     enum: ['true', 'false'],
-    default: 'false',
+    default: (process.env.NODE_ENV ?? 'development') === 'development' ? 'true' : 'false',
   },
   LOG_REDACT: {
     required: false,

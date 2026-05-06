@@ -114,11 +114,9 @@ export const getSidebarConfig = async (): Promise<SidebarConfig> => {
         if (config && Array.isArray(config.left) && Array.isArray(config.right)) {
           return config as SidebarConfig;
         }
-        logger.warn(
-          `[设置仓库] 在数据库中发现无效的 sidebarConfig 格式: ${jsonString}。返回默认值。`
-        );
+        logger.warn('[设置仓库] 在数据库中发现无效的 sidebarConfig 格式。返回默认值。');
       } catch (parseError: unknown) {
-        logger.error(`[设置仓库] 从数据库解析 sidebarConfig JSON 失败: ${jsonString}`, parseError);
+        logger.error('[设置仓库] 从数据库解析 sidebarConfig JSON 失败。', parseError);
       }
     }
   } catch (error: unknown) {
@@ -179,11 +177,9 @@ export const getCaptchaConfig = async (): Promise<CaptchaSettings> => {
             recaptchaSecretKey: config.recaptchaSecretKey ?? defaultValue.recaptchaSecretKey,
           } as CaptchaSettings;
         }
-        logger.warn(
-          `[设置仓库] 在数据库中发现无效的 captchaConfig 格式: ${jsonString}。返回默认值。`
-        );
+        logger.warn('[设置仓库] 在数据库中发现无效的 captchaConfig 格式。返回默认值。');
       } catch (parseError: unknown) {
-        logger.error(`[设置仓库] 从数据库解析 captchaConfig JSON 失败: ${jsonString}`, parseError);
+        logger.error('[设置仓库] 从数据库解析 captchaConfig JSON 失败。', parseError);
       }
     }
   } catch (error: unknown) {

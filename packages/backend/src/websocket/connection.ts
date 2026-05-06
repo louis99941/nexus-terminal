@@ -370,8 +370,7 @@ export function initializeConnectionHandler(
 
                   // 发送缓存日志块
                   logger.debug(
-                    '[SSH Suspend Backend] Log data to send to frontend:',
-                    result.logData
+                    `[SSH Suspend Backend] 发送缓存日志块，数据长度: ${result.logData?.length ?? 0}`
                   );
                   const logChunkResponse: SshOutputCachedChunk = {
                     type: 'SSH_OUTPUT_CACHED_CHUNK',

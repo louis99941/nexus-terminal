@@ -40,9 +40,7 @@ export const runDb = (
   return new Promise((resolve, reject) => {
     db.run(sql, params, function runDbCallback(this: RunResult, err: Error | null) {
       if (err) {
-        logger.error(
-          `[数据库错误] SQL: ${sql.substring(0, 100)}... 参数: ${JSON.stringify(params)} 错误: ${err.message}`
-        );
+        logger.error(`[数据库错误] SQL: ${sql.substring(0, 100)}... 错误: ${err.message}`);
         reject(err);
       } else {
         resolve({ lastID: this.lastID, changes: this.changes });
@@ -59,9 +57,7 @@ export const getDb = <T = unknown>(
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err: Error | null, row: T) => {
       if (err) {
-        logger.error(
-          `[数据库错误] SQL: ${sql.substring(0, 100)}... 参数: ${JSON.stringify(params)} 错误: ${err.message}`
-        );
+        logger.error(`[数据库错误] SQL: ${sql.substring(0, 100)}... 错误: ${err.message}`);
         reject(err);
       } else {
         resolve(row);
@@ -78,9 +74,7 @@ export const allDb = <T = unknown>(
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err: Error | null, rows: T[]) => {
       if (err) {
-        logger.error(
-          `[数据库错误] SQL: ${sql.substring(0, 100)}... 参数: ${JSON.stringify(params)} 错误: ${err.message}`
-        );
+        logger.error(`[数据库错误] SQL: ${sql.substring(0, 100)}... 错误: ${err.message}`);
         reject(err);
       } else {
         resolve(rows);

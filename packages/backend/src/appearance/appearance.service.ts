@@ -621,7 +621,7 @@ export const updateRemoteHtmlPresetsRepositoryUrl = async (url: string | null): 
     }
 
     await updateSettings({ remoteHtmlPresetsUrl: finalUrl });
-    logger.info(`[AppearanceService] 远程 HTML 主题仓库链接更新为: ${finalUrl}`);
+    logger.info('[AppearanceService] 远程 HTML 主题仓库链接已更新');
   } catch (error: unknown) {
     logger.error('[AppearanceService] 更新远程 HTML 主题仓库链接失败:', error);
     throw error; // 重新抛出，让控制器处理
@@ -691,7 +691,7 @@ export const listRemoteHtmlPresets = async (
   const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${repoPath}?ref=${ref}`;
 
   try {
-    logger.debug(`[AppearanceService] 正在从 GitHub API 获取远程主题列表: ${apiUrl}`);
+    logger.debug('[AppearanceService] 正在从 GitHub API 获取远程主题列表');
     const response = await axios.get(apiUrl, {
       headers: { Accept: 'application/vnd.github.v3+json' },
       // 对于公共仓库，通常不需要 token
@@ -766,7 +766,7 @@ export const getRemoteHtmlPresetContent = async (fileUrl: string): Promise<strin
   }
 
   try {
-    logger.debug(`[AppearanceService] 正在从远程 URL 获取主题内容: ${fileUrl}`);
+    logger.debug('[AppearanceService] 正在从远程 URL 获取主题内容');
     const response = await axios.get(fileUrl, {
       responseType: 'text', // 确保获取的是文本内容
       maxRedirects: 0, // 禁止重定向 (SSRF 防护)

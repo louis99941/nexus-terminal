@@ -110,8 +110,11 @@ export const getRemoteDesktopToken = async (
 
     if (response.status !== 200 || !response.data?.token) {
       logger.error(
-        `[GuacamoleService:getRemoteDesktopToken] ${protocol.toUpperCase()} backend API call failed or returned invalid data. Status: ${response.status}`,
-        response.data
+        {
+          status: response.status,
+          errorMessage: (response.data as unknown as Record<string, unknown>)?.message ?? '',
+        },
+        `[GuacamoleService:getRemoteDesktopToken] ${protocol.toUpperCase()} backend API call failed or returned invalid data.`
       );
       throw new Error(`从 ${protocol.toUpperCase()} 后端获取令牌失败。`);
     }
