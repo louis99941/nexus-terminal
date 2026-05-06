@@ -6,6 +6,18 @@
 
 ## 变更记录
 
+### 2026-05-06 (日志统一改造)
+
+- **后端日志统一**：console 猴子补丁移除，统一到 pino 单一引擎
+  - `utils/logger.ts`：pino + pino-pretty（dev），支持 `LOG_TZ` 时区、`LOG_LEVEL` 运行时动态调整
+  - `logging/redaction.ts`：16 个正则的敏感信息脱敏，支持循环引用检测
+  - 94 个后端源文件、~1,426 处 console 调用迁移到 logger
+- **前端日志统一**：新增 `utils/log.ts`，`import.meta.env.DEV` 守卫在生产构建时自动剥离
+  - 138 个前端源文件、1,335 处 console 调用迁移到 log
+  - 支持 `?log=debug` URL 参数激活 debug 级别输出
+- **测试修复**：15 个测试文件的 console spy 更新为 logger mock
+- **验证结果**：后端 134 文件 / 2,283 测试通过，前端 62 文件 / 1,616 测试通过，生产构建 console 调用为 0
+
 ### 2026-05-03 (文档与技术债务全面治理)
 
 - **技术债务清零**：84 项债务全部修复（收敛率 100%），含 Codex 审查补漏 7 项
