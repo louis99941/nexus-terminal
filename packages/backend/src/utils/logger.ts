@@ -141,7 +141,7 @@ function createLogger() {
           // pino 的 quick-format-unescaped 在无 %s 占位符时静默丢弃额外字符串参数
           const extraStrings = args.slice(1).filter((a) => typeof a === 'string');
           if (extraStrings.length > 0) {
-            normalizedArgs = [args[0] + extraStrings.join(' ')];
+            normalizedArgs = [args[0] + ' ' + extraStrings.join(' ')];
           }
         }
       }
