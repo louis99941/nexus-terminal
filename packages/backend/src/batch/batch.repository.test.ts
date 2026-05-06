@@ -152,7 +152,10 @@ describe('Batch Repository', () => {
         ended_at: Math.floor(Date.now() / 1000),
       };
 
-      (allDb as any).mockResolvedValueOnce([mockTaskRow]).mockResolvedValueOnce([]);
+      // 两段查询：第一段返回任务 ID，第二段返回完整任务+子任务
+      (allDb as any)
+        .mockResolvedValueOnce([{ id: 'task-001' }])
+        .mockResolvedValueOnce([{ ...mockTaskRow, sub_id: null }]);
 
       const result = await batchRepository.getTasksByUser(1, 20, 0);
 

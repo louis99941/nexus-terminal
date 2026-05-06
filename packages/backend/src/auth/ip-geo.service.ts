@@ -52,12 +52,15 @@ const GEO_DB_CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 小时（秒）
 
 // ==================== 提供商适配器 ====================
 
-/** ip-api.com 适配器（免费，45 req/min，优先 HTTPS） */
+/** ip-api.com 适配器（免费 45 req/min，仅 HTTP；Pro 支持 HTTPS） */
 const ipApiAdapter: GeoProviderAdapter = {
   name: 'ip-api',
 
   buildUrl(ip: string): string {
-    return `https://ip-api.com/json/${ip}?fields=country,regionName,city,isp,as,query`;
+    // 免费端点不支持 HTTPS，Pro 用户可通过环境变量切换
+    const useHttps = process.env.IP_API_USE_HTTPS === 'true';
+    const protocol = useHttps ? 'https' : 'http';
+    return `${protocol}://ip-api.com/json/${ip}?fields=country,regionName,city,isp,as,query`;
   },
 
   parseResponse(data: unknown, ip: string): GeoInfo | null {

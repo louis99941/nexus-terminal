@@ -148,7 +148,7 @@ export const getTask = async (taskId: string): Promise<BatchTask | null> => {
 };
 
 /**
- * 获取用户的批量任务列表（单 SQL 查询消除 N+1）
+ * 获取用户的批量任务列表（两段查询：先分页任务 ID，再批量拉取子任务）
  */
 export const getTasksByUser = async (
   userId: number | string,
@@ -157,7 +157,19 @@ export const getTasksByUser = async (
 ): Promise<BatchTask[]> => {
   const db = await getDbInstance();
 
-  // 一次查询获取所有任务及关联的子任务
+  // 第一段：仅分页查询任务 ID，避免 LEFT JOIN 导致分页语义错误
+  const taskIdRows = await allDb<{ id: string }>(
+    db,
+    `SELECT id FROM batch_tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [userId, limit, offset]
+  );
+
+  if (taskIdRows.length === 0) return [];
+
+  const taskIds = taskIdRows.map((r) => r.id);
+  const placeholders = taskIds.map(() => '?').join(',');
+
+  // 第二段：一次性批量拉取所有任务详情 + 子任务
   const rows = await allDb<
     BatchTaskRow & {
       sub_id: string | null;
@@ -184,11 +196,10 @@ export const getTasksByUser = async (
                s.started_at as sub_started_at, s.ended_at as sub_ended_at
         FROM batch_tasks t
         LEFT JOIN batch_subtasks s ON t.id = s.task_id
-        WHERE t.user_id = ?
+        WHERE t.id IN (${placeholders})
         ORDER BY t.created_at DESC
-        LIMIT ? OFFSET ?
     `,
-    [userId, limit, offset]
+    taskIds
   );
 
   // 按 taskId 聚合子任务
@@ -217,7 +228,7 @@ export const getTasksByUser = async (
     }
   }
 
-  return [...taskMap.values()];
+  return taskIdRows.map((r) => taskMap.get(r.id)!).filter(Boolean);
 };
 
 /**

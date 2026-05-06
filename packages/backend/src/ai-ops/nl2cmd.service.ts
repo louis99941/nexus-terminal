@@ -53,12 +53,14 @@ function getAxiosClient(baseUrl: string, apiKey: string): AxiosInstance {
       },
       timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
     });
-    axiosClientCache.set(cacheKey, client);
-    // LRU 淘汰：超出上限时删除最早的条目
-    if (axiosClientCache.size > AXIOS_CACHE_MAX_SIZE) {
-      const oldestKey = axiosClientCache.keys().next().value;
-      if (oldestKey) axiosClientCache.delete(oldestKey);
-    }
+  }
+  // LRU：命中时刷新访问顺序，未命中时创建后插入
+  axiosClientCache.delete(cacheKey);
+  axiosClientCache.set(cacheKey, client);
+  // 容量超限时淘汰最早的条目
+  if (axiosClientCache.size > AXIOS_CACHE_MAX_SIZE) {
+    const oldestKey = axiosClientCache.keys().next().value;
+    if (oldestKey) axiosClientCache.delete(oldestKey);
   }
 
   return client;
