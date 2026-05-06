@@ -1,76 +1,90 @@
 import pino from 'pino';
 import { redactSensitiveData } from '../logging/redaction';
 
-// 环境感知配置（NODE_ENV 统一小写比较，避免大小写变体导致误判）
-const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
-const isProd = nodeEnv === 'production';
-const isTest = nodeEnv === 'test';
-const isDev = !isProd && !isTest;
-
-// LOG_LEVEL 由 env.validator.ts 在启动时严格校验，此处直接使用
-// dev 模式默认 debug，test/prod 模式默认 info
-const logLevel = (process.env.LOG_LEVEL || (isDev ? 'debug' : 'info')).toLowerCase();
-
-const logPretty =
-  process.env.LOG_PRETTY === 'true' || (isDev && process.env.LOG_PRETTY !== 'false');
-const logRedact = process.env.LOG_REDACT !== 'false'; // 默认开启脱敏
-
-// 自定义 timestamp：支持 LOG_TZ 环境变量
-// Intl.DateTimeFormat 实例化成本高，在模块加载时一次性创建并缓存
-const logTz = process.env.LOG_TZ || process.env.TZ || 'UTC';
-let cachedFormatter: Intl.DateTimeFormat | null = null;
-try {
-  cachedFormatter = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: logTz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-} catch {
-  // 时区无效时 cachedFormatter 保持 null，回退到 ISO 格式
-}
-
-const customTimestamp = () => {
-  const time = new Date();
-  if (cachedFormatter) {
-    return `,"time":"${cachedFormatter.format(time)}.${String(time.getMilliseconds()).padStart(3, '0')}"`;
-  }
-  return `,"time":"${time.toISOString()}"`;
-};
+// 环境感知配置：延迟求值，确保 dotenv.config() 已加载 .env 文件
+// index.ts 在模块导入时触发 logger 模块求值，但 dotenv 在 main() 中才加载，
+// 因此不能在模块顶层读取 process.env.NODE_ENV（此时永远是 undefined）。
+// 解决方案：所有环境变量读取推迟到首次日志调用时执行（Lazy Initialization）。
 
 /**
- * 基于 pino 的结构化 JSON 日志实例
+ * 日志脱敏开关：延迟求值，避免模块加载时 dotenv 尚未就绪
+ */
+const logRedact = process.env.LOG_REDACT !== 'false'; // 默认开启脱敏
+
+// 持有 pino 实例的引用，供 setLogLevel / getLogLevel 访问
+// createLogger() 首次调用时自动填充
+let _pinoRef: pino.Logger | null = null;
+
+/**
+ * 创建 pino 日志实例（延迟调用，确保 dotenv 已加载）
+ *
+ * 调用时机：首次日志输出时自动触发，此时 process.env 已包含 .env 中的值。
  * - dev 模式：pino-pretty 彩色格式化输出
  * - prod 模式：JSON 静默输出
  * - 通过 LOG_LEVEL / LOG_PRETTY / LOG_REDACT / LOG_TZ 环境变量控制
  * - 支持运行时通过 setLogLevel() 动态调整
  * - 所有日志参数经 redactSensitiveData 脱敏处理
  */
-let pinoLogger: pino.Logger;
-try {
-  pinoLogger = pino({
-    level: logLevel,
-    timestamp: customTimestamp,
-    // NODE_ENV=production 时强制忽略 LOG_PRETTY，避免生产镜像缺少 pino-pretty 导致崩溃
-    transport:
-      logPretty && !isProd
-        ? {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
-              ignore: 'pid,hostname',
-            },
-          }
-        : undefined,
-  });
-} catch {
-  // LOG_LEVEL 非法值（如 verbose）会导致 pino 崩溃，回退到 info 级别
-  pinoLogger = pino({ level: 'info', timestamp: customTimestamp });
+function createPinoInstance(): pino.Logger {
+  const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
+  const isProd = nodeEnv === 'production';
+  const isTest = nodeEnv === 'test';
+  const isDev = !isProd && !isTest;
+
+  // LOG_LEVEL 由 env.validator.ts 在启动时严格校验，此处直接使用
+  // dev 模式默认 debug，test/prod 模式默认 info
+  const logLevel = (process.env.LOG_LEVEL || (isDev ? 'debug' : 'info')).toLowerCase();
+
+  const logPretty =
+    process.env.LOG_PRETTY === 'true' || (isDev && process.env.LOG_PRETTY !== 'false');
+
+  // 自定义 timestamp：支持 LOG_TZ 环境变量
+  const logTz = process.env.LOG_TZ || process.env.TZ || 'UTC';
+  let formatter: Intl.DateTimeFormat | null = null;
+  try {
+    formatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: logTz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    // 时区无效时回退到 ISO 格式
+  }
+
+  const timestamp = () => {
+    const time = new Date();
+    if (formatter) {
+      return `,"time":"${formatter.format(time)}.${String(time.getMilliseconds()).padStart(3, '0')}"`;
+    }
+    return `,"time":"${time.toISOString()}"`;
+  };
+
+  try {
+    return pino({
+      level: logLevel,
+      timestamp,
+      // NODE_ENV=production 时强制忽略 LOG_PRETTY，避免生产镜像缺少 pino-pretty 导致崩溃
+      transport:
+        logPretty && !isProd
+          ? {
+              target: 'pino-pretty',
+              options: {
+                colorize: true,
+                translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
+                ignore: 'pid,hostname',
+              },
+            }
+          : undefined,
+    });
+  } catch {
+    // LOG_LEVEL 非法值（如 verbose）会导致 pino 崩溃，回退到 info 级别
+    return pino({ level: 'info', timestamp });
+  }
 }
 
 /**
@@ -86,8 +100,14 @@ try {
  * 重组为 pino 期望的 mergeObject + message 格式。
  */
 function createLogger() {
+  // 延迟初始化 pino 实例，确保 dotenv.config() 已执行
+  const getPino = () => {
+    if (!_pinoRef) _pinoRef = createPinoInstance();
+    return _pinoRef;
+  };
+
   const wrap =
-    (method: (...args: unknown[]) => void) =>
+    (methodGetter: () => (...args: unknown[]) => void) =>
     (...args: unknown[]) => {
       let normalizedArgs = args;
 
@@ -114,17 +134,17 @@ function createLogger() {
 
       if (logRedact) {
         const redactedArgs = normalizedArgs.map((a) => redactSensitiveData(a));
-        method(...redactedArgs);
+        methodGetter()(redactedArgs[0], ...(redactedArgs.slice(1) as []));
       } else {
-        method(...normalizedArgs);
+        methodGetter()(normalizedArgs[0], ...(normalizedArgs.slice(1) as []));
       }
     };
 
   return {
-    info: wrap(pinoLogger.info.bind(pinoLogger)),
-    warn: wrap(pinoLogger.warn.bind(pinoLogger)),
-    error: wrap(pinoLogger.error.bind(pinoLogger)),
-    debug: wrap(pinoLogger.debug.bind(pinoLogger)),
+    info: wrap(() => getPino().info.bind(getPino())),
+    warn: wrap(() => getPino().warn.bind(getPino())),
+    error: wrap(() => getPino().error.bind(getPino())),
+    debug: wrap(() => getPino().debug.bind(getPino())),
   };
 }
 
@@ -136,13 +156,16 @@ function createLogger() {
  * @param level 目标日志级别
  */
 export const setLogLevel = (level: string): void => {
-  pinoLogger.level = level;
+  process.env.LOG_LEVEL = level;
+  if (_pinoRef) {
+    _pinoRef.level = level;
+  }
 };
 
 /**
  * 获取当前 pino 日志级别
  */
-export const getLogLevel = (): string => pinoLogger.level;
+export const getLogLevel = (): string => _pinoRef?.level || process.env.LOG_LEVEL || 'info';
 
 /**
  * 统一日志工具
