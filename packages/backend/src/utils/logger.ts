@@ -4,10 +4,11 @@ import { redactSensitiveData } from '../logging/redaction';
 // 环境感知配置（NODE_ENV 统一小写比较，避免大小写变体导致误判）
 const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
 const isProd = nodeEnv === 'production';
-const isDev = !isProd;
+const isTest = nodeEnv === 'test';
+const isDev = !isProd && !isTest;
 
 // LOG_LEVEL 由 env.validator.ts 在启动时严格校验，此处直接使用
-// dev 模式默认 debug（更详细的日志有助于开发调试），prod 模式默认 info
+// dev 模式默认 debug，test/prod 模式默认 info
 const logLevel = (process.env.LOG_LEVEL || (isDev ? 'debug' : 'info')).toLowerCase();
 
 const logPretty =
@@ -44,37 +45,67 @@ const customTimestamp = () => {
  * - 支持运行时通过 setLogLevel() 动态调整
  * - 所有日志参数经 redactSensitiveData 脱敏处理
  */
-const pinoLogger = pino({
-  level: logLevel,
-  timestamp: customTimestamp,
-  // NODE_ENV=production 时强制忽略 LOG_PRETTY，避免生产镜像缺少 pino-pretty 导致崩溃
-  transport:
-    logPretty && !isProd
-      ? {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
-            ignore: 'pid,hostname',
-          },
-        }
-      : undefined,
-});
+let pinoLogger: pino.Logger;
+try {
+  pinoLogger = pino({
+    level: logLevel,
+    timestamp: customTimestamp,
+    // NODE_ENV=production 时强制忽略 LOG_PRETTY，避免生产镜像缺少 pino-pretty 导致崩溃
+    transport:
+      logPretty && !isProd
+        ? {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
+              ignore: 'pid,hostname',
+            },
+          }
+        : undefined,
+  });
+} catch {
+  // LOG_LEVEL 非法值（如 verbose）会导致 pino 崩溃，回退到 info 级别
+  pinoLogger = pino({ level: 'info', timestamp: customTimestamp });
+}
 
 /**
- * 包装函数：在 pino 调用前执行脱敏
- * 保留 variadic 签名，兼容 logger.error(error, 'msg') 等现有调用模式
- * 对所有参数统一执行 redactSensitiveData
+ * 包装函数：在 pino 调用前执行脱敏 + 参数归一化
+ *
+ * pino 的结构化日志要求 Error 对象放在 merge 对象的 err 属性中：
+ *   logger.error({ err }, 'message')  ← 正确，Error 被序列化
+ *   logger.error('message', err)      ← 丢失堆栈，err 不被序列化
+ *
+ * 但大量业务代码使用 Node.js 回调风格 logger.error('msg', err)，
+ * 因此在 wrapper 层做自动归一化：当第一个参数是字符串、最后一个参数是 Error 时，
+ * 重组为 pino 期望的 mergeObject + message 格式。
  */
 function createLogger() {
   const wrap =
     (method: (...args: unknown[]) => void) =>
     (...args: unknown[]) => {
+      let normalizedArgs = args;
+
+      // 归一化：logger.error('msg', err) → logger.error({ err }, 'msg')
+      if (args.length >= 2 && typeof args[0] === 'string') {
+        const lastArg = args[args.length - 1];
+        if (lastArg instanceof Error) {
+          const mergeObj: Record<string, unknown> = { err: lastArg };
+          // 中间参数作为额外 merge 字段（如 logger.error('msg', err, { extra: 1 })）
+          for (let i = 1; i < args.length - 1; i++) {
+            const arg = args[i];
+            if (arg !== null && typeof arg === 'object' && !(arg instanceof Error)) {
+              Object.assign(mergeObj, arg);
+            }
+          }
+          normalizedArgs = [mergeObj, args[0]];
+        }
+      }
+
       if (logRedact) {
-        const redactedArgs = args.map((a) => redactSensitiveData(a));
+        const redactedArgs = normalizedArgs.map((a) => redactSensitiveData(a));
         method(...redactedArgs);
       } else {
-        method(...args);
+        method(...normalizedArgs);
       }
     };
 
