@@ -130,6 +130,13 @@ function createLogger() {
         // 仅当存在可合并的结构化字段时才重组参数顺序
         if (hasMergeFields) {
           normalizedArgs = [mergeObj, args[0]];
+        } else if (args.length >= 2) {
+          // 所有额外参数均为字符串且无对象参数时，追加到消息中
+          // pino 的 quick-format-unescaped 在无 %s 占位符时静默丢弃额外字符串参数
+          const extraStrings = args.slice(1).filter((a) => typeof a === 'string');
+          if (extraStrings.length > 0) {
+            normalizedArgs = [args[0] + extraStrings.join(' ')];
+          }
         }
       }
 

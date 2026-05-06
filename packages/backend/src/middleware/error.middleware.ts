@@ -49,22 +49,21 @@ export const errorHandler = (
   const session = req.session as SessionWithUsername | undefined;
 
   // 记录错误日志（已经过 P1-5 敏感信息脱敏）
+  const logContext = {
+    requestId,
+    path: `${req.method} ${req.path}`,
+    user: session?.username || 'anonymous',
+    errorCode,
+    message: userMessage,
+  };
+
   if (severity === ErrorSeverity.HIGH || severity === ErrorSeverity.CRITICAL) {
-    logger.error(`[ErrorHandler] [${severity.toUpperCase()}] Request ID: ${requestId}`);
-    logger.error(`[ErrorHandler] Path: ${req.method} ${req.path}`);
-    logger.error(`[ErrorHandler] User: ${session?.username || 'anonymous'}`);
-    logger.error(`[ErrorHandler] Error Code: ${errorCode}`);
-    logger.error(`[ErrorHandler] Message: ${userMessage}`);
-    if (technicalDetails) {
-      logger.error(`[ErrorHandler] Technical Details: ${technicalDetails}`);
-    }
-    if (err.stack) {
-      logger.error(`[ErrorHandler] Stack Trace:\n${err.stack}`);
-    }
+    logger.error(
+      { ...logContext, err, technicalDetails },
+      `[ErrorHandler] ${severity.toUpperCase()}`
+    );
   } else {
-    logger.warn(`[ErrorHandler] [${severity.toUpperCase()}] Request ID: ${requestId}`);
-    logger.warn(`[ErrorHandler] Path: ${req.method} ${req.path}`);
-    logger.warn(`[ErrorHandler] Error Code: ${errorCode} - ${userMessage}`);
+    logger.warn({ ...logContext }, `[ErrorHandler] ${severity.toUpperCase()}`);
   }
 
   // 构建标准化错误响应
