@@ -74,6 +74,12 @@ export function redactSensitiveData(value: unknown, depth = 0, seen = new WeakSe
     }
   }
 
+  // Error 对象必须先行返回，避免系统错误（含 code/errno/syscall 等可枚举属性）
+  // 被当作普通对象处理，导致 message/stack 丢失，pino err.* 序列化失效
+  if (value instanceof Error) {
+    return value;
+  }
+
   // 处理对象：包括普通对象、null-prototype 对象和类实例
   // 只要对象有可枚举的自有属性就尝试脱敏，避免类实例中的敏感字段泄露
   try {
@@ -103,12 +109,6 @@ export function redactSensitiveData(value: unknown, depth = 0, seen = new WeakSe
     }
   } catch {
     return '[Object Processing Error]';
-  }
-
-  // Error 对象：保持原样，交给 pino 原生 serializers 处理
-  // 避免脱敏将其转为普通对象 {name,message,stack}，破坏 pino 的 err.* 结构化语义
-  if (value instanceof Error) {
-    return value;
   }
 
   return value;
