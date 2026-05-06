@@ -1,20 +1,90 @@
 import pino from 'pino';
+import { redactSensitiveData } from '../logging/redaction';
 
-// 从环境变量读取日志级别，默认 info
-// 支持的级别: debug < info < warn < error < silent
-const initialLevel = process.env.LOG_LEVEL || 'info';
+// 环境感知配置（NODE_ENV 统一小写比较，避免大小写变体导致误判）
+const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
+const isProd = nodeEnv === 'production';
+const isDev = !isProd;
+
+// LOG_LEVEL 由 env.validator.ts 在启动时严格校验，此处直接使用
+// dev 模式默认 debug（更详细的日志有助于开发调试），prod 模式默认 info
+const logLevel = (process.env.LOG_LEVEL || (isDev ? 'debug' : 'info')).toLowerCase();
+
+const logPretty =
+  process.env.LOG_PRETTY === 'true' || (isDev && process.env.LOG_PRETTY !== 'false');
+const logRedact = process.env.LOG_REDACT !== 'false'; // 默认开启脱敏
+
+// 自定义 timestamp：支持 LOG_TZ 环境变量
+const customTimestamp = () => {
+  const tz = process.env.LOG_TZ || process.env.TZ || 'UTC';
+  const time = new Date();
+  try {
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    return `,"time":"${formatter.format(time)}.${String(time.getMilliseconds()).padStart(3, '0')}"`;
+  } catch {
+    // 时区无效时回退到 UTC
+    return `,"time":"${time.toISOString()}"`;
+  }
+};
 
 /**
  * 基于 pino 的结构化 JSON 日志实例
- * - 通过 LOG_LEVEL 环境变量控制输出级别
+ * - dev 模式：pino-pretty 彩色格式化输出
+ * - prod 模式：JSON 静默输出
+ * - 通过 LOG_LEVEL / LOG_PRETTY / LOG_REDACT / LOG_TZ 环境变量控制
  * - 支持运行时通过 setLogLevel() 动态调整
- * - 输出格式为 JSON，便于日志聚合与检索
- * - 自动附加 ISO 8601 时间戳
+ * - 所有日志参数经 redactSensitiveData 脱敏处理
  */
 const pinoLogger = pino({
-  level: initialLevel,
-  timestamp: pino.stdTimeFunctions.isoTime,
+  level: logLevel,
+  timestamp: customTimestamp,
+  // NODE_ENV=production 时强制忽略 LOG_PRETTY，避免生产镜像缺少 pino-pretty 导致崩溃
+  transport:
+    logPretty && !isProd
+      ? {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
+            ignore: 'pid,hostname',
+          },
+        }
+      : undefined,
 });
+
+/**
+ * 包装函数：在 pino 调用前执行脱敏
+ * 保留 variadic 签名，兼容 logger.error(error, 'msg') 等现有调用模式
+ * 对所有参数统一执行 redactSensitiveData
+ */
+function createLogger() {
+  const wrap =
+    (method: (...args: unknown[]) => void) =>
+    (...args: unknown[]) => {
+      if (logRedact) {
+        const redactedArgs = args.map((a) => redactSensitiveData(a));
+        method(...redactedArgs);
+      } else {
+        method(...args);
+      }
+    };
+
+  return {
+    info: wrap(pinoLogger.info.bind(pinoLogger)),
+    warn: wrap(pinoLogger.warn.bind(pinoLogger)),
+    error: wrap(pinoLogger.error.bind(pinoLogger)),
+    debug: wrap(pinoLogger.debug.bind(pinoLogger)),
+  };
+}
 
 /**
  * 运行时动态调整 pino 日志级别
@@ -43,9 +113,4 @@ export const getLogLevel = (): string => pinoLogger.level;
  *   logger.error(err, '数据库连接失败');
  *   logger.debug({ query }, '执行 SQL 查询');
  */
-export const logger = {
-  info: pinoLogger.info.bind(pinoLogger),
-  warn: pinoLogger.warn.bind(pinoLogger),
-  error: pinoLogger.error.bind(pinoLogger),
-  debug: pinoLogger.debug.bind(pinoLogger),
-};
+export const logger = createLogger();

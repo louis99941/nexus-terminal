@@ -4,6 +4,14 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const mockLogger = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
+vi.mock('../utils/logger', () => ({ logger: mockLogger }));
+
 // 需要在测试前重置模块以获得新的 EventService 实例
 import eventService, { AppEventType } from './event.service';
 
@@ -60,15 +68,12 @@ describe('EventService', () => {
     });
 
     it('应在控制台打印事件日志', () => {
-      const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
-
       eventService.emitEvent(AppEventType.SettingsUpdated, { details: { key: 'theme' } });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Event emitted:'),
         expect.objectContaining({ details: { key: 'theme' } })
       );
-      consoleSpy.mockRestore();
     });
   });
 

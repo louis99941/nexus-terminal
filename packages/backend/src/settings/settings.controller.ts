@@ -11,7 +11,6 @@ import {
   getAppearanceSettings,
   updateAppearanceSettings as updateAppearanceSettingsInRepo,
 } from '../appearance/appearance.repository';
-import { setLogLevel as setRuntimeLogLevel, type LogLevel } from '../logging/logger';
 import { setLogLevel as setPinoLogLevel } from '../utils/logger';
 
 const auditLogService = new AuditLogService();
@@ -556,8 +555,7 @@ export const settingsController = {
 
     // 保存到数据库
     await settingsService.setLogLevel(level);
-    // 立即更新运行时日志等级（console 覆写 + pino 结构化日志同步）
-    setRuntimeLogLevel(level as LogLevel);
+    // 立即更新运行时日志等级（单一 pino 引擎）
     setPinoLogLevel(level);
 
     auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys: ['logLevel'], newValue: level });
