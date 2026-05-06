@@ -13,16 +13,17 @@ try {
   dynamicSupportedLngs = entries
     .filter((dirent) => dirent.isFile() && dirent.name.endsWith('.json'))
     .map((dirent) => dirent.name.replace('.json', '')); // Extract lang code from filename
-  logger.info('[i18next] 动态检测到的语言:', dynamicSupportedLngs);
+  // 使用 console 直接输出：此处在模块导入时执行，dotenv 尚未加载，logger 的 pino 实例会读到错误的环境变量默认值
+  console.info('[i18next] 动态检测到的语言:', dynamicSupportedLngs);
 } catch (err: unknown) {
-  logger.error('[i18next] 读取 locales 目录时出错:', err);
+  console.error('[i18next] 读取 locales 目录时出错:', err);
   dynamicSupportedLngs = ['en-US']; // Fallback
 }
 
 export const defaultLng = 'en-US';
 if (!dynamicSupportedLngs.includes(defaultLng)) {
   dynamicSupportedLngs.push(defaultLng);
-  logger.warn(`[i18next] 在检测到的文件中未找到默认语言 '${defaultLng}'，将其添加到支持列表中。`);
+  console.warn(`[i18next] 在检测到的文件中未找到默认语言 '${defaultLng}'，将其添加到支持列表中。`);
 }
 export const supportedLngs = dynamicSupportedLngs;
 // --- 结束动态确定 ---

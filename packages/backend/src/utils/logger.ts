@@ -116,6 +116,8 @@ function createLogger() {
         const mergeObj: Record<string, unknown> = {};
         let hasMergeFields = false;
 
+        const extras: unknown[] = [];
+
         for (let i = 1; i < args.length; i++) {
           const arg = args[i];
           if (arg instanceof Error) {
@@ -124,11 +126,15 @@ function createLogger() {
           } else if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
             Object.assign(mergeObj, arg);
             hasMergeFields = true;
+          } else if (arg !== undefined && arg !== null) {
+            // 收集原始类型（number/boolean/string），避免被静默丢弃
+            extras.push(arg);
           }
         }
 
         // 仅当存在可合并的结构化字段时才重组参数顺序
         if (hasMergeFields) {
+          if (extras.length > 0) mergeObj._extra = extras;
           normalizedArgs = [mergeObj, args[0]];
         } else if (args.length >= 2) {
           // 所有额外参数均为字符串且无对象参数时，追加到消息中
