@@ -12,6 +12,9 @@ const DEFAULT_DOCKER_STATUS_INTERVAL_SECONDS = 2;
 // 短暂延迟确保 Docker daemon 已完成状态变更，避免读取到旧状态
 const DOCKER_STATUS_SYNC_DELAY_MS = 500;
 
+// 会话级轮询重入保护：防止慢轮询导致叠加执行
+const dockerPollInFlightSessions = new Set<string>();
+
 type DockerCommandAction = 'start' | 'stop' | 'restart' | 'remove';
 
 interface DockerCommandPayload {
@@ -658,15 +661,19 @@ export async function startDockerStatusPolling(sessionId: string): Promise<void>
       );
       clearInterval(dockerIntervalId);
       if (currentState && currentState.dockerStatusIntervalId === dockerIntervalId) {
-        // Ensure we only delete our own interval ID
         delete currentState.dockerStatusIntervalId;
       }
+      dockerPollInFlightSessions.delete(sessionId);
       return;
     }
+    // 重入保护：如果上一次轮询尚未完成，跳过本次
+    if (dockerPollInFlightSessions.has(sessionId)) {
+      return;
+    }
+    dockerPollInFlightSessions.add(sessionId);
     try {
       const statusPayload = await fetchRemoteDockerStatus(currentState);
       if (currentState.ws.readyState === WebSocket.OPEN) {
-        // Check again before sending
         currentState.ws.send(
           JSON.stringify({ type: 'docker:status:update', payload: statusPayload })
         );
@@ -676,11 +683,8 @@ export async function startDockerStatusPolling(sessionId: string): Promise<void>
         `[Docker Polling] Error fetching Docker status for session ${sessionId}:`,
         getErrorMessage(error)
       );
-      // Optionally send an error to the client if polling fails consistently,
-      // but be mindful of flooding the client with errors.
-      // if (currentState.ws.readyState === WebSocket.OPEN) {
-      //     currentState.ws.send(JSON.stringify({ type: 'docker:status:error', payload: { message: `Polling error: ${getErrorMessage(error)}` } }));
-      // }
+    } finally {
+      dockerPollInFlightSessions.delete(sessionId);
     }
   }, dockerPollIntervalMs);
   state.dockerStatusIntervalId = dockerIntervalId;

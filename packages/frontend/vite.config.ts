@@ -35,6 +35,13 @@ export default defineConfig({
       algorithm: 'gzip',
       ext: '.gz',
     }),
+    vitePluginCompression({
+      verbose: false,
+      disable: false,
+      threshold: 10240,
+      algorithm: 'brotliCompress',
+      ext: '.br',
+    }),
   ],
   resolve: {
     alias: {

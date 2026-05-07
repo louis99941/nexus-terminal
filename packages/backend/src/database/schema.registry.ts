@@ -42,6 +42,36 @@ const initAuditLogsTable = async (_db: Database): Promise<void> => {
 };
 
 /**
+ * 初始化连接表索引
+ */
+const initConnectionsTable = async (db: Database): Promise<void> => {
+  for (const indexSql of schemaSql.createConnectionsIndexesSQL) {
+    await runDb(db, indexSql);
+  }
+  logger.debug('[DB Init] 连接表索引创建完成。');
+};
+
+/**
+ * 初始化命令历史表索引
+ */
+const initCommandHistoryTable = async (db: Database): Promise<void> => {
+  for (const indexSql of schemaSql.createCommandHistoryIndexesSQL) {
+    await runDb(db, indexSql);
+  }
+  logger.debug('[DB Init] 命令历史索引创建完成。');
+};
+
+/**
+ * 初始化路径历史表索引
+ */
+const initPathHistoryTable = async (db: Database): Promise<void> => {
+  for (const indexSql of schemaSql.createPathHistoryIndexesSQL) {
+    await runDb(db, indexSql);
+  }
+  logger.debug('[DB Init] 路径历史索引创建完成。');
+};
+
+/**
  * 初始化批量任务表索引
  */
 const initBatchTasksTable = async (db: Database): Promise<void> => {
@@ -132,14 +162,18 @@ export const tableDefinitions: TableDefinition[] = [
   // Features like proxies, connections, tags
   { name: 'proxies', sql: schemaSql.createProxiesTableSQL },
   { name: 'ssh_keys', sql: schemaSql.createSshKeysTableSQL }, // Added SSH Keys table
-  { name: 'connections', sql: schemaSql.createConnectionsTableSQL }, // Depends on proxies, ssh_keys
+  { name: 'connections', sql: schemaSql.createConnectionsTableSQL, init: initConnectionsTable }, // Depends on proxies, ssh_keys
   { name: 'tags', sql: schemaSql.createTagsTableSQL },
   { name: 'connection_tags', sql: schemaSql.createConnectionTagsTableSQL }, // Depends on connections, tags
 
   // Other utilities
   { name: 'ip_blacklist', sql: schemaSql.createIpBlacklistTableSQL },
-  { name: 'command_history', sql: schemaSql.createCommandHistoryTableSQL },
-  { name: 'path_history', sql: schemaSql.createPathHistoryTableSQL },
+  {
+    name: 'command_history',
+    sql: schemaSql.createCommandHistoryTableSQL,
+    init: initCommandHistoryTable,
+  },
+  { name: 'path_history', sql: schemaSql.createPathHistoryTableSQL, init: initPathHistoryTable },
   { name: 'quick_commands', sql: schemaSql.createQuickCommandsTableSQL },
   { name: 'favorite_paths', sql: schemaSql.createFavoritePathsTableSQL }, // Added Favorite Paths table
 

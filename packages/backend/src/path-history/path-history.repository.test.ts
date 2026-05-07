@@ -22,24 +22,25 @@ describe('path-history.repository', () => {
   });
 
   describe('upsertPath', () => {
-    it('路径已存在时应更新 timestamp 并返回原记录 ID', async () => {
+    it('路径已存在时应通过 UPSERT 更新 timestamp 并返回原记录 ID', async () => {
       vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-      (runDb as any).mockResolvedValueOnce({ changes: 1 }); // update
+      (runDb as any).mockResolvedValueOnce({ changes: 1 }); // UPSERT
       (getDb as any).mockResolvedValueOnce({ id: 99 }); // select
 
       const id = await upsertPath('/home');
       expect(id).toBe(99);
 
-      const updateCall = (runDb as any).mock.calls[0];
-      expect(updateCall[1]).toContain('UPDATE path_history SET timestamp = ?');
-      expect(updateCall[2]).toEqual([1700000000, '/home']);
+      const upsertCall = (runDb as any).mock.calls[0];
+      expect(upsertCall[1]).toContain('INSERT INTO path_history');
+      expect(upsertCall[1]).toContain('ON CONFLICT(path) DO UPDATE');
+      expect(upsertCall[2]).toEqual(['/home', 1700000000]);
 
       const selectCall = (getDb as any).mock.calls[0];
       expect(selectCall[1]).toContain('SELECT id FROM path_history WHERE path = ?');
       expect(selectCall[2]).toEqual(['/home']);
     });
 
-    it('更新成功但未找到记录 ID 时应抛出异常', async () => {
+    it('UPSERT 后未找到记录 ID 时应抛出异常', async () => {
       vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
       (runDb as any).mockResolvedValueOnce({ changes: 1 });
       (getDb as any).mockResolvedValueOnce(null);
@@ -47,25 +48,17 @@ describe('path-history.repository', () => {
       await expect(upsertPath('/home')).rejects.toThrow('无法更新或插入路径历史记录');
     });
 
-    it('路径不存在时应插入并返回 lastID', async () => {
+    it('路径不存在时应插入并返回 ID', async () => {
       vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-      (runDb as any).mockResolvedValueOnce({ changes: 0 }); // update
-      (runDb as any).mockResolvedValueOnce({ lastID: 123 }); // insert
+      (runDb as any).mockResolvedValueOnce({ changes: 1 }); // UPSERT (insert)
+      (getDb as any).mockResolvedValueOnce({ id: 123 }); // select
 
       const id = await upsertPath('/new');
       expect(id).toBe(123);
 
-      const insertCall = (runDb as any).mock.calls[1];
-      expect(insertCall[1]).toContain('INSERT INTO path_history (path, timestamp) VALUES (?, ?)');
-      expect(insertCall[2]).toEqual(['/new', 1700000000]);
-    });
-
-    it('插入后 lastID 无效时应抛出异常', async () => {
-      vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-      (runDb as any).mockResolvedValueOnce({ changes: 0 });
-      (runDb as any).mockResolvedValueOnce({ lastID: 0 });
-
-      await expect(upsertPath('/new')).rejects.toThrow('无法更新或插入路径历史记录');
+      const upsertCall = (runDb as any).mock.calls[0];
+      expect(upsertCall[1]).toContain('INSERT INTO path_history');
+      expect(upsertCall[2]).toEqual(['/new', 1700000000]);
     });
 
     it('数据库错误时应抛出异常', async () => {

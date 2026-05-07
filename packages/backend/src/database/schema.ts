@@ -115,6 +115,11 @@ CREATE TABLE IF NOT EXISTS connections (
 );
 `;
 
+// 连接表索引：优化最近连接查询
+export const createConnectionsIndexesSQL = [
+  `CREATE INDEX IF NOT EXISTS idx_connections_last_connected_at ON connections(last_connected_at DESC);`,
+];
+
 export const createSshKeysTableSQL = `
 CREATE TABLE IF NOT EXISTS ssh_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,6 +167,12 @@ CREATE TABLE IF NOT EXISTS command_history (
 );
 `;
 
+// 命令历史索引：唯一约束用于 UPSERT，时间索引用于排序/统计
+export const createCommandHistoryIndexesSQL = [
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_command_history_command_unique ON command_history(command);`,
+  `CREATE INDEX IF NOT EXISTS idx_command_history_timestamp_desc ON command_history(timestamp DESC);`,
+];
+
 export const createPathHistoryTableSQL = `
 CREATE TABLE IF NOT EXISTS path_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,6 +180,12 @@ CREATE TABLE IF NOT EXISTS path_history (
     timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
 );
 `;
+
+// 路径历史索引：唯一约束用于 UPSERT，时间索引用于排序/统计
+export const createPathHistoryIndexesSQL = [
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_path_history_path_unique ON path_history(path);`,
+  `CREATE INDEX IF NOT EXISTS idx_path_history_timestamp_desc ON path_history(timestamp DESC);`,
+];
 
 export const createQuickCommandsTableSQL = `
 CREATE TABLE IF NOT EXISTS quick_commands (
