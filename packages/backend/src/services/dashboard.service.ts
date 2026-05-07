@@ -130,9 +130,9 @@ export const getDashboardStats = async (timeRange?: { start: number; end: number
   const activeSessions = clientStates.size;
 
   // 并行执行所有独立的审计日志查询，避免串行 IO 等待
-  const [rangeConnections, connectEvents, disconnectEvents, loginFailures, commandBlocks, alerts] =
-    await Promise.all([
-      countAuditLogs(db, effectiveRange, actionTypeMappings.connection_connected),
+  // rangeConnections 与 connectEvents 查询范围完全相同，直接用 connectEvents.length 替代 COUNT
+  const [connectEvents, disconnectEvents, loginFailures, commandBlocks, alerts] = await Promise.all(
+    [
       allDb<{ timestamp: number; details: string | null }>(
         db,
         `SELECT timestamp, details
@@ -152,7 +152,8 @@ export const getDashboardStats = async (timeRange?: { start: number; end: number
       countAuditLogs(db, effectiveRange, actionTypeMappings.auth_login_failed),
       countAuditLogs(db, effectiveRange, actionTypeMappings.command_blocked),
       countAuditLogs(db, effectiveRange, actionTypeMappings.alerts),
-    ]);
+    ]
+  );
 
   // 会话时长分布：基于 connect/disconnect（若缺失 disconnect，则按时间范围 end 截断）
   const durationDist: Record<string, number> = {
@@ -208,7 +209,7 @@ export const getDashboardStats = async (timeRange?: { start: number; end: number
     range: effectiveRange,
     sessions: {
       active: activeSessions,
-      todayConnections: rangeConnections,
+      todayConnections: connectEvents.length,
       avgDuration,
       durationDistribution: durationDist,
     },

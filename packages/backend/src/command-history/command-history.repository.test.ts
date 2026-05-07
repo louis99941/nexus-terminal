@@ -29,43 +29,37 @@ describe('Command History Repository', () => {
   });
 
   describe('upsertCommand', () => {
-    it('命令已存在时应通过 UPSERT 更新时间戳并返回 ID', async () => {
-      // ON CONFLICT UPSERT 成功
-      (runDb as any).mockResolvedValueOnce({ changes: 1 });
-      // 查询返回 ID
+    it('命令已存在时应通过 UPSERT RETURNING id 返回 ID', async () => {
       (getDb as any).mockResolvedValueOnce({ id: 5 });
 
       const result = await upsertCommand('ls -la');
 
       expect(result).toBe(5);
-      expect(runDb).toHaveBeenCalled();
-      const upsertCall = (runDb as any).mock.calls[0];
+      expect(getDb).toHaveBeenCalled();
+      const upsertCall = (getDb as any).mock.calls[0];
       expect(upsertCall[1]).toContain('INSERT INTO command_history');
       expect(upsertCall[1]).toContain('ON CONFLICT(command) DO UPDATE');
+      expect(upsertCall[1]).toContain('RETURNING id');
     });
 
     it('命令不存在时应插入新记录并返回 ID', async () => {
-      // ON CONFLICT UPSERT 成功（插入新记录）
-      (runDb as any).mockResolvedValueOnce({ changes: 1 });
-      // 查询返回 ID
       (getDb as any).mockResolvedValueOnce({ id: 10 });
 
       const result = await upsertCommand('echo hello');
 
       expect(result).toBe(10);
-      const upsertCall = (runDb as any).mock.calls[0];
+      const upsertCall = (getDb as any).mock.calls[0];
       expect(upsertCall[1]).toContain('INSERT INTO command_history');
     });
 
     it('UPSERT 后查询不到 ID 时应抛出异常', async () => {
-      (runDb as any).mockResolvedValueOnce({ changes: 1 });
       (getDb as any).mockResolvedValueOnce(null);
 
       await expect(upsertCommand('test')).rejects.toThrow('无法更新或插入命令历史记录');
     });
 
     it('数据库错误时应抛出异常', async () => {
-      (runDb as any).mockRejectedValueOnce(new Error('Database error'));
+      (getDb as any).mockRejectedValueOnce(new Error('Database error'));
 
       await expect(upsertCommand('test')).rejects.toThrow('无法更新或插入命令历史记录');
     });

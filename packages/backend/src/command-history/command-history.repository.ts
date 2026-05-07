@@ -22,19 +22,14 @@ export const upsertCommand = async (command: string): Promise<number> => {
   const db = await getDbInstance();
 
   try {
-    // 使用 ON CONFLICT 实现原子 UPSERT，避免 update→select/insert 双分支
+    // 使用 ON CONFLICT + RETURNING id 合并为单次原子查询
     const upsertSql = `
       INSERT INTO command_history (command, timestamp)
       VALUES (?, ?)
       ON CONFLICT(command) DO UPDATE SET timestamp = excluded.timestamp
+      RETURNING id
     `;
-    await runDb(db, upsertSql, [command, now]);
-
-    const row = await getDbRow<{ id: number }>(
-      db,
-      `SELECT id FROM command_history WHERE command = ?`,
-      [command]
-    );
+    const row = await getDbRow<{ id: number }>(db, upsertSql, [command, now]);
     if (row?.id) {
       return row.id;
     }

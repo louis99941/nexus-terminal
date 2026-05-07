@@ -689,43 +689,48 @@ export async function startDockerStatusPolling(sessionId: string): Promise<void>
   }, dockerPollIntervalMs);
   state.dockerStatusIntervalId = dockerIntervalId;
 
-  // Initial fetch
+  // Initial fetch（复用 in-flight guard 防止与首个 interval tick 竞态）
   const initialState = clientStates.get(sessionId);
   if (initialState && initialState.ws.readyState === WebSocket.OPEN && initialState.sshClient) {
-    logger.debug(`[Docker Initial Fetch] Fetching status for session ${sessionId}...`);
-    try {
-      const statusPayload = await fetchRemoteDockerStatus(initialState);
-      if (initialState.ws.readyState === WebSocket.OPEN) {
-        // Check again
-        initialState.ws.send(
-          JSON.stringify({ type: 'docker:status:update', payload: statusPayload })
-        );
-      }
-    } catch (error: unknown) {
-      logger.error(
-        `[Docker Initial Fetch] Error fetching Docker status for session ${sessionId}:`,
-        getErrorMessage(error)
-      );
-      if (initialState.ws.readyState === WebSocket.OPEN) {
-        const errorMessage = getErrorMessage(error) || 'Unknown error during initial fetch';
-        const isUnavailable =
-          errorMessage.includes('command not found') ||
-          errorMessage.includes('Cannot connect to the Docker daemon');
-        if (isUnavailable) {
+    if (!dockerPollInFlightSessions.has(sessionId)) {
+      dockerPollInFlightSessions.add(sessionId);
+      logger.debug(`[Docker Initial Fetch] Fetching status for session ${sessionId}...`);
+      try {
+        const statusPayload = await fetchRemoteDockerStatus(initialState);
+        if (initialState.ws.readyState === WebSocket.OPEN) {
+          // Check again
           initialState.ws.send(
-            JSON.stringify({
-              type: 'docker:status:update',
-              payload: { available: false, containers: [] },
-            })
-          );
-        } else {
-          initialState.ws.send(
-            JSON.stringify({
-              type: 'docker:status:error',
-              payload: { message: `Initial Docker status fetch failed: ${errorMessage}` },
-            })
+            JSON.stringify({ type: 'docker:status:update', payload: statusPayload })
           );
         }
+      } catch (error: unknown) {
+        logger.error(
+          `[Docker Initial Fetch] Error fetching Docker status for session ${sessionId}:`,
+          getErrorMessage(error)
+        );
+        if (initialState.ws.readyState === WebSocket.OPEN) {
+          const errorMessage = getErrorMessage(error) || 'Unknown error during initial fetch';
+          const isUnavailable =
+            errorMessage.includes('command not found') ||
+            errorMessage.includes('Cannot connect to the Docker daemon');
+          if (isUnavailable) {
+            initialState.ws.send(
+              JSON.stringify({
+                type: 'docker:status:update',
+                payload: { available: false, containers: [] },
+              })
+            );
+          } else {
+            initialState.ws.send(
+              JSON.stringify({
+                type: 'docker:status:error',
+                payload: { message: `Initial Docker status fetch failed: ${errorMessage}` },
+              })
+            );
+          }
+        }
+      } finally {
+        dockerPollInFlightSessions.delete(sessionId);
       }
     }
   }

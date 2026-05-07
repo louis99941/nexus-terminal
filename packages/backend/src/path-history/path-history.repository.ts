@@ -22,17 +22,14 @@ export const upsertPath = async (path: string): Promise<number> => {
   const db = await getDbInstance();
 
   try {
-    // 使用 ON CONFLICT 实现原子 UPSERT，避免 update→select/insert 双分支
+    // 使用 ON CONFLICT + RETURNING id 合并为单次原子查询
     const upsertSql = `
       INSERT INTO path_history (path, timestamp)
       VALUES (?, ?)
       ON CONFLICT(path) DO UPDATE SET timestamp = excluded.timestamp
+      RETURNING id
     `;
-    await runDb(db, upsertSql, [path, now]);
-
-    const row = await getDbRow<{ id: number }>(db, `SELECT id FROM path_history WHERE path = ?`, [
-      path,
-    ]);
+    const row = await getDbRow<{ id: number }>(db, upsertSql, [path, now]);
     if (row?.id) {
       return row.id;
     }

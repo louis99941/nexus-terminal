@@ -167,9 +167,8 @@ CREATE TABLE IF NOT EXISTS command_history (
 );
 `;
 
-// 命令历史索引：唯一约束用于 UPSERT，时间索引用于排序/统计
+// 命令历史索引：仅时间索引（唯一索引由迁移 #14 创建，避免在旧数据库上因重复数据崩溃）
 export const createCommandHistoryIndexesSQL = [
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_command_history_command_unique ON command_history(command);`,
   `CREATE INDEX IF NOT EXISTS idx_command_history_timestamp_desc ON command_history(timestamp DESC);`,
 ];
 
@@ -181,9 +180,8 @@ CREATE TABLE IF NOT EXISTS path_history (
 );
 `;
 
-// 路径历史索引：唯一约束用于 UPSERT，时间索引用于排序/统计
+// 路径历史索引：仅时间索引（唯一索引由迁移 #14 创建，避免在旧数据库上因重复数据崩溃）
 export const createPathHistoryIndexesSQL = [
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_path_history_path_unique ON path_history(path);`,
   `CREATE INDEX IF NOT EXISTS idx_path_history_timestamp_desc ON path_history(timestamp DESC);`,
 ];
 

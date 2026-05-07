@@ -22,27 +22,22 @@ describe('path-history.repository', () => {
   });
 
   describe('upsertPath', () => {
-    it('路径已存在时应通过 UPSERT 更新 timestamp 并返回原记录 ID', async () => {
+    it('路径已存在时应通过 UPSERT RETURNING id 返回 ID', async () => {
       vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-      (runDb as any).mockResolvedValueOnce({ changes: 1 }); // UPSERT
-      (getDb as any).mockResolvedValueOnce({ id: 99 }); // select
+      (getDb as any).mockResolvedValueOnce({ id: 99 });
 
       const id = await upsertPath('/home');
       expect(id).toBe(99);
 
-      const upsertCall = (runDb as any).mock.calls[0];
+      const upsertCall = (getDb as any).mock.calls[0];
       expect(upsertCall[1]).toContain('INSERT INTO path_history');
       expect(upsertCall[1]).toContain('ON CONFLICT(path) DO UPDATE');
+      expect(upsertCall[1]).toContain('RETURNING id');
       expect(upsertCall[2]).toEqual(['/home', 1700000000]);
-
-      const selectCall = (getDb as any).mock.calls[0];
-      expect(selectCall[1]).toContain('SELECT id FROM path_history WHERE path = ?');
-      expect(selectCall[2]).toEqual(['/home']);
     });
 
     it('UPSERT 后未找到记录 ID 时应抛出异常', async () => {
       vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-      (runDb as any).mockResolvedValueOnce({ changes: 1 });
       (getDb as any).mockResolvedValueOnce(null);
 
       await expect(upsertPath('/home')).rejects.toThrow('无法更新或插入路径历史记录');
@@ -50,19 +45,18 @@ describe('path-history.repository', () => {
 
     it('路径不存在时应插入并返回 ID', async () => {
       vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
-      (runDb as any).mockResolvedValueOnce({ changes: 1 }); // UPSERT (insert)
-      (getDb as any).mockResolvedValueOnce({ id: 123 }); // select
+      (getDb as any).mockResolvedValueOnce({ id: 123 });
 
       const id = await upsertPath('/new');
       expect(id).toBe(123);
 
-      const upsertCall = (runDb as any).mock.calls[0];
+      const upsertCall = (getDb as any).mock.calls[0];
       expect(upsertCall[1]).toContain('INSERT INTO path_history');
       expect(upsertCall[2]).toEqual(['/new', 1700000000]);
     });
 
     it('数据库错误时应抛出异常', async () => {
-      (runDb as any).mockRejectedValueOnce(new Error('db error'));
+      (getDb as any).mockRejectedValueOnce(new Error('db error'));
       await expect(upsertPath('/home')).rejects.toThrow('无法更新或插入路径历史记录');
     });
   });
