@@ -63,7 +63,20 @@ export class NotificationSettingsRepository {
     }
   }
 
+  // 事件配置缓存：避免每次事件都全量读取+解析 JSON（30 秒 TTL）
+  private enabledByEventCache = new Map<string, { data: NotificationSetting[]; ts: number }>();
+  private static readonly CACHE_TTL_MS = 30_000;
+
+  invalidateCache(): void {
+    this.enabledByEventCache.clear();
+  }
+
   async getEnabledByEvent(event: NotificationEvent): Promise<NotificationSetting[]> {
+    const now = Date.now();
+    const cached = this.enabledByEventCache.get(event);
+    if (cached && now - cached.ts < NotificationSettingsRepository.CACHE_TTL_MS) {
+      return cached.data;
+    }
     try {
       const db = await getDbInstance();
       const rows = await allDb<RawNotificationSetting>(
@@ -72,6 +85,7 @@ export class NotificationSettingsRepository {
       );
       const parsedRows = rows.map(parseRawSetting);
       const filteredRows = parsedRows.filter((setting) => setting.enabled_events.includes(event));
+      this.enabledByEventCache.set(event, { data: filteredRows, ts: now });
       return filteredRows;
     } catch (err: unknown) {
       logger.error(`获取启用的通知设置时出错:`, getErrorMessage(err));
@@ -106,6 +120,7 @@ export class NotificationSettingsRepository {
           '创建通知设置后未能获取有效的 lastID'
         );
       }
+      this.invalidateCache();
       return result.lastID;
     } catch (err: unknown) {
       logger.error(`创建通知设置时出错:`, getErrorMessage(err));
@@ -157,6 +172,7 @@ export class NotificationSettingsRepository {
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, params);
+      this.invalidateCache();
       return result.changes > 0;
     } catch (err: unknown) {
       logger.error(`更新通知设置 ID ${id} 时出错:`, getErrorMessage(err));
@@ -172,6 +188,7 @@ export class NotificationSettingsRepository {
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, [id]);
+      this.invalidateCache();
       return result.changes > 0;
     } catch (err: unknown) {
       logger.error(`删除通知设置 ID ${id} 时出错:`, getErrorMessage(err));
