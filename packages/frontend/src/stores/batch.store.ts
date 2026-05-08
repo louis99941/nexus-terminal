@@ -175,7 +175,9 @@ export const useBatchStore = defineStore('batch', () => {
       });
 
       if (response.data.success) {
-        tasks.value = response.data.tasks.map((t) => parseTaskDates(t as any));
+        tasks.value = response.data.tasks.map((t) =>
+          parseTaskDates(t as Parameters<typeof parseTaskDates>[0])
+        );
       }
     } catch (err: unknown) {
       log.error('[BatchStore] 获取任务列表失败:', err);
