@@ -358,7 +358,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
 
           <el-select
             v-model="refreshInterval"
-            class="w-[80px]"
+            class="w-[100px]"
             size="small"
             :disabled="!autoRefresh"
           >
