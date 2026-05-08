@@ -380,7 +380,7 @@ const stopPolling = () => {
 
 // H4: 监听 WS 活动 — 收到首个 WS 事件后立即停止轮询，轮询仅作为 WS 降级方案
 watch(
-  () => batchStore.wsEventReceived.value,
+  () => batchStore.wsEventReceived,
   (received) => {
     if (received) stopPolling();
   }
