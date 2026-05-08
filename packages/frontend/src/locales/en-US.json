@@ -1362,7 +1362,8 @@
       "quickCommands": "Quick Commands",
       "dockerManager": "Docker Manager",
       "suspendedSshSessions": "Suspended Sessions Management",
-      "aiAssistant": "AI Ops Assistant"
+      "aiAssistant": "AI Ops Assistant",
+      "batchExec": "Batch Execution"
     },
     "panes": {
       "suspendedSshSessions": "Suspended Session Manager"

@@ -1125,7 +1125,6 @@
       }
     }
   },
-
   "notificationController": {
     "errorFetchSettings": "获取通知设置失败",
     "errorMissingFields": "缺少必要的通知设置字段 (channel_type, name, config)",
@@ -1363,7 +1362,8 @@
       "quickCommands": "快捷指令",
       "dockerManager": "Docker 管理器",
       "suspendedSshSessions": "挂起会话管理",
-      "aiAssistant": "AI 智能运维助手"
+      "aiAssistant": "AI 智能运维助手",
+      "batchExec": "批量执行"
     },
     "panes": {
       "suspendedSshSessions": "挂起会话管理器"

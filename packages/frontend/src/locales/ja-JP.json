@@ -1362,7 +1362,8 @@
       "quickCommands": "クイックコマンド",
       "dockerManager": "Docker マネージャー",
       "suspendedSshSessions": "中断されたセッション管理",
-      "aiAssistant": "AI運用アシスタント"
+      "aiAssistant": "AI運用アシスタント",
+      "batchExec": "バッチ実行"
     },
     "panes": {
       "suspendedSshSessions": "中断されたセッション管理者"

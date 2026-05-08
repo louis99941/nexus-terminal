@@ -392,7 +392,7 @@ const getIconClasses = (paneName: PaneName): string[] => {
     case 'aiAssistant':
       return ['fas', 'fa-robot'];
     case 'batchExec':
-      return ['fas', 'fa-tasks'];
+      return ['fas', 'fa-server'];
     // Add other specific icons here if needed
     default:
       return ['fas', 'fa-question-circle']; // Default icon
