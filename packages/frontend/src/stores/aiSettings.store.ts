@@ -16,8 +16,8 @@ const DEFAULT_AI_SETTINGS: AISettings = {
   provider: 'openai',
   baseUrl: DEFAULT_OPENAI_BASE_URL,
   apiKey: '',
-  model: 'gpt-4o-mini',
-  openaiEndpoint: 'chat/completions',
+  model: 'gpt-5-nano',
+  openaiEndpoint: '/chat/completions',
   rateLimitEnabled: true,
 };
 

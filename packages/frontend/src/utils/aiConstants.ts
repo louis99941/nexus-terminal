@@ -9,6 +9,12 @@ export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 /** Claude API 默认 Base URL */
 export const DEFAULT_CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
 
+/** OpenAI API 端点选项 */
+export const OPENAI_ENDPOINT_OPTIONS = [
+  { value: '/chat/completions', label: '/chat/completions — Chat Completions 兼容端点' },
+  { value: '/responses', label: '/responses — Responses API' },
+] as const;
+
 /** AI Provider 默认配置 */
 export const AI_PROVIDER_DEFAULTS = {
   openai: {
@@ -18,6 +24,6 @@ export const AI_PROVIDER_DEFAULTS = {
   },
   claude: {
     baseUrl: DEFAULT_CLAUDE_BASE_URL,
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
   },
 } as const;

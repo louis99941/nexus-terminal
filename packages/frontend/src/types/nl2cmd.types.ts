@@ -5,8 +5,8 @@
 // AI Provider 类型
 export type AIProvider = 'openai' | 'claude';
 
-// OpenAI API 端点路径（用户可自定义，如 /v1/chat/completions, /v2/responses）
-export type OpenAIEndpoint = string;
+// OpenAI API 端点路径（Chat Completions 兼容端点或 Responses API）
+export type OpenAIEndpoint = '/chat/completions' | '/responses';
 
 // AI Provider 配置
 export interface AISettings {

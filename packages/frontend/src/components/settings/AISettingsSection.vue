@@ -50,17 +50,27 @@
         </div>
       </div>
 
-      <!-- OpenAI Endpoint 路径（仅 OpenAI 可见） -->
+      <!-- OpenAI API Endpoint（仅非 Claude Provider 可见） -->
       <div v-if="localSettings.provider === 'openai'">
-        <label class="text-sm font-medium text-foreground">API Endpoint 路径</label>
-        <input
-          v-model="localSettings.openaiEndpoint"
-          type="text"
-          class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary mt-2"
-          :placeholder="getEndpointPlaceholder()"
-        />
+        <label class="text-sm font-medium text-foreground">API Endpoint</label>
+        <div class="relative mt-2">
+          <select
+            v-model="localSettings.openaiEndpoint"
+            class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+            style="
+              background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e&quot;);
+              background-position: right 0.75rem center;
+              background-size: 16px 12px;
+            "
+          >
+            <option v-for="opt in OPENAI_ENDPOINT_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
         <p class="text-xs text-muted-foreground mt-1">
-          完整路径（如 <code>/chat/completions</code>），将拼接到 Base URL 后。确保路径准确。
+          选择 API 端点类型，将拼接到 Base URL 后。大多数兼容服务使用
+          <code>/chat/completions</code>。
         </p>
       </div>
 
@@ -225,7 +235,11 @@
 import { ref, onMounted, watch } from 'vue';
 import { useAISettingsStore } from '../../stores/aiSettings.store';
 import type { AISettings } from '../../types/nl2cmd.types';
-import { DEFAULT_OPENAI_BASE_URL, AI_PROVIDER_DEFAULTS } from '../../utils/aiConstants';
+import {
+  DEFAULT_OPENAI_BASE_URL,
+  AI_PROVIDER_DEFAULTS,
+  OPENAI_ENDPOINT_OPTIONS,
+} from '../../utils/aiConstants';
 
 const aiSettingsStore = useAISettingsStore();
 
@@ -301,18 +315,13 @@ function getBaseUrlPlaceholder(): string {
   }
 }
 
-// 获取 Endpoint 占位符
-function getEndpointPlaceholder(): string {
-  return '/v1/chat/completions';
-}
-
 // 获取模型占位符
 function getModelPlaceholder(): string {
   switch (localSettings.value.provider) {
     case 'openai':
-      return 'gpt-4o, gpt-4o-mini, gpt-4-turbo 等';
+      return 'gpt-5-nano, gpt-4o, gpt-4o-mini 等';
     case 'claude':
-      return 'claude-sonnet-4, claude-3-5-haiku-20241022 等';
+      return 'claude-haiku-4-5-20251001, claude-sonnet-4-6 等';
     default:
       return '';
   }
@@ -322,9 +331,9 @@ function getModelPlaceholder(): string {
 function getModelHint(): string {
   switch (localSettings.value.provider) {
     case 'openai':
-      return '推荐使用 gpt-4o-mini（经济高效）或 gpt-4o';
+      return '推荐使用 gpt-5-nano（轻量高效）';
     case 'claude':
-      return '推荐使用 claude-sonnet-4-6（平衡性能与成本）';
+      return '推荐使用 claude-haiku-4-5-20251001（快速低成本）';
     default:
       return '';
   }
