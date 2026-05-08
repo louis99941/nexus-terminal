@@ -450,24 +450,18 @@ describe('Docker WebSocket Handler', () => {
       );
     });
 
-    it('应净化 containerId 防止命令注入', async () => {
+    it('应拒绝非法 containerId 防止命令注入', async () => {
       mockWs.sessionId = 'test-session';
       const state = createMockClientState(mockWs, mockSshClient);
       clientStates.set('test-session', state);
-
-      setupExecMockImmediate(mockSshClient, [{ stdout: '', stderr: '', code: 0 }]);
 
       await handleDockerCommand(mockWs, 'test-session', {
         containerId: 'abc123; rm -rf /',
         command: 'start',
       });
 
-      // 验证恶意字符被移除
-      expect(mockSshClient.exec).toHaveBeenCalledWith(
-        'docker start abc123rm-rf',
-        { pty: false },
-        expect.any(Function)
-      );
+      // 验证非法 containerId 被拒绝，不执行命令
+      expect(mockSshClient.exec).not.toHaveBeenCalled();
     });
 
     it('命令执行失败时应发送错误', async () => {

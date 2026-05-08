@@ -14,11 +14,15 @@ const ALLOWED_DOCKER_COMMANDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * 净化容器 ID，仅保留安全字符（字母、数字、下划线、连字符）
- * 防止命令注入攻击
+ * 校验容器 ID，仅允许字母、数字、下划线、连字符。
+ * 若包含任何其他字符则返回空字符串，由调用方拒绝该输入。
+ * 使用严格匹配而非剥离，确保不会产生意外的安全缺口。
  */
 export function sanitizeDockerContainerId(containerId: string): string {
-  return containerId.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!/^[a-zA-Z0-9_-]+$/.test(containerId)) {
+    return '';
+  }
+  return containerId;
 }
 
 /**

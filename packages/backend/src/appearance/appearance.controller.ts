@@ -106,10 +106,17 @@ export const uploadPageBackgroundController = async (
     // 返回新的 API 路径给前端
     res.status(200).json({ message: '页面背景上传成功', filePath: apiPath });
   } catch (error: unknown) {
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) logger.error('删除上传失败的背景文件时出错:', err);
-      });
+    if (req.file) {
+      // 防止路径遍历：确保临时文件路径不会逃逸到 background 目录之外
+      const resolvedFilePath = path.resolve(req.file.path);
+      const allowedDir = path.resolve(path.join(__dirname, '../../data/background/'));
+      if (resolvedFilePath.startsWith(allowedDir + path.sep) || resolvedFilePath === allowedDir) {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlink(req.file.path, (err) => {
+            if (err) logger.error('删除上传失败的背景文件时出错:', err);
+          });
+        }
+      }
     }
     logger.error('[AppearanceController] 上传页面背景失败:', error);
     next(error);
@@ -138,10 +145,17 @@ export const uploadTerminalBackgroundController = async (
     // 返回新的 API 路径给前端
     res.status(200).json({ message: '终端背景上传成功', filePath: apiPath });
   } catch (error: unknown) {
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) logger.error('删除上传失败的背景文件时出错:', err);
-      });
+    if (req.file) {
+      // 防止路径遍历：确保临时文件路径不会逃逸到 background 目录之外
+      const resolvedFilePath = path.resolve(req.file.path);
+      const allowedDir = path.resolve(path.join(__dirname, '../../data/background/'));
+      if (resolvedFilePath.startsWith(allowedDir + path.sep) || resolvedFilePath === allowedDir) {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlink(req.file.path, (err) => {
+            if (err) logger.error('删除上传失败的背景文件时出错:', err);
+          });
+        }
+      }
     }
     logger.error('[AppearanceController] 上传终端背景失败:', error);
     next(error);
@@ -172,6 +186,14 @@ export const getBackgroundFileController = async (
   try {
     // 构建文件的绝对路径 (基于 multer 的保存位置)
     const absolutePath = path.join(__dirname, '../../data/background/', filename);
+
+    // 防止路径遍历：确保解析后的路径不会逃逸到 background 目录之外
+    const resolvedBase = path.resolve(path.join(__dirname, '../../data/background/'));
+    const resolvedPath = path.resolve(absolutePath);
+    if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
+      res.status(400).json({ message: '无效的文件名' });
+      return;
+    }
 
     // 检查文件是否存在且可读
     await fsp.access(absolutePath, fs.constants.R_OK);

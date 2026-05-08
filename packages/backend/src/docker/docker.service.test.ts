@@ -260,12 +260,10 @@ describe('DockerService', () => {
       );
     });
 
-    it('应清理容器 ID 中的特殊字符', async () => {
-      mockExecAsync.mockResolvedValueOnce({ stdout: '', stderr: '' });
-
-      await service.executeContainerCommand('abc123!@#$%^&*()', 'start');
-
-      expect(mockExecAsync).toHaveBeenCalledWith('docker start abc123', expect.any(Object));
+    it('应拒绝包含特殊字符的容器 ID', async () => {
+      await expect(service.executeContainerCommand('abc123!@#$%^&*()', 'start')).rejects.toThrow(
+        'Invalid container ID format.'
+      );
     });
 
     it('应在 stderr 包含错误关键词时抛出错误', async () => {

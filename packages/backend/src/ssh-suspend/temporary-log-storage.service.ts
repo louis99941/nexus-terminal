@@ -61,12 +61,26 @@ export class TemporaryLogStorageService {
 
   private getLogFilePath(suspendSessionId: string): string {
     this.validateSuspendSessionId(suspendSessionId);
-    return path.join(LOG_DIRECTORY, `${suspendSessionId}.log`);
+    const filePath = path.join(LOG_DIRECTORY, `${suspendSessionId}.log`);
+    // 防止路径遍历：确保解析后的路径不会逃逸到日志目录之外
+    const resolvedBase = path.resolve(LOG_DIRECTORY);
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
+      throw new Error(`路径遍历检测：文件路径 "${suspendSessionId}" 超出允许的日志目录`);
+    }
+    return filePath;
   }
 
   private getMetadataFilePath(suspendSessionId: string): string {
     this.validateSuspendSessionId(suspendSessionId);
-    return path.join(LOG_DIRECTORY, `${suspendSessionId}.meta.json`);
+    const filePath = path.join(LOG_DIRECTORY, `${suspendSessionId}.meta.json`);
+    // 防止路径遍历：确保解析后的路径不会逃逸到日志目录之外
+    const resolvedBase = path.resolve(LOG_DIRECTORY);
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
+      throw new Error(`路径遍历检测：元数据路径 "${suspendSessionId}" 超出允许的日志目录`);
+    }
+    return filePath;
   }
 
   /**

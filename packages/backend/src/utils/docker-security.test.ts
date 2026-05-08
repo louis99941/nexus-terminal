@@ -37,64 +37,60 @@ describe('sanitizeDockerContainerId', () => {
   });
 
   describe('注入尝试', () => {
-    it('应该移除分号和空格', () => {
-      // 分号、空格、斜杠均被移除，连字符保留
-      expect(sanitizeDockerContainerId('abc; rm -rf /')).toBe('abcrm-rf');
+    it('应该拒绝包含分号和空格的输入', () => {
+      expect(sanitizeDockerContainerId('abc; rm -rf /')).toBe('');
     });
 
-    it('应该移除 $ 和括号（命令替换注入）', () => {
-      expect(sanitizeDockerContainerId('$(whoami)')).toBe('whoami');
+    it('应该拒绝 $ 和括号（命令替换注入）', () => {
+      expect(sanitizeDockerContainerId('$(whoami)')).toBe('');
     });
 
-    it('应该移除反引号（反引号注入）', () => {
-      expect(sanitizeDockerContainerId('`whoami`')).toBe('whoami');
+    it('应该拒绝反引号（反引号注入）', () => {
+      expect(sanitizeDockerContainerId('`whoami`')).toBe('');
     });
 
-    it('应该移除管道符和空格', () => {
-      // 管道符、空格、斜杠均被移除
-      expect(sanitizeDockerContainerId('abc|cat /etc/passwd')).toBe('abccatetcpasswd');
+    it('应该拒绝管道符和空格', () => {
+      expect(sanitizeDockerContainerId('abc|cat /etc/passwd')).toBe('');
     });
 
-    it('应该移除空格', () => {
-      expect(sanitizeDockerContainerId('abc def')).toBe('abcdef');
+    it('应该拒绝空格', () => {
+      expect(sanitizeDockerContainerId('abc def')).toBe('');
     });
 
-    it('应该移除斜杠和点号（路径穿越）', () => {
-      // 斜杠和点号均被移除，仅保留字母
-      expect(sanitizeDockerContainerId('../../../etc/passwd')).toBe('etcpasswd');
+    it('应该拒绝斜杠和点号（路径穿越）', () => {
+      expect(sanitizeDockerContainerId('../../../etc/passwd')).toBe('');
     });
 
-    it('应该移除点号', () => {
-      expect(sanitizeDockerContainerId('a.b.c')).toBe('abc');
+    it('应该拒绝点号', () => {
+      expect(sanitizeDockerContainerId('a.b.c')).toBe('');
     });
 
-    it('应该移除花括号', () => {
-      expect(sanitizeDockerContainerId('${HOME}')).toBe('HOME');
+    it('应该拒绝花括号', () => {
+      expect(sanitizeDockerContainerId('${HOME}')).toBe('');
     });
 
-    it('应该移除双引号', () => {
-      expect(sanitizeDockerContainerId('"injected"')).toBe('injected');
+    it('应该拒绝双引号', () => {
+      expect(sanitizeDockerContainerId('"injected"')).toBe('');
     });
 
-    it('应该移除单引号', () => {
-      expect(sanitizeDockerContainerId("injected'")).toBe('injected');
+    it('应该拒绝单引号', () => {
+      expect(sanitizeDockerContainerId("injected'")).toBe('');
     });
 
-    it('应该移除换行符', () => {
-      expect(sanitizeDockerContainerId('abc\ndef')).toBe('abcdef');
+    it('应该拒绝换行符', () => {
+      expect(sanitizeDockerContainerId('abc\ndef')).toBe('');
     });
 
-    it('应该移除回车符', () => {
-      expect(sanitizeDockerContainerId('abc\rdef')).toBe('abcdef');
+    it('应该拒绝回车符', () => {
+      expect(sanitizeDockerContainerId('abc\rdef')).toBe('');
     });
 
-    it('应该移除制表符', () => {
-      expect(sanitizeDockerContainerId('abc\tdef')).toBe('abcdef');
+    it('应该拒绝制表符', () => {
+      expect(sanitizeDockerContainerId('abc\tdef')).toBe('');
     });
 
-    it('应该同时移除多种危险字符', () => {
-      // 分号、空格、斜杠、$、括号、反引号均被移除，连字符保留
-      expect(sanitizeDockerContainerId('abc; rm -rf / $(cmd) `x`')).toBe('abcrm-rfcmdx');
+    it('应该拒绝包含多种危险字符的输入', () => {
+      expect(sanitizeDockerContainerId('abc; rm -rf / $(cmd) `x`')).toBe('');
     });
   });
 
@@ -105,7 +101,7 @@ describe('sanitizeDockerContainerId', () => {
   });
 
   describe('边界情况', () => {
-    it('应该返回空字符串当所有字符都被移除', () => {
+    it('应该返回空字符串当输入仅含特殊字符', () => {
       expect(sanitizeDockerContainerId(' !@#$%^&*() ')).toBe('');
     });
 
@@ -113,8 +109,8 @@ describe('sanitizeDockerContainerId', () => {
       expect(sanitizeDockerContainerId('   ')).toBe('');
     });
 
-    it('应该正确处理仅含特殊字符的容器 ID', () => {
-      expect(sanitizeDockerContainerId('/bin/sh')).toBe('binsh');
+    it('应该返回空字符串当输入含斜杠和点号', () => {
+      expect(sanitizeDockerContainerId('/bin/sh')).toBe('');
     });
   });
 });

@@ -171,6 +171,17 @@ export const importThemeController = async (
   // 允许用户通过 body 传递 name，否则使用文件名
   const themeName = req.body.name || defaultName;
 
+  // 防止路径遍历：确保临时文件路径不会逃逸到 temp-uploads 目录之外
+  const resolvedFilePath = path.resolve(filePath);
+  const allowedUploadDir = path.resolve(path.join(__dirname, '../../temp-uploads/'));
+  if (
+    !resolvedFilePath.startsWith(allowedUploadDir + path.sep) &&
+    resolvedFilePath !== allowedUploadDir
+  ) {
+    res.status(400).json({ message: '无效的上传文件路径' });
+    return;
+  }
+
   try {
     const fileContent = await fs.promises.readFile(filePath, 'utf-8');
     const themeData: ITheme = JSON.parse(fileContent);
