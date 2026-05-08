@@ -250,7 +250,7 @@ async function callOpenAIChatCompletions(
     model: config.model,
     messages: [
       {
-        role: 'developer',
+        role: 'system',
         content: '你是一个专业的命令行助手，专门帮助用户将自然语言转换为精确的命令行指令。',
       },
       {
@@ -280,6 +280,10 @@ async function callOpenAIChatCompletions(
     const response = await client.post<OpenAIChatResponse>(endpointPath, body);
     const choices = response.data?.choices;
     if (!choices || choices.length === 0) {
+      logger.warn(
+        '[NL2CMD] OpenAI API 返回空 choices，响应体:',
+        JSON.stringify(response.data).slice(0, 500)
+      );
       throw new Error('OpenAI API 返回空响应');
     }
 
