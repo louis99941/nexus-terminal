@@ -348,8 +348,11 @@ const main = async () => {
   }
 
   await initializeDatabase(); // 然后初始化数据库
-  await initializeRuntimeLogLevel(); // 再从设置中初始化运行时日志等级
-  startServer(); // 最后启动服务器
+  startServer(); // 优先对外提供服务
+  // 非关键启动路径：异步加载运行时日志等级，避免阻塞冷启动
+  void initializeRuntimeLogLevel().catch((err) => {
+    logger.error('[Index] 异步初始化运行时日志等级失败（非致命）:', err);
+  });
 };
 
 main().catch((error: unknown) => {

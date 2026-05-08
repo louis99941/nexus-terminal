@@ -63,7 +63,23 @@ export class NotificationSettingsRepository {
     }
   }
 
+  // 事件配置缓存：static 共享，确保所有实例（Controller/Service/Processor）使用同一份缓存
+  private static enabledByEventCache = new Map<
+    string,
+    { data: NotificationSetting[]; ts: number }
+  >();
+  private static readonly CACHE_TTL_MS = 30_000;
+
+  private invalidateCache(): void {
+    NotificationSettingsRepository.enabledByEventCache.clear();
+  }
+
   async getEnabledByEvent(event: NotificationEvent): Promise<NotificationSetting[]> {
+    const now = Date.now();
+    const cached = NotificationSettingsRepository.enabledByEventCache.get(event);
+    if (cached && now - cached.ts < NotificationSettingsRepository.CACHE_TTL_MS) {
+      return cached.data;
+    }
     try {
       const db = await getDbInstance();
       const rows = await allDb<RawNotificationSetting>(
@@ -72,6 +88,10 @@ export class NotificationSettingsRepository {
       );
       const parsedRows = rows.map(parseRawSetting);
       const filteredRows = parsedRows.filter((setting) => setting.enabled_events.includes(event));
+      NotificationSettingsRepository.enabledByEventCache.set(event, {
+        data: filteredRows,
+        ts: now,
+      });
       return filteredRows;
     } catch (err: unknown) {
       logger.error(`获取启用的通知设置时出错:`, getErrorMessage(err));
@@ -99,6 +119,8 @@ export class NotificationSettingsRepository {
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, params);
+      // runDb 成功后立即清缓存（即使 lastID 校验失败，数据已落库）
+      this.invalidateCache();
       // Ensure lastID is valid before returning
       if (typeof result.lastID !== 'number' || result.lastID <= 0) {
         throw ErrorFactory.databaseError(
@@ -157,6 +179,7 @@ export class NotificationSettingsRepository {
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, params);
+      if (result.changes > 0) this.invalidateCache();
       return result.changes > 0;
     } catch (err: unknown) {
       logger.error(`更新通知设置 ID ${id} 时出错:`, getErrorMessage(err));
@@ -172,6 +195,7 @@ export class NotificationSettingsRepository {
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, [id]);
+      if (result.changes > 0) this.invalidateCache();
       return result.changes > 0;
     } catch (err: unknown) {
       logger.error(`删除通知设置 ID ${id} 时出错:`, getErrorMessage(err));

@@ -129,11 +129,30 @@ export const getDashboardStats = async (timeRange?: { start: number; end: number
   // 活跃会话数
   const activeSessions = clientStates.size;
 
-  // 连接数（默认"今日"，当传入 timeRange 时表示"时间范围内"）
-  const rangeConnections = await countAuditLogs(
-    db,
-    effectiveRange,
-    actionTypeMappings.connection_connected
+  // 并行执行所有独立的审计日志查询，避免串行 IO 等待
+  // rangeConnections 与 connectEvents 查询范围完全相同，直接用 connectEvents.length 替代 COUNT
+  const [connectEvents, disconnectEvents, loginFailures, commandBlocks, alerts] = await Promise.all(
+    [
+      allDb<{ timestamp: number; details: string | null }>(
+        db,
+        `SELECT timestamp, details
+         FROM audit_logs
+         WHERE timestamp BETWEEN ? AND ? AND action_type IN (${actionTypeMappings.connection_connected.map(() => '?').join(', ')})
+         ORDER BY timestamp ASC`,
+        [effectiveRange.start, effectiveRange.end, ...actionTypeMappings.connection_connected]
+      ),
+      allDb<{ timestamp: number; details: string | null }>(
+        db,
+        `SELECT timestamp, details
+         FROM audit_logs
+         WHERE timestamp BETWEEN ? AND ? AND action_type IN (${actionTypeMappings.connection_disconnected.map(() => '?').join(', ')})
+         ORDER BY timestamp ASC`,
+        [effectiveRange.start, effectiveRange.end, ...actionTypeMappings.connection_disconnected]
+      ),
+      countAuditLogs(db, effectiveRange, actionTypeMappings.auth_login_failed),
+      countAuditLogs(db, effectiveRange, actionTypeMappings.command_blocked),
+      countAuditLogs(db, effectiveRange, actionTypeMappings.alerts),
+    ]
   );
 
   // 会话时长分布：基于 connect/disconnect（若缺失 disconnect，则按时间范围 end 截断）
@@ -143,24 +162,6 @@ export const getDashboardStats = async (timeRange?: { start: number; end: number
     '30min-1hr': 0, // 30-60min
     gt1hr: 0, // > 1hr
   };
-
-  const connectEvents = await allDb<{ timestamp: number; details: string | null }>(
-    db,
-    `SELECT timestamp, details
-         FROM audit_logs
-         WHERE timestamp BETWEEN ? AND ? AND action_type IN (${actionTypeMappings.connection_connected.map(() => '?').join(', ')})
-         ORDER BY timestamp ASC`,
-    [effectiveRange.start, effectiveRange.end, ...actionTypeMappings.connection_connected]
-  );
-
-  const disconnectEvents = await allDb<{ timestamp: number; details: string | null }>(
-    db,
-    `SELECT timestamp, details
-         FROM audit_logs
-         WHERE timestamp BETWEEN ? AND ? AND action_type IN (${actionTypeMappings.connection_disconnected.map(() => '?').join(', ')})
-         ORDER BY timestamp ASC`,
-    [effectiveRange.start, effectiveRange.end, ...actionTypeMappings.connection_disconnected]
-  );
 
   const disconnectBySessionId = new Map<string, number>();
   for (const e of disconnectEvents) {
@@ -204,28 +205,11 @@ export const getDashboardStats = async (timeRange?: { start: number; end: number
       ? Math.round(durationSamples.reduce((sum, v) => sum + v, 0) / durationSamples.length)
       : 0;
 
-  // 登录失败次数
-  const loginFailures = await countAuditLogs(
-    db,
-    effectiveRange,
-    actionTypeMappings.auth_login_failed
-  );
-
-  // 命令拦截次数（当前若未实现拦截逻辑，该值自然为 0）
-  const commandBlocks = await countAuditLogs(
-    db,
-    effectiveRange,
-    actionTypeMappings.command_blocked
-  );
-
-  // 异常告警次数（失败/未授权等）
-  const alerts = await countAuditLogs(db, effectiveRange, actionTypeMappings.alerts);
-
   return {
     range: effectiveRange,
     sessions: {
       active: activeSessions,
-      todayConnections: rangeConnections,
+      todayConnections: connectEvents.length,
       avgDuration,
       durationDistribution: durationDist,
     },

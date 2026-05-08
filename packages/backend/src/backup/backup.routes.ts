@@ -27,7 +27,9 @@ router.post('/export', isAuthenticated, async (_req: Request, res: Response) => 
       'Content-Disposition',
       `attachment; filename="nexus-terminal-backup-${Date.now()}.json"`
     );
-    res.json(backup);
+    // 流式输出：res.write 直接写入网络流，跳过 Express res.json 的内部缓冲
+    res.write(JSON.stringify(backup));
+    res.end();
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '导出失败';
     logger.error('[Backup] 导出失败:', message);

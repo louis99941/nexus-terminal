@@ -14,7 +14,7 @@ import {
 } from 'vue'; // Added onBeforeUnmount, nextTick and CSSProperties
 import { useI18n } from 'vue-i18n';
 import { useWorkspaceEventSubscriber, useWorkspaceEventOff } from '../composables/workspaceEvents';
-import '@fortawesome/fontawesome-free/css/all.min.css';
+// FontAwesome CSS 已在 main.ts 全局导入，此处移除重复引入
 import { Splitpanes, Pane } from 'splitpanes';
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
 import { useSessionStore } from '../stores/session.store';

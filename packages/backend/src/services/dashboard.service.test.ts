@@ -128,7 +128,6 @@ describe('DashboardService', () => {
 
     it('应正确统计登录失败次数', async () => {
       mockGetDb
-        .mockResolvedValueOnce({ count: 5 }) // todayConnections
         .mockResolvedValueOnce({ count: 3 }) // loginFailures
         .mockResolvedValueOnce({ count: 0 }) // commandBlocks
         .mockResolvedValueOnce({ count: 1 }); // alerts

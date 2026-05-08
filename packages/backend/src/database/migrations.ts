@@ -379,6 +379,55 @@ const definedMigrations: Migration[] = [
             ALTER TABLE ip_geo_cache ADD COLUMN asn TEXT NOT NULL DEFAULT '';
         `,
   },
+  {
+    id: 14,
+    name: 'Add history uniqueness/time indexes and deduplicate history rows',
+    check: async (db: Database): Promise<boolean> => {
+      const indexExists = (name: string): Promise<boolean> =>
+        new Promise((resolve, reject) => {
+          db.get(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name=?",
+            [name],
+            (err, row) => (err ? reject(err) : resolve(!!row))
+          );
+        });
+      const [cmdUnique, pathUnique, connLastConnected] = await Promise.all([
+        indexExists('idx_command_history_command_unique'),
+        indexExists('idx_path_history_path_unique'),
+        indexExists('idx_connections_last_connected_at'),
+      ]);
+      return !cmdUnique || !pathUnique || !connLastConnected;
+    },
+    sql: `
+            -- 命令历史去重：保留每个 command 最新的一条
+            DELETE FROM command_history
+            WHERE id IN (
+              SELECT id FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY command ORDER BY timestamp DESC, id DESC) AS rn
+                FROM command_history
+              ) t
+              WHERE t.rn > 1
+            );
+
+            -- 路径历史去重：保留每个 path 最新的一条
+            DELETE FROM path_history
+            WHERE id IN (
+              SELECT id FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY path ORDER BY timestamp DESC, id DESC) AS rn
+                FROM path_history
+              ) t
+              WHERE t.rn > 1
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_command_history_command_unique ON command_history(command);
+            CREATE INDEX IF NOT EXISTS idx_command_history_timestamp_desc ON command_history(timestamp DESC);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_path_history_path_unique ON path_history(path);
+            CREATE INDEX IF NOT EXISTS idx_path_history_timestamp_desc ON path_history(timestamp DESC);
+            CREATE INDEX IF NOT EXISTS idx_connections_last_connected_at ON connections(last_connected_at DESC);
+        `,
+  },
 ];
 
 /**

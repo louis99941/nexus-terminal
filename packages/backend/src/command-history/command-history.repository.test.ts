@@ -29,50 +29,37 @@ describe('Command History Repository', () => {
   });
 
   describe('upsertCommand', () => {
-    it('命令已存在时应更新时间戳并返回 ID', async () => {
-      // 模拟更新成功
-      (runDb as any).mockResolvedValueOnce({ changes: 1 });
-      // 模拟查询返回 ID
+    it('命令已存在时应通过 UPSERT RETURNING id 返回 ID', async () => {
       (getDb as any).mockResolvedValueOnce({ id: 5 });
 
       const result = await upsertCommand('ls -la');
 
       expect(result).toBe(5);
-      expect(runDb).toHaveBeenCalled();
-      const updateCall = (runDb as any).mock.calls[0];
-      expect(updateCall[1]).toContain('UPDATE command_history SET timestamp');
+      expect(getDb).toHaveBeenCalled();
+      const upsertCall = (getDb as any).mock.calls[0];
+      expect(upsertCall[1]).toContain('INSERT INTO command_history');
+      expect(upsertCall[1]).toContain('ON CONFLICT(command) DO UPDATE');
+      expect(upsertCall[1]).toContain('RETURNING id');
     });
 
-    it('命令不存在时应插入新记录并返回 lastID', async () => {
-      // 模拟更新无变化（命令不存在）
-      (runDb as any)
-        .mockResolvedValueOnce({ changes: 0 })
-        .mockResolvedValueOnce({ lastID: 10, changes: 1 });
+    it('命令不存在时应插入新记录并返回 ID', async () => {
+      (getDb as any).mockResolvedValueOnce({ id: 10 });
 
       const result = await upsertCommand('echo hello');
 
       expect(result).toBe(10);
-      const insertCall = (runDb as any).mock.calls[1];
-      expect(insertCall[1]).toContain('INSERT INTO command_history');
+      const upsertCall = (getDb as any).mock.calls[0];
+      expect(upsertCall[1]).toContain('INSERT INTO command_history');
     });
 
-    it('更新成功但查询不到 ID 时应抛出异常', async () => {
-      (runDb as any).mockResolvedValueOnce({ changes: 1 });
+    it('UPSERT 后查询不到 ID 时应抛出异常', async () => {
       (getDb as any).mockResolvedValueOnce(null);
 
       await expect(upsertCommand('test')).rejects.toThrow('无法更新或插入命令历史记录');
     });
 
-    it('插入后 lastID 无效应抛出异常', async () => {
-      (runDb as any)
-        .mockResolvedValueOnce({ changes: 0 })
-        .mockResolvedValueOnce({ lastID: 0, changes: 0 });
-
-      await expect(upsertCommand('test')).rejects.toThrow('无法更新或插入命令历史记录');
-    });
-
     it('数据库错误时应抛出异常', async () => {
-      (runDb as any).mockRejectedValueOnce(new Error('Database error'));
+      (getDb as any).mockRejectedValueOnce(new Error('Database error'));
 
       await expect(upsertCommand('test')).rejects.toThrow('无法更新或插入命令历史记录');
     });

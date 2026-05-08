@@ -22,34 +22,23 @@ export const upsertPath = async (path: string): Promise<number> => {
   const db = await getDbInstance();
 
   try {
-    // 1. 尝试更新现有记录的时间戳
-    const updateSql = `UPDATE path_history SET timestamp = ? WHERE path = ?`;
-    const updateResult = await runDb(db, updateSql, [now, path]);
-
-    if (updateResult.changes > 0) {
-      // 更新成功，需要获取被更新记录的 ID
-      const selectSql = `SELECT id FROM path_history WHERE path = ? ORDER BY timestamp DESC LIMIT 1`;
-      const row = await getDbRow<{ id: number }>(db, selectSql, [path]);
-      if (row) {
-        return row.id;
-      }
-      // This case should theoretically not happen if update succeeded
-      throw ErrorFactory.databaseError('更新成功但无法找到记录 ID', '更新成功但无法找到记录 ID');
-    } else {
-      // 2. 没有记录被更新，说明路径不存在，执行插入
-      const insertSql = `INSERT INTO path_history (path, timestamp) VALUES (?, ?)`;
-      const insertResult = await runDb(db, insertSql, [path, now]);
-      // Ensure lastID is valid before returning
-      if (typeof insertResult.lastID !== 'number' || insertResult.lastID <= 0) {
-        throw ErrorFactory.databaseError(
-          '插入新路径历史记录后未能获取有效的 lastID',
-          '插入新路径历史记录后未能获取有效的 lastID'
-        );
-      }
-      return insertResult.lastID;
+    // 使用 ON CONFLICT + RETURNING id 合并为单次原子查询
+    const upsertSql = `
+      INSERT INTO path_history (path, timestamp)
+      VALUES (?, ?)
+      ON CONFLICT(path) DO UPDATE SET timestamp = excluded.timestamp
+      RETURNING id
+    `;
+    const row = await getDbRow<{ id: number }>(db, upsertSql, [path, now]);
+    if (row?.id) {
+      return row.id;
     }
+    throw ErrorFactory.databaseError(
+      '路径历史 UPSERT 后未能获取记录 ID',
+      '路径历史 UPSERT 后未能获取记录 ID'
+    );
   } catch (err: unknown) {
-    logger.error('Upsert 路径历史记录时出错:', getErrorMessage(err));
+    logger.error('UPSERT 路径历史记录时出错:', getErrorMessage(err));
     throw ErrorFactory.databaseError('无法更新或插入路径历史记录', '无法更新或插入路径历史记录');
   }
 };

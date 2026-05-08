@@ -22,34 +22,23 @@ export const upsertCommand = async (command: string): Promise<number> => {
   const db = await getDbInstance();
 
   try {
-    // 1. 尝试更新现有记录的时间戳
-    const updateSql = `UPDATE command_history SET timestamp = ? WHERE command = ?`;
-    const updateResult = await runDb(db, updateSql, [now, command]);
-
-    if (updateResult.changes > 0) {
-      // 更新成功，需要获取被更新记录的 ID
-      const selectSql = `SELECT id FROM command_history WHERE command = ? ORDER BY timestamp DESC LIMIT 1`;
-      const row = await getDbRow<{ id: number }>(db, selectSql, [command]);
-      if (row) {
-        return row.id;
-      }
-      // This case should theoretically not happen if update succeeded
-      throw ErrorFactory.databaseError('更新成功但无法找到记录 ID', '更新成功但无法找到记录 ID');
-    } else {
-      // 2. 没有记录被更新，说明命令不存在，执行插入
-      const insertSql = `INSERT INTO command_history (command, timestamp) VALUES (?, ?)`;
-      const insertResult = await runDb(db, insertSql, [command, now]);
-      // Ensure lastID is valid before returning
-      if (typeof insertResult.lastID !== 'number' || insertResult.lastID <= 0) {
-        throw ErrorFactory.databaseError(
-          '插入新命令历史记录后未能获取有效的 lastID',
-          '插入新命令历史记录后未能获取有效的 lastID'
-        );
-      }
-      return insertResult.lastID;
+    // 使用 ON CONFLICT + RETURNING id 合并为单次原子查询
+    const upsertSql = `
+      INSERT INTO command_history (command, timestamp)
+      VALUES (?, ?)
+      ON CONFLICT(command) DO UPDATE SET timestamp = excluded.timestamp
+      RETURNING id
+    `;
+    const row = await getDbRow<{ id: number }>(db, upsertSql, [command, now]);
+    if (row?.id) {
+      return row.id;
     }
+    throw ErrorFactory.databaseError(
+      '命令历史 UPSERT 后未能获取记录 ID',
+      '命令历史 UPSERT 后未能获取记录 ID'
+    );
   } catch (err: unknown) {
-    logger.error('Upsert 命令历史记录时出错:', getErrorMessage(err));
+    logger.error('UPSERT 命令历史记录时出错:', getErrorMessage(err));
     throw ErrorFactory.databaseError('无法更新或插入命令历史记录', '无法更新或插入命令历史记录');
   }
 };
