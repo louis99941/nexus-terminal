@@ -28,6 +28,7 @@ import { settingsRepository } from '../settings/settings.repository';
 import { encrypt, decrypt } from '../utils/crypto';
 import { ErrorFactory } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { validateUrlNotPrivate } from '../utils/url';
 
 const AI_SETTINGS_KEY = 'aiProviderConfig';
 
@@ -616,6 +617,9 @@ export async function generateCommand(
 
     const streamingEnabled = settings.streamingEnabled ?? false;
 
+    // SSRF 防护：验证 AI Provider baseUrl 不指向私有/内部网络
+    await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommand');
+
     switch (config.provider) {
       case 'openai':
         if (config.openaiEndpoint === 'responses') {
@@ -734,6 +738,9 @@ export async function testAIConnection(
     };
 
     const prompt = buildNL2CMDPrompt(testRequest);
+
+    // SSRF 防护：验证 AI Provider baseUrl 不指向私有/内部网络
+    await validateUrlNotPrivate(config.baseUrl, 'NL2CMD testAIConnection');
 
     const providerStart = Date.now();
     switch (config.provider) {

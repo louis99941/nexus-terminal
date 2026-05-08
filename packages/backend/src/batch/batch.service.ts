@@ -5,7 +5,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { Client, ClientChannel } from 'ssh2';
-import { getErrorMessage } from '../utils/AppError';
+import { getErrorMessage, ErrorFactory } from '../utils/AppError';
 import {
   BatchTask,
   BatchSubTask,
@@ -26,6 +26,39 @@ const DEFAULT_TIMEOUT_SECONDS = 300; // 5 分钟
 const CONNECT_TIMEOUT_MS = 20000; // 20 秒连接超时
 const MAX_OUTPUT_SIZE = 1024 * 1024; // 1MB 输出限制
 const OUTPUT_THROTTLE_MS = 100; // 输出写入节流
+
+/**
+ * 校验批量执行的命令字符串，拒绝包含 shell 注入风险的输入。
+ * 采用严格拒绝策略：匹配到任何危险模式即返回空字符串，不做剥离处理，
+ * 确保不会产生意外的安全缺口（与 sanitizeDockerContainerId 同一设计思路）。
+ *
+ * 拦截目标：
+ * - 反引号 `` ` ``   → 命令替换（`whoami`）
+ * - $()              → 命令替换（$(whoami)）
+ * - ${}              → 变量/命令展开（${IFS}）
+ * - 分号、管道、逻辑运算符 → 命令链接（; | && ||）
+ * - 换行符           → 注入换行执行多条命令
+ * - 空字节           → 绕过字符串截断
+ * - 重定向符         → 文件写入（> >>）或读取（<）
+ * - 通配符           → 路径遍历（* ?）
+ * - 小括号           → 子 shell（(cmd)）
+ * - 方括号           → Glob 模式（[0-9]）
+ */
+const DANGEROUS_CMD_PATTERN = /[`$;|&\n\r\x00><*?\[\]{}()]/;
+
+function sanitizeBatchCommand(command: string): string {
+  if (!command || typeof command !== 'string') {
+    return '';
+  }
+  const trimmed = command.trim();
+  if (trimmed.length === 0) {
+    return '';
+  }
+  if (DANGEROUS_CMD_PATTERN.test(trimmed)) {
+    return '';
+  }
+  return trimmed;
+}
 
 // 子任务执行结果
 type SubTaskResult = 'completed' | 'failed' | 'cancelled';
@@ -56,9 +89,16 @@ export async function execCommandBatch(
   const now = new Date();
   const concurrencyLimit = payload.concurrencyLimit ?? DEFAULT_CONCURRENCY;
 
+  // 安全校验：拒绝包含 shell 注入风险的命令
+  const sanitizedCommand = sanitizeBatchCommand(payload.command);
+  if (!sanitizedCommand) {
+    throw ErrorFactory.validationError('命令包含非法字符，请检查输入');
+  }
+  const safePayload = { ...payload, command: sanitizedCommand };
+
   // 获取连接名称用于显示
   const connectionNames = new Map<number, string>();
-  for (const connId of payload.connectionIds) {
+  for (const connId of safePayload.connectionIds) {
     try {
       const conn = await ConnectionRepository.findConnectionByIdWithTags(connId);
       if (conn) {
@@ -75,7 +115,7 @@ export async function execCommandBatch(
     taskId,
     connectionId: connId,
     connectionName: connectionNames.get(connId),
-    command: payload.command,
+    command: safePayload.command,
     status: 'queued' as BatchSubTaskStatus,
     progress: 0,
   }));

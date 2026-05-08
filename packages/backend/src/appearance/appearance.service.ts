@@ -1,14 +1,13 @@
 import fs from 'fs/promises'; // 使用 promises API
 import path from 'path';
 import axios from 'axios';
-import dns from 'dns/promises';
-import ipaddr from 'ipaddr.js';
 import sanitize from 'sanitize-filename'; // 用于清理文件名
 import * as appearanceRepository from './appearance.repository';
 import { AppearanceSettings, UpdateAppearanceDto } from '../types/appearance.types';
 import * as terminalThemeRepository from '../terminal-themes/terminal-theme.repository';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { validateUrlNotPrivate } from '../utils/url';
 
 // 预设 HTML 主题的存储路径 (作为只读预设)
 const PRESET_HTML_THEMES_DIR = path.join(__dirname, '../../html-presets/');
@@ -584,59 +583,6 @@ export const deleteLocalHtmlPreset = async (themeName: string): Promise<void> =>
   return deleteUserCustomHtmlTheme(themeName);
 };
 
-/** SSRF 防护：需要阻止的 ipaddr.js 范围标识 */
-const SSRF_BLOCKED_RANGES = new Set([
-  'private', // RFC 1918 (10/8, 172.16/12, 192.168/16)
-  'loopback', // 127.0.0.0/8, ::1
-  'linkLocal', // 169.254.0.0/16, fe80::/10
-  'uniqueLocal', // fc00::/7 (IPv6 ULA)
-  'broadcast', // 广播地址
-  'carrierGradeNat', // 100.64.0.0/10 (运营商级 NAT)
-  'reserved', // 其他保留地址段
-]);
-
-/**
- * SSRF 防护：验证 URL 目标地址不属于私有/内部网络
- * 通过 DNS 解析主机名，检查所有解析到的 IP 是否属于受限地址段
- * @throws 如果解析到私有/保留 IP 则抛出错误
- */
-const validateUrlNotPrivate = async (targetUrl: string): Promise<void> => {
-  const urlObj = new URL(targetUrl);
-  const hostname = urlObj.hostname;
-
-  // 如果主机名本身是 IP 地址，直接检查，无需 DNS 解析
-  try {
-    const parsed = ipaddr.parse(hostname);
-    const range = parsed.range();
-    if (SSRF_BLOCKED_RANGES.has(range)) {
-      logger.warn(`[AppearanceService] SSRF 阻止：主机名 ${hostname} 是私有/保留 IP (${range})`);
-      throw new Error('目标地址解析到不允许的网络范围，请求已阻止。');
-    }
-    return;
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('目标地址')) {
-      throw error;
-    }
-    // 主机名不是合法 IP，继续 DNS 解析
-  }
-
-  // DNS 解析并检查所有解析到的 IP
-  const ipv4List = await dns.resolve4(hostname).catch(() => []);
-  const ipv6List = await dns.resolve6(hostname).catch(() => []);
-  const allAddresses = [...ipv4List, ...ipv6List];
-
-  for (const addr of allAddresses) {
-    const parsed = ipaddr.parse(addr);
-    const range = parsed.range();
-    if (SSRF_BLOCKED_RANGES.has(range)) {
-      logger.warn(
-        `[AppearanceService] SSRF 阻止：主机名 ${hostname} 解析到私有/保留 IP ${addr} (${range})`
-      );
-      throw new Error('目标地址解析到不允许的网络范围，请求已阻止。');
-    }
-  }
-};
-
 // -- 远程 GitHub HTML 主题管理 --
 
 /**
@@ -747,7 +693,7 @@ export const listRemoteHtmlPresets = async (
 
   try {
     logger.debug('[AppearanceService] 正在从 GitHub API 获取远程主题列表');
-    await validateUrlNotPrivate(apiUrl);
+    await validateUrlNotPrivate(apiUrl, 'Appearance listRemoteHtmlPresets');
     const response = await axios.get(apiUrl, {
       headers: { Accept: 'application/vnd.github.v3+json' },
       // 对于公共仓库，通常不需要 token
@@ -823,7 +769,7 @@ export const getRemoteHtmlPresetContent = async (fileUrl: string): Promise<strin
 
   try {
     logger.debug('[AppearanceService] 正在从远程 URL 获取主题内容');
-    await validateUrlNotPrivate(fileUrl);
+    await validateUrlNotPrivate(fileUrl, 'Appearance getRemoteHtmlPresetContent');
     const response = await axios.get(fileUrl, {
       responseType: 'text', // 确保获取的是文本内容
       maxRedirects: 0, // 禁止重定向 (SSRF 防护)
