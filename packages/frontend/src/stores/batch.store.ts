@@ -352,8 +352,11 @@ export const useBatchStore = defineStore('batch', () => {
                 const chunk = eventPayload.chunk.substring(0, budget);
                 subTask.output = currentOutput + chunk;
               }
-              // 预算用尽时追加截断提示
-              if (currentOutput.length + eventPayload.chunk.length >= MAX_OUTPUT_SIZE) {
+              // budget=0 空间耗尽，或原始 chunk 超出预算时，均追加截断提示
+              if (
+                budget === 0 ||
+                currentOutput.length + eventPayload.chunk.length >= MAX_OUTPUT_SIZE
+              ) {
                 subTask.output = (subTask.output || currentOutput) + TRUNCATION_NOTICE;
               }
             }
