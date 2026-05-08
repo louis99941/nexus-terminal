@@ -170,7 +170,10 @@ export const settingsService = {
     const defaultConfig: FocusSwitcherFullConfig = { sequence: [], shortcuts: {} }; // 默认值
     try {
       const configJson = await settingsRepository.getSetting(FOCUS_SEQUENCE_KEY);
-      logger.debug(`[Service] Raw value from repository for ${FOCUS_SEQUENCE_KEY}:`, configJson);
+      logger.debug(
+        { key: FOCUS_SEQUENCE_KEY, raw: configJson },
+        '[Service] Raw value from repository'
+      );
       if (configJson) {
         const config = JSON.parse(configJson);
         // +++ 验证 FocusSwitcherFullConfig 结构 +++
@@ -188,10 +191,7 @@ export const settingsService = {
               (!('shortcut' in sc) || typeof (sc as { shortcut?: unknown }).shortcut === 'string')
           )
         ) {
-          logger.debug(
-            '[Service] Fetched and validated full focus switcher config:',
-            JSON.stringify(config)
-          );
+          logger.debug({ config }, '[Service] Fetched and validated full focus switcher config');
           return config as FocusSwitcherFullConfig;
         }
         logger.warn(
@@ -206,7 +206,7 @@ export const settingsService = {
         error
       );
     }
-    logger.debug('[Service] Returning default focus config:', JSON.stringify(defaultConfig));
+    logger.debug({ config: defaultConfig }, '[Service] Returning default focus config');
     return defaultConfig;
   },
 
@@ -304,7 +304,10 @@ export const settingsService = {
     logger.debug(`[Service] Attempting to get setting for key: ${NAV_BAR_VISIBLE_KEY}`);
     try {
       const visibleStr = await settingsRepository.getSetting(NAV_BAR_VISIBLE_KEY);
-      logger.debug(`[Service] Raw value from repository for ${NAV_BAR_VISIBLE_KEY}:`, visibleStr);
+      logger.debug(
+        { key: NAV_BAR_VISIBLE_KEY, raw: visibleStr },
+        '[Service] Raw value from repository'
+      );
       // 如果设置存在且值为 'false'，则返回 false，否则都返回 true (包括未设置的情况)
       return visibleStr !== 'false';
     } catch (error: unknown) {
@@ -348,9 +351,9 @@ export const settingsService = {
     try {
       const layoutJson = await settingsRepository.getSetting(LAYOUT_TREE_KEY);
       logger.debug(
-        `[Service] Raw value from repository for ${LAYOUT_TREE_KEY}:`,
-        layoutJson ? `${layoutJson.substring(0, 100)}...` : null
-      ); // 只打印部分内容
+        { key: LAYOUT_TREE_KEY, raw: layoutJson ? `${layoutJson.substring(0, 100)}...` : null },
+        '[Service] Raw value from repository (truncated)'
+      );
       return layoutJson; // 直接返回 JSON 字符串或 null
     } catch (error: unknown) {
       logger.error(`[Service] Error getting layout tree setting (key: ${LAYOUT_TREE_KEY}):`, error);
