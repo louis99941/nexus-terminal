@@ -72,6 +72,7 @@ function createPinoInstance(): pino.Logger {
       formatters: {
         level: (label: string) => ({ level: label }),
       },
+      base: {},
       // NODE_ENV=production 时强制忽略 LOG_PRETTY，避免生产镜像缺少 pino-pretty 导致崩溃
       transport:
         logPretty && !isProd
