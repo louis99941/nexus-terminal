@@ -6,6 +6,24 @@
 
 ## 变更记录 (Changelog)
 
+### 2026-05-08 (安全漏洞修复)
+
+- **SSRF 防护 (CRITICAL)**：
+  - `utils/url.ts`（新增）：共享 `validateUrlNotPrivate()` 函数，DNS 解析后校验 IP 是否指向私网
+  - `appearance/appearance.service.ts`：URL 抓取前调用 SSRF 校验
+  - `ai-ops/nl2cmd.service.ts`：AI 提供商 URL 抓取前调用 SSRF 校验
+- **命令注入防护 (HIGH)**：
+  - `utils/docker-security.ts`：容器 ID 校验从字符剥离改为白名单验证（`/^[a-zA-Z0-9_-]+$/`），不匹配则拒绝
+  - `batch/batch.service.ts`：新增 `sanitizeBatchCommand()` 函数，使用拒绝策略阻止 shell 元字符
+- **路径穿越防护 (HIGH)**：
+  - `appearance/appearance.controller.ts`：3 处上传/下载路径添加 `path.resolve()` + `startsWith()` 校验
+  - `terminal-themes/terminal-theme.controller.ts`：主题导入路径添加校验
+  - `ssh-suspend/temporary-log-storage.service.ts`：日志文件路径添加校验
+- **ReDoS 防护 (HIGH)**：
+  - `appearance/appearance.service.ts`：GitHub URL 正则 `(.*?)` → `[^?#]*`，消除灾难性回溯
+- **日志格式优化**：
+  - `utils/logger.ts`：添加 `formatters.level` 将数字等级转为文字（debug/info/warn/error），`base: {}` 移除 pid/hostname
+
 ### 2026-05-04 (IP 地理定位持久化与多提供商适配)
 
 - **IP 地理定位 SQLite 持久化**：
@@ -270,7 +288,10 @@ packages/backend/
 │       ├── crypto.ts               # 加密模块（支持密钥轮换）
 │       ├── logger.ts               # Pino 日志
 │       ├── AppError.ts             # 自定义应用错误类
-│       └── ...
+│       ├── url.ts                  # SSRF 防护（validateUrlNotPrivate）
+│       ├── docker-security.ts      # Docker 容器 ID 白名单校验
+│       ├── shell-escape.ts         # Shell 命令转义工具
+│       └── asyncHandler.ts         # 异步路由处理器包装
 │
 ├── html-presets/                   # HTML 预设模板
 ├── Dockerfile                      # Docker 构建配置

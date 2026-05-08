@@ -6,6 +6,14 @@
 
 ## 变更记录
 
+### 2026-05-08 (安全漏洞修复)
+
+- **SSRF 防护 (CRITICAL)**：新增 `utils/url.ts` 共享 SSRF 校验函数，DNS 解析后检查 IP 是否指向私网，应用于 `appearance.service.ts` 和 `nl2cmd.service.ts`
+- **命令注入防护 (HIGH)**：`docker-security.ts` 改用白名单验证替代字符剥离；`batch.service.ts` 新增 `sanitizeBatchCommand()` 阻止 shell 元字符
+- **路径穿越防护 (HIGH)**：3 个文件（`appearance.controller.ts`、`terminal-theme.controller.ts`、`temporary-log-storage.service.ts`）添加 `path.resolve()` + `startsWith()` 校验
+- **ReDoS 防护 (HIGH)**：`appearance.service.ts` GitHub URL 正则 `(.*?)` → `[^?#]*` 消除灾难性回溯
+- **日志格式优化**：pino 添加 `formatters.level` 文字等级输出，`base: {}` 移除 pid/hostname
+
 ### 2026-05-06 (日志统一改造)
 
 - **后端日志统一**：console 猴子补丁移除，统一到 pino 单一引擎
@@ -158,7 +166,7 @@
 graph TD
     subgraph "Nexus Terminal Monorepo"
         A["nexus-terminal (根)"] --> B["packages"]
-        B --> C["backend<br/>Express + SQLite<br/>(207 TS文件, 24 数据表, 127 测试)"]
+        B --> C["backend<br/>Express + SQLite<br/>(210 TS文件, 24 数据表, 134 测试)"]
         B --> D["frontend<br/>Vue 3 + Vite<br/>(143 TS + 97 Vue, 24 Stores, 62 测试)"]
         B --> E["remote-gateway<br/>Guacamole Lite + 内嵌 guacd<br/>(2 源文件, 1 测试)"]
         A --> F["doc<br/>(技术债务、路线图)"]
