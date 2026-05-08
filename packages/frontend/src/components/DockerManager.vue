@@ -287,7 +287,9 @@ const viewContainerLogs = (containerId: string) => {
                 class="responsive-td px-3 py-2 border-b border-border align-middle text-right"
                 :data-label="t('dockerManager.header.actions')"
               >
-                <div class="responsive-actions-container flex justify-end gap-1 flex-wrap pt-2">
+                <div
+                  class="responsive-actions-container grid grid-cols-3 gap-1 justify-items-center pt-2"
+                >
                   <button
                     @click="sendDockerCommand(container.id, 'start')"
                     :aria-label="t('dockerManager.action.start')"
@@ -487,7 +489,7 @@ const viewContainerLogs = (containerId: string) => {
   display: table-row;
 } /* Desktop expansion row */
 .responsive-actions-container {
-  justify-content: flex-start;
+  justify-items: start;
 } /* Align actions left in table */
 
 /* Styles for Card View when container is narrow */
@@ -564,10 +566,10 @@ const viewContainerLogs = (containerId: string) => {
     display: none; /* No label for this cell */
   }
 
-  /* Align actions right in card view */
+  /* Align actions center in card view */
   .responsive-actions-container.responsive-actions-container {
     /* Increased specificity */
-    justify-content: flex-end;
+    justify-items: center;
     /* Tailwind pt-2 in template handles top padding */
   }
   /* Remove label for actions cell in card view */
