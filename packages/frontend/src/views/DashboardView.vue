@@ -337,7 +337,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             format="YYYY-MM-DD HH:mm"
             :clearable="false"
             @change="handleTimeRangeChange"
-            class="w-[260px] md:w-[320px] !bg-transparent !border-none !shadow-none"
+            class="w-[260px] md:w-[320px]"
             popper-class="dashboard-date-picker-popper"
           />
         </div>
@@ -351,7 +351,9 @@ const formatDuration = (seconds: number | null | undefined): string => {
               size="small"
               style="--el-switch-on-color: var(--color-primary)"
             />
-            <span class="text-xs font-medium text-muted">{{ t('dashboard.autoRefresh') }}</span>
+            <span class="text-xs font-medium text-muted whitespace-nowrap">{{
+              t('dashboard.autoRefresh')
+            }}</span>
           </div>
 
           <el-select
