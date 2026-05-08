@@ -21,6 +21,7 @@ import { log } from '@/utils/log';
 
 // 输出缓冲上限（前端内存限制，防止 OOM）
 const MAX_OUTPUT_SIZE = 512 * 1024; // 512KB
+const TRUNCATION_NOTICE = '\n\n[输出已截断，超过 512KB 限制]';
 // WS 事件超时兜底（毫秒）：若 WS 断连，超时后自动降级为轮询
 const WS_TIMEOUT_MS = 10_000;
 
@@ -63,8 +64,8 @@ export const useBatchStore = defineStore('batch', () => {
   // H5: 以 taskId → connectionId 为键的状态映射，支持多任务并行
   const subTaskStatusMap = ref<Record<string, Record<number, BatchSubTaskStatus>>>({});
 
-  // H4: WS 连接状态跟踪 — 用于轮询降级策略
-  let wsEventReceived = false;
+  // H4: WS 连接状态跟踪 — 用于轮询降级策略（ref 使其可被组件 watch）
+  const wsEventReceived = ref(false);
   let wsTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
   // === Getters ===
@@ -83,7 +84,7 @@ export const useBatchStore = defineStore('batch', () => {
 
     error.value = null;
     isExecuting.value = true;
-    wsEventReceived = false;
+    wsEventReceived.value = false;
 
     // 清理上一次任务的状态映射
     subTaskStatusMap.value = {};
@@ -236,7 +237,7 @@ export const useBatchStore = defineStore('batch', () => {
    * H4: WS 超时兜底 — 收到首个 WS 事件后停止轮询计时器
    */
   const onWsEventReceived = (): void => {
-    wsEventReceived = true;
+    wsEventReceived.value = true;
     clearWsTimeoutGuard();
   };
 
@@ -245,9 +246,9 @@ export const useBatchStore = defineStore('batch', () => {
    */
   const startWsTimeoutGuard = (): void => {
     clearWsTimeoutGuard();
-    wsEventReceived = false;
+    wsEventReceived.value = false;
     wsTimeoutTimer = setTimeout(() => {
-      if (!wsEventReceived && isExecuting.value) {
+      if (!wsEventReceived.value && isExecuting.value) {
         log.warn('[BatchStore] WS 事件超时，轮询将作为降级方案继续工作。');
       }
     }, WS_TIMEOUT_MS);
@@ -333,19 +334,25 @@ export const useBatchStore = defineStore('batch', () => {
       }
 
       case 'batch:log': {
-        // H3: 流式输出，带上限截断
+        // H3: 流式输出，带上限截断（预留截断提示空间）
         if (eventPayload.subTaskId && eventPayload.chunk) {
           const subTask = currentTask.value.subTasks.find(
             (st) => st.subTaskId === eventPayload.subTaskId
           );
-          if (subTask) {
+          if (subTask && !subTask.output?.endsWith(TRUNCATION_NOTICE)) {
             const currentOutput = subTask.output || '';
             if (currentOutput.length < MAX_OUTPUT_SIZE) {
-              const remaining = MAX_OUTPUT_SIZE - currentOutput.length;
-              const chunk = eventPayload.chunk.substring(0, remaining);
-              subTask.output = currentOutput + chunk;
-              if (currentOutput.length + eventPayload.chunk.length > MAX_OUTPUT_SIZE) {
-                subTask.output += '\n\n[输出已截断，超过 512KB 限制]';
+              const budget = Math.max(
+                0,
+                MAX_OUTPUT_SIZE - currentOutput.length - TRUNCATION_NOTICE.length
+              );
+              if (budget > 0) {
+                const chunk = eventPayload.chunk.substring(0, budget);
+                subTask.output = currentOutput + chunk;
+              }
+              // 预算用尽时追加截断提示
+              if (currentOutput.length + eventPayload.chunk.length >= MAX_OUTPUT_SIZE) {
+                subTask.output = (subTask.output || currentOutput) + TRUNCATION_NOTICE;
               }
             }
           }
@@ -401,6 +408,7 @@ export const useBatchStore = defineStore('batch', () => {
     isLoading,
     error,
     subTaskStatusMap,
+    wsEventReceived,
 
     // Getters
     hasActiveTask,

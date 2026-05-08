@@ -378,7 +378,15 @@ const stopPolling = () => {
   }
 };
 
-// H4: 监听 WS 事件到达后停止轮询
+// H4: 监听 WS 活动 — 收到首个 WS 事件后立即停止轮询，轮询仅作为 WS 降级方案
+watch(
+  () => batchStore.wsEventReceived.value,
+  (received) => {
+    if (received) stopPolling();
+  }
+);
+
+// 任务终态时也停止轮询（兜底）
 watch(
   () => batchStore.currentTask?.status,
   (status) => {

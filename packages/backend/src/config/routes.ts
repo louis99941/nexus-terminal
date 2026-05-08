@@ -25,6 +25,7 @@ import pathHistoryRoutes from '../path-history/path-history.routes';
 import favoritePathsRouter from '../favorite-paths/favorite-paths.routes';
 import batchRoutes from '../batch/batch.routes';
 import * as BatchService from '../batch/batch.service';
+import { logger } from '../utils/logger';
 import aiRoutes from '../ai-ops/ai.routes';
 import passkeyRoutes from '../passkey/passkey.routes';
 import dashboardRoutes from '../services/dashboard.routes';
@@ -123,6 +124,6 @@ export const registerRoutes = (
 
   // 初始化批量模块（孤儿任务恢复 + 定时清理）
   BatchService.initialize().catch((err: unknown) => {
-    console.error('[Routes] 批量模块初始化失败:', err);
+    logger.error({ err }, '[Routes] 批量模块初始化失败');
   });
 };

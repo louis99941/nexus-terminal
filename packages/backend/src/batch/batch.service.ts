@@ -49,7 +49,7 @@ const OUTPUT_THROTTLE_MS = 100; // 输出写入节流
  * - ()  子 shell / 命令分组
  * - []  glob 模式（ls [0-9]*）
  */
-const DANGEROUS_CMD_PATTERN = /[`$]\(|\$\{|\n|\r|\x00|\{[a-zA-Z]/;
+const DANGEROUS_CMD_PATTERN = /`|\$\(|\$\{|\$'|\n|\r|\x00|\{[a-zA-Z]/;
 
 function sanitizeBatchCommand(command: string): string {
   if (!command || typeof command !== 'string') {
@@ -190,9 +190,22 @@ async function processTask(
     return;
   }
 
-  // 检查是否已取消
+  // 检查是否已取消（任务启动前就收到 abort 信号）
   if (signal.aborted) {
-    await updateTaskStatus(taskId, 'cancelled', { message: '任务启动前已取消' });
+    await updateTaskStatus(taskId, 'cancelled', {
+      message: '任务启动前已取消',
+      endedAt: new Date(),
+      overallProgress: 0,
+      completedSubTasks: 0,
+      failedSubTasks: 0,
+      cancelledSubTasks: task.totalSubTasks,
+    });
+    // 发送终态事件，确保前端能收到 batch:cancelled
+    sendBatchEvent(userId, {
+      type: 'batch:cancelled',
+      payload: { taskId, reason: '任务启动前已取消' },
+    });
+    taskAbortControllers.delete(taskId);
     return;
   }
 
@@ -881,16 +894,19 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 每小时清理一次
 
 let cleanupTimer: NodeJS.Timeout | null = null;
 
+// 记录进程启动时间戳（秒），用于孤儿恢复时排除本次启动期间的新任务
+const PROCESS_STARTED_AT = Math.floor(Date.now() / 1000);
+
 /**
  * 模块启动初始化：
- * 1. 恢复服务器重启后孤儿化的 in-progress 任务
+ * 1. 恢复服务器重启后孤儿化的 in-progress 任务（基于进程启动边界）
  * 2. 启动定时清理过期任务
  *
  * 在应用启动时由 routes 注册处调用一次。
  */
 export async function initialize(): Promise<void> {
-  // 恢复孤儿任务
-  const recovered = await BatchRepository.recoverOrphanedTasks(DEFAULT_TIMEOUT_SECONDS);
+  // 恢复孤儿任务：仅恢复 updated_at < 进程启动时间的任务（上次进程遗留）
+  const recovered = await BatchRepository.recoverOrphanedTasks(PROCESS_STARTED_AT);
   if (recovered > 0) {
     logger.info(`[BatchService] 启动恢复：${recovered} 个孤儿任务已标记为 failed。`);
   }
