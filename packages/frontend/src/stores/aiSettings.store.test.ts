@@ -32,10 +32,10 @@ describe('AI Settings Store', () => {
 
       expect(store.settings.enabled).toBe(false);
       expect(store.settings.provider).toBe('openai');
-      expect(store.settings.baseUrl).toBe('https://api.openai.com');
+      expect(store.settings.baseUrl).toBe('https://api.openai.com/v1');
       expect(store.settings.apiKey).toBe('');
-      expect(store.settings.model).toBe('gpt-4o-mini');
-      expect(store.settings.openaiEndpoint).toBe('chat/completions');
+      expect(store.settings.model).toBe('gpt-5-nano');
+      expect(store.settings.openaiEndpoint).toBe('/chat/completions');
       expect(store.settings.rateLimitEnabled).toBe(true);
     });
 
@@ -212,7 +212,7 @@ describe('AI Settings Store', () => {
 
       expect(store.settings.enabled).toBe(false);
       expect(store.settings.provider).toBe('openai');
-      expect(store.settings.model).toBe('gpt-4o-mini');
+      expect(store.settings.model).toBe('gpt-5-nano');
       expect(store.settings.rateLimitEnabled).toBe(true);
     });
   });
