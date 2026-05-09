@@ -526,7 +526,7 @@ const handleFullBackupExport = async () => {
     let message = t('settings.fullBackupExport.error', '导出备份时发生错误。');
     if (isAxiosError(error) && error.response?.data) {
       const data = error.response.data;
-      if (data instanceof Blob && data.type === 'application/json') {
+      if (data instanceof Blob && data.type.toLowerCase().includes('json')) {
         try {
           const errorJson = JSON.parse(await data.text());
           message = errorJson.message || errorJson.error || message;

@@ -211,7 +211,7 @@ export async function importData(
           ? rows.map((row) => {
               const r = Object.assign({}, row) as Record<string, unknown>;
               if (r.command == null && r.content != null) r.command = r.content;
-              if (r.usage_count == null && r.description != null) r.usage_count = 0;
+              if (r.usage_count == null) r.usage_count = 0;
               if (r.variables == null && r.is_active != null) r.variables = null;
               return r;
             })
