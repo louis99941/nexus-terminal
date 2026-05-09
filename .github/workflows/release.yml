@@ -12,8 +12,6 @@ on:
         description: '发布版本号（留空则使用 VERSION 文件中的版本）'
         required: false
         type: string
-  repository_dispatch:
-    types: [release-triggered]
 
 permissions:
   contents: write
