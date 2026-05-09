@@ -84,7 +84,7 @@ jobs:
 
           # 提取 CHANGELOG.md 中当前版本的更新内容
           # 匹配 ## [vX.Y.Z] 或 ## vX.Y.Z 格式的标题，提取到下一个 ## 标题之前
-          BODY=$(awk -v tag="$CURRENT_VERSION" '
+          BODY=$(awk -v tag="$VERSION" '
             BEGIN { found=0 }
             /^## / {
               if (found) { exit }
@@ -136,8 +136,25 @@ jobs:
 
             ---
 
+            ## Docker 镜像
+
+            Docker 镜像已发布到 GitHub Container Registry：
+
+            ```
+            # Backend
+            docker pull ghcr.io/silentely/nexus-terminal-backend:${{ steps.release_meta.outputs.VERSION }}
+            docker pull ghcr.io/silentely/nexus-terminal-backend:latest
+
+            # Frontend
+            docker pull ghcr.io/silentely/nexus-terminal-frontend:${{ steps.release_meta.outputs.VERSION }}
+            docker pull ghcr.io/silentely/nexus-terminal-frontend:latest
+
+            # Remote Gateway
+            docker pull ghcr.io/silentely/nexus-terminal-remote-gateway:${{ steps.release_meta.outputs.VERSION }}
+            docker pull ghcr.io/silentely/nexus-terminal-remote-gateway:latest
+            ```
+
             📖 完整更新日志：${{ steps.release_notes.outputs.CHANGELOG_URL }}
-            🐳 Docker 镜像：`docker pull ghcr.io/silentely/nexus-terminal-backend:${{ steps.release_meta.outputs.VERSION }}`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
