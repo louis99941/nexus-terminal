@@ -18,17 +18,7 @@
 
 > 本项目 Fork 自 [Heavrnl/nexus-terminal](https://github.com/Heavrnl/nexus-terminal)。
 > 上游对比基线：`Heavrnl/nexus-terminal:main`
-> 当前对比快照（2026-05-04）：本仓库相对上游 `ahead 400+ / behind 0`。
 > 在线对比链接：<https://github.com/Heavrnl/nexus-terminal/compare/main...Silentely:main>
-
-### ✅ 当前可验证工程状态
-
-- `npm run -s debt:check` 通过（代码标记 / E2E skip / console.log / any 均为 0）
-- `npm run -s quality:check` 通过（debt + 三端 typecheck + lint + format）
-- `import/no-cycle` 受控豁免已收敛至 0
-- 2026-04-24 全面审计 26 项全部修复，2026-05-03 技术债务 84 项全部清零
-
----
 
 以下为本 Fork 相对上游的长期改进方向（按主题汇总）：
 
@@ -48,12 +38,12 @@
 
 - **终端外观实时预览**：外观自定义设置中新增实时预览窗口，支持字体、主题、描边、阴影的即时预览
 - **强制键盘交互式认证**：SSH 连接新增 `keyboard-interactive` 选项，支持 TOTP/2FA 服务器认证
-- **NL2CMD 自然语言命令生成**：集成 OpenAI/Claude/Gemini 多模型，自然语言直接转换为终端命令
+- **NL2CMD 自然语言命令生成**：集成 OpenAI/Claude 多模型，自然语言直接转换为终端命令（支持 429 重试、结构化输出、SSE streaming）
 - **可配置速率限制**：通过环境变量灵活控制 API 速率限制（含 AI 路由独立限流）
 - **统一缓存管理器**：类型安全的 localStorage 操作，支持版本控制与 TTL 过期管理
 - **统一错误消息提取器**：消除重复的错误提取模式，全局统一错误处理
 - **健康检查端点**：`/api/v1/health` 检查 SQLite 连通性、WebSocket 状态、磁盘空间、内存使用
-- **结构化日志**：日志系统支持 JSON 结构化输出，便于日志聚合与分析
+- **结构化日志**：pino 引擎驱动，JSON 结构化输出，支持文字等级标签、自定义时区、敏感信息脱敏
 - **Prometheus Metrics 端点**：内置应用指标采集，支持 Grafana 等监控平台对接
 - **数据导入功能**：设置页面支持数据导入（配合已有导出功能），支持数据库备份下载
 - **数据备份 API**：支持导出/导入连接、密钥、标签等 14 类核心数据（`/api/v1/backup`）
@@ -73,19 +63,21 @@
 - **CSP 安全头**：添加 Content-Security-Policy / X-Frame-Options / X-Content-Type-Options
 - **统一错误响应格式**：全局 ErrorResponse 类型统一，消除 `{ message }` vs `{ success, error }` 混用
 - **安全配置环境变量化**：`security.config.ts` 支持环境变量覆盖，不再硬编码
-- **SSRF 防护**：URL 抓取前验证解析 IP 是否指向私网（2026-05-08）
-- **命令注入防护**：Docker 容器 ID 白名单验证 + 批量命令 shell 元字符拒绝（2026-05-08）
-- **路径穿越防护**：文件上传/下载路径 `path.resolve()` + `startsWith()` 校验（2026-05-08）
+- **SSRF 防护**：URL 抓取前 DNS 解析并验证 IP 是否指向私网，支持 IPv4/IPv6
+- **命令注入防护**：Docker 容器 ID 白名单验证 + 批量命令 shell 元字符拒绝
+- **路径穿越防护**：文件上传/下载路径 `path.resolve()` + `startsWith()` 校验
+- **ReDoS 防护**：GitHub URL 正则优化，消除灾难性回溯
+- **AI 调用安全**：OpenAI/Claude API 端点路径用户可配置，含 SSRF 校验与 429 指数退避重试
 - **Docker Compose 生产就绪**：添加 healthcheck、资源限制、restart policy、日志轮转
 - **Docker 部署精简**：guacd 内嵌于 remote-gateway 容器，部署从 4 容器精简为 3 容器
 - **IP 地理定位增强**：SQLite 持久化缓存 + ASN 支持 + 多提供商适配器（ip-api/ipinfo）
 
 ### 🧪 测试覆盖
 
-- **测试框架全面建设**：从几乎零测试到 2000+ 测试用例，100% 通过率
+- **测试框架全面建设**：从几乎零测试到 3900+ 测试用例，100% 通过率
 - **E2E 测试（Playwright）**：8 个测试规范，覆盖认证、SSH、SFTP、远程桌面及边缘场景
 - **集成测试**：SSH/SFTP Mock 服务器、Guacamole 协议测试、Remote Gateway 测试
-- **单元测试**：Backend 127 测试文件，Frontend 62 测试文件
+- **单元测试**：Backend 134 测试文件，Frontend 62 测试文件
 - **新增 Store 测试**：settings / fileEditor / audit store 测试覆盖
 - **新增 Controller 测试**：settings.controller 39 个测试用例
 - **质量门禁**：`quality:check` 覆盖 debt + 三端 typecheck + lint + format

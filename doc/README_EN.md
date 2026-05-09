@@ -18,17 +18,7 @@
 
 > This project is forked from [Heavrnl/nexus-terminal](https://github.com/Heavrnl/nexus-terminal).
 > Upstream baseline: `Heavrnl/nexus-terminal:main`
-> Snapshot (2026-05-04): this fork is `ahead 400+ / behind 0` vs upstream.
 > Compare URL: <https://github.com/Heavrnl/nexus-terminal/compare/main...Silentely:main>
-
-### ✅ Verifiable Current State
-
-- `npm run -s debt:check` passes (code markers / E2E skip / console.log / any = 0)
-- `npm run -s quality:check` passes (debt + 3-way typecheck + lint + format)
-- `import/no-cycle` controlled waivers converged to 0
-- 2026-04-24 full audit: all 26 items fixed. 2026-05-03: 84 technical debt items fully cleared (100% convergence rate)
-
----
 
 Below is a long-term summary of this fork's enhancements compared to upstream:
 
@@ -48,12 +38,12 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 
 - **Terminal Appearance Live Preview**: Real-time preview window in appearance settings for font, theme, stroke, and shadow changes
 - **Force Keyboard-Interactive Auth**: New `keyboard-interactive` option for SSH connections, supporting TOTP/2FA server authentication
-- **NL2CMD Natural Language Commands**: Multi-model integration (OpenAI/Claude/Gemini), converting natural language directly to terminal commands
+- **NL2CMD Natural Language Commands**: Multi-model integration (OpenAI/Claude), converting natural language directly to terminal commands (with 429 retry, structured output, SSE streaming)
 - **Configurable Rate Limiting**: Flexible API rate limit control via environment variables (including dedicated AI route rate limiting)
 - **Unified Cache Manager**: Type-safe localStorage operations with version control and TTL expiration management
 - **Unified Error Extractor**: Eliminated duplicated error extraction patterns with globally unified error handling
 - **Health Check Endpoint**: `/api/v1/health` checks SQLite connectivity, WebSocket status, disk space, and memory usage
-- **Structured Logging**: JSON structured log output for log aggregation and analysis
+- **Structured Logging**: pino-powered JSON structured output with text log levels, custom timezone, and sensitive data redaction
 - **Prometheus Metrics Endpoint**: Built-in application metrics collection, compatible with Grafana and other monitoring platforms
 - **Data Import**: Settings page supports data import (alongside existing export), with database backup download
 - **Data Backup API**: Export/import 14 core data types including connections, keys, and tags (`/api/v1/backup`)
@@ -79,10 +69,10 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 
 ### 🧪 Test Coverage
 
-- **Comprehensive Test Framework**: From near-zero tests to 2000+ test cases, 100% pass rate
+- **Comprehensive Test Framework**: From near-zero tests to 3900+ test cases, 100% pass rate
 - **E2E Tests (Playwright)**: 8 test specs covering auth, SSH, SFTP, remote desktop, and edge cases
 - **Integration Tests**: SSH/SFTP mock servers, Guacamole protocol tests, Remote Gateway tests
-- **Unit Tests**: Backend 127 test files, Frontend 62 test files
+- **Unit Tests**: Backend 134 test files, Frontend 62 test files
 - **New Store Tests**: settings / fileEditor / audit store test coverage
 - **New Controller Tests**: 39 test cases for settings.controller
 - **Quality Gate**: `quality:check` covers debt + 3-way typecheck + lint + format
@@ -94,9 +84,11 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 - **Dependabot Automation**: Configured automatic dependency updates for continuous security monitoring
 - **Dependency Overrides**: Enforced secure versions via npm overrides
 - **XSS Protection**: AI panel migrated to DOMPurify, SFTP compress/decompress added path whitelist validation
-- **SSRF Protection (2026-05-08)**: URL fetching validates resolved IPs against private ranges before making requests
-- **Command Injection Prevention (2026-05-08)**: Docker container IDs and batch commands validated with whitelist/reject patterns
-- **Path Traversal Prevention (2026-05-08)**: File upload/download paths verified with `path.resolve()` + `startsWith()` checks
+- **SSRF Protection**: URL fetching resolves DNS and validates IPs against private ranges (IPv4/IPv6)
+- **Command Injection Prevention**: Docker container ID whitelist validation + batch command shell metacharacter rejection
+- **Path Traversal Prevention**: File upload/download paths verified with `path.resolve()` + `startsWith()` checks
+- **ReDoS Protection**: GitHub URL regex optimized to eliminate catastrophic backtracking
+- **AI Call Security**: OpenAI/Claude API endpoint paths user-configurable, with SSRF validation and 429 exponential backoff retry
 
 ---
 
