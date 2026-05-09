@@ -39,15 +39,29 @@
             )
           }}
         </p>
-        <p class="text-sm text-text-secondary mb-4">
-          <span class="font-semibold text-warning">{{
+        <p class="text-xs text-text-secondary mb-3">
+          {{
             t(
-              'settings.exportConnections.decryptKeyInfo',
-              '解压密码为您的 data/.env 文件中的 ENCRYPTION_KEY。请妥善保管此文件。'
+              'settings.exportConnections.proxyNote',
+              '注意：代理配置和按内容存储的 SSH 密钥不包含在导出中。'
             )
-          }}</span>
+          }}
         </p>
-        <form @submit.prevent="handleExportConnections" class="space-y-4">
+        <form @submit.prevent="handleExportWithPassword" class="space-y-4">
+          <div>
+            <label for="exportPassword" class="block text-sm font-medium text-text-secondary mb-1">
+              {{ t('settings.exportConnections.passwordLabel', '导出密码（可选）') }}
+            </label>
+            <input
+              id="exportPassword"
+              v-model="exportPassword"
+              type="password"
+              :placeholder="
+                t('settings.exportConnections.passwordPlaceholder', '留空则使用 ENCRYPTION_KEY')
+              "
+              class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
+            />
+          </div>
           <div class="flex items-center justify-between">
             <button
               type="submit"
@@ -98,13 +112,21 @@
         <h3 class="text-base font-semibold text-foreground mb-3">
           {{ t('settings.fullBackupExport.title', '完整数据备份') }}
         </h3>
-        <p class="text-sm text-text-secondary mb-4">
+        <p class="text-sm text-text-secondary mb-2">
           {{
             t(
               'settings.fullBackupExport.description',
               '导出全部核心业务数据为 JSON 文件，包含连接、标签、快捷指令、终端主题等。可用于跨实例完整恢复。'
             )
           }}
+        </p>
+        <p class="text-xs text-text-secondary mb-4">
+          <span class="font-semibold text-warning">{{
+            t(
+              'settings.fullBackupExport.encryptionKeyWarning',
+              '恢复时需使用与导出相同的 ENCRYPTION_KEY，否则连接密码和 SSH 密钥将无法解密。'
+            )
+          }}</span>
         </p>
         <form @submit.prevent="handleFullBackupExport" class="space-y-4">
           <div class="flex items-center justify-between">
@@ -437,6 +459,7 @@ import { useImportConnections } from '../../composables/settings/useImportConnec
 import { useAuditSettings } from '../../composables/settings/useAuditSettings';
 import apiClient from '../../utils/apiClient';
 import { log } from '@/utils/log';
+import { isAxiosError } from 'axios';
 
 const settingsStore = useSettingsStore();
 const { settings } = storeToRefs(settingsStore);
@@ -448,6 +471,13 @@ const {
   exportConnectionsSuccess,
   handleExportConnections,
 } = useExportConnections();
+
+// 自定义导出密码
+const exportPassword = ref('');
+
+const handleExportWithPassword = () => {
+  handleExportConnections(exportPassword.value || undefined);
+};
 
 // 全量备份导出
 const fullBackupLoading = ref(false);
@@ -494,7 +524,24 @@ const handleFullBackupExport = async () => {
   } catch (error: unknown) {
     log.error('导出备份失败:', error);
     let message = t('settings.fullBackupExport.error', '导出备份时发生错误。');
-    if (error instanceof Error && error.message) {
+    if (isAxiosError(error) && error.response?.data) {
+      const data = error.response.data;
+      if (data instanceof Blob && data.type.toLowerCase().includes('json')) {
+        try {
+          const errorJson = JSON.parse(await data.text());
+          message = errorJson.message || errorJson.error || message;
+        } catch {
+          // Blob 非 JSON 格式，使用默认消息
+        }
+      } else if (typeof data === 'object' && data !== null) {
+        message =
+          (data as { message?: string; error?: string }).message ||
+          (data as { error?: string }).error ||
+          message;
+      } else if (typeof data === 'string') {
+        message = data;
+      }
+    } else if (error instanceof Error && error.message) {
       message = error.message;
     }
     fullBackupMessage.value = message;

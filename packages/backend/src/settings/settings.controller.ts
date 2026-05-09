@@ -521,7 +521,12 @@ export const settingsController = {
    * 导出所有连接配置为加密的 ZIP 文件
    */
   exportAllConnections: asyncHandler(async (req, res) => {
-    const encryptedZipBuffer = await exportConnectionsAsEncryptedZip(true);
+    const passwordHeader = req.header('x-export-password');
+    const password =
+      typeof passwordHeader === 'string' && passwordHeader.trim() !== ''
+        ? passwordHeader.trim()
+        : undefined;
+    const encryptedZipBuffer = await exportConnectionsAsEncryptedZip(true, password);
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="nexus_connections_export.zip"');
