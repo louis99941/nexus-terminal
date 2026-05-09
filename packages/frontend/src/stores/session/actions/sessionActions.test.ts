@@ -58,7 +58,7 @@ const { mockSessions, mockActiveSessionId } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const vue = require('vue') as typeof import('vue');
   return {
-    mockSessions: vue.shallowRef<Map<string, any>>(new Map()),
+    mockSessions: vue.shallowRef<Map<string, ReturnType<typeof createMockSession>>>(new Map()),
     mockActiveSessionId: vue.ref<string | null>(null),
   };
 });

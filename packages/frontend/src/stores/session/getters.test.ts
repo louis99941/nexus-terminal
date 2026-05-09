@@ -49,9 +49,13 @@ const createMockSession = (overrides: {
   wsManager: {
     connectionStatus: { value: overrides.wsManager?.connectionStatus?.value ?? 'connected' },
   },
-  editorTabs: [],
-  activeEditorTabId: null,
-  commandInputContent: '',
+  sftpManagers: new Map(),
+  terminalManager: { cleanup: vi.fn() },
+  statusMonitorManager: { cleanup: vi.fn() },
+  dockerManager: { cleanup: vi.fn() },
+  editorTabs: ref([]),
+  activeEditorTabId: ref(null),
+  commandInputContent: ref(''),
   createdAt: overrides.createdAt ?? Date.now(),
   isMarkedForSuspend: overrides.isMarkedForSuspend ?? false,
 });
@@ -60,7 +64,7 @@ const createMockSession = (overrides: {
 const setSessions = (...sessionList: ReturnType<typeof createMockSession>[]) => {
   const newMap = new Map<string, ReturnType<typeof createMockSession>>();
   sessionList.forEach((s) => newMap.set(s.sessionId, s));
-  sessions.value = newMap;
+  sessions.value = newMap as unknown as typeof sessions.value;
 };
 
 describe('session/getters', () => {

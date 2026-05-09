@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
+import type { ConnectionInfo } from '../../connections.store';
 
 // Mock state 模块 — 使用独立的 ref 以便直接验证状态变更
 const mockIsRdpModalOpen = ref(false);
-const mockRdpConnectionInfo = ref(null);
+const mockRdpConnectionInfo = ref<ConnectionInfo | null>(null);
 const mockIsVncModalOpen = ref(false);
-const mockVncConnectionInfo = ref(null);
+const mockVncConnectionInfo = ref<ConnectionInfo | null>(null);
 
 vi.mock('../state', () => ({
   get isRdpModalOpen() {
@@ -23,7 +24,6 @@ vi.mock('../state', () => ({
 }));
 
 import { openRdpModal, closeRdpModal, openVncModal, closeVncModal } from './modalActions';
-import type { ConnectionInfo } from '../../connections.store';
 
 const createMockConnection = (overrides: Partial<ConnectionInfo> = {}): ConnectionInfo =>
   ({

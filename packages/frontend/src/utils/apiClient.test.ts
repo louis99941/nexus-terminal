@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import apiClient, {
   DEFAULT_REQUEST_TIMEOUT_MS,
   AI_REQUEST_TIMEOUT_MS,

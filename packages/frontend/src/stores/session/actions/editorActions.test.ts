@@ -94,7 +94,10 @@ const setSession = (session: ReturnType<typeof createMockSession>) => {
   mockSessionsMap.set(session.sessionId, session);
 };
 
-const mockT = (key: string, fallback?: string) => fallback ?? key;
+const mockT = ((key: string, ...args: unknown[]) => {
+  const last = args[args.length - 1];
+  return typeof last === 'string' ? last : key;
+}) as unknown as (key: string) => string;
 const mockDependencies = () => ({
   getOrCreateSftpManager: vi.fn(),
   t: mockT,
