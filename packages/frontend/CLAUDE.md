@@ -4,70 +4,6 @@
 
 ---
 
-## 变更记录 (Changelog)
-
-### 2026-05-06 (日志统一改造)
-
-- **新增前端日志工具**：`src/utils/log.ts`，统一替代所有 `console.*` 调用
-  - `log.info()` / `log.warn()` / `log.error()`：dev 模式输出，prod 模式静默
-  - `log.debug()`：需 `?log=debug` URL 参数或 `localStorage` 开关激活
-  - `isVerbose()` / `setVerbose()`：运行时 verbose 控制
-  - 生产构建通过 `import.meta.env.DEV` 守卫自动剥离，零运行时开销
-- **console 调用全量迁移**：138 个源文件、1,335 处 `console.info/warn/error/debug` → `log.info/warn/error/debug`
-- **移除 `import.meta.env.DEV` 冗余守卫**：`useNL2CMD.ts`、`apiClient.ts` 中的 DEV 守卫已移除（log.ts 内部处理）
-- **测试文件 logger mock 更新**：8 个测试文件中的 `vi.spyOn(console, ...)` 改为 `vi.mock('@/utils/log')`
-- **验证结果**：
-  - 前端类型检查通过（vue-tsc --noEmit）
-  - 62 个测试文件 / 1,616 测试全部通过
-  - 生产构建中 console 调用为 0
-
-### 2026-05-03 (仪表盘增强)
-
-- **仪表盘组件新增**：
-  - `components/dashboard/SessionDurationChart.vue`：会话时长图表（Bar，基于 Chart.js）
-  - `components/dashboard/SystemResourcesHistoryChart.vue`：系统资源历史图表（Line，基于 Chart.js）
-  - `stores/dashboard.store.ts`：仪表盘数据状态管理（统计、时间线、资产健康）
-- **路由精简**：移除 `/tags`、`/quick-commands`、`/suspended-sessions`、`/command-history` 路由（功能已集成到其他页面），当前 9 个视图路由
-- **DashboardView 增强**：集成 Chart.js 图表、实时系统资源监控
-
-### 2026-05-03 (技术债务全面治理与文档更新)
-
-- **文件统计更新**：
-  - 源文件: 240 个（143 TS + 97 Vue）
-  - 测试文件: 62 个（单元测试 + 组件测试）
-- **技术债务清零**：Frontend 模块所有技术债务已全部修复
-- **测试覆盖提升**：从 39 个测试文件增长至 62 个（+59%）
-
-### 2025-12-24 (安全增强与技术债务清零)
-
-- **测试覆盖率大幅提升**：
-  - 新增 10+ 测试文件，覆盖核心 Stores 与 Composables
-  - 测试文件位置：`*.test.ts` 与组件同目录
-- **技术债务清零**：Frontend 模块 13 项技术债务已全部修复
-- **ESLint 配置优化**：统一代码风格，164 文件格式化变更
-
-### 2025-12-21 (Phase 5 - AI 智能运维 & 批量操作前端)
-
-- **新增 AI 模块**：
-  - `types/ai.types.ts`：AI 会话/消息类型定义
-  - `stores/ai.store.ts`：AI 状态管理（会话、消息、建议）
-  - `features/ai-ops/AIAssistantPanel.vue`：AI 助手聊天面板（含 XSS 防护、自动滚动）
-- **新增 Batch 模块**：
-  - `types/batch.types.ts`：批量任务/子任务类型定义
-  - `stores/batch.store.ts`：批量任务状态管理（WebSocket 事件处理、轮询）
-  - `features/batch-ops/MultiServerExec.vue`：多服务器命令执行面板
-- **Codex 审查通过**：93/100 APPROVE
-
-### 2025-12-20 22:27:42
-
-- **初始化模块文档**：完成前端模块架构分析与文档建立
-- **组件索引**：识别 53 个 Vue 组件
-- **状态管理**：识别 21 个 Pinia stores
-- **路由配置**：识别 9 个视图路由
-- **覆盖率**：模块文档初始化完成
-
----
-
 ## 模块概述
 
 **@nexus-terminal/frontend** 是星枢终端的 Web 前端应用，基于 Vue 3 构建，提供：
@@ -531,4 +467,3 @@ npm run typecheck
 
 ---
 
-**文档生成时间**：2026-05-03（仪表盘增强更新）

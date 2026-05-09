@@ -4,151 +4,6 @@
 
 ---
 
-## 变更记录 (Changelog)
-
-### 2026-05-08 (安全漏洞修复)
-
-- **SSRF 防护 (CRITICAL)**：
-  - `utils/url.ts`（新增）：共享 `validateUrlNotPrivate()` 函数，DNS 解析后校验 IP 是否指向私网
-  - `appearance/appearance.service.ts`：URL 抓取前调用 SSRF 校验
-  - `ai-ops/nl2cmd.service.ts`：AI 提供商 URL 抓取前调用 SSRF 校验
-- **命令注入防护 (HIGH)**：
-  - `utils/docker-security.ts`：容器 ID 校验从字符剥离改为白名单验证（`/^[a-zA-Z0-9_-]+$/`），不匹配则拒绝
-  - `batch/batch.service.ts`：新增 `sanitizeBatchCommand()` 函数，使用拒绝策略阻止 shell 元字符
-- **路径穿越防护 (HIGH)**：
-  - `appearance/appearance.controller.ts`：3 处上传/下载路径添加 `path.resolve()` + `startsWith()` 校验
-  - `terminal-themes/terminal-theme.controller.ts`：主题导入路径添加校验
-  - `ssh-suspend/temporary-log-storage.service.ts`：日志文件路径添加校验
-- **ReDoS 防护 (HIGH)**：
-  - `appearance/appearance.service.ts`：GitHub URL 正则 `(.*?)` → `[^?#]*`，消除灾难性回溯
-- **日志格式优化**：
-  - `utils/logger.ts`：添加 `formatters.level` 将数字等级转为文字（debug/info/warn/error），`base: {}` 移除 pid/hostname
-
-### 2026-05-04 (IP 地理定位持久化与多提供商适配)
-
-- **IP 地理定位 SQLite 持久化**：
-  - `database/schema.ts`：新增 `ip_geo_cache` 表定义（含索引）
-  - `database/schema.registry.ts`：注册 `ip_geo_cache` 表初始化
-  - `auth/ip-geo.service.ts`：重写为两级缓存（L1 内存 + L2 SQLite），重启后缓存不丢失
-- **多提供商适配器模式**：
-  - 内置 `ip-api`（默认）和 `ipinfo` 两个适配器
-  - 新增环境变量 `GEO_PROVIDER`：可选 `ip-api`（默认）或 `ipinfo`
-  - 新增环境变量 `IPINFO_TOKEN`：ipinfo.io API Token（可选）
-  - 适配器接口 `GeoProviderAdapter`：扩展新提供商只需实现 `buildUrl` + `parseResponse`
-- **审计日志同步清理**：
-  - `audit/audit.repository.ts`：`deleteAllLogs()` 删除所有审计日志时同步清理 `ip_geo_cache`
-
-### 2026-05-04 (性能优化与数据备份)
-
-- **SSH 批量状态采集**：7+ 次独立 exec 合并为单次批量执行，高延迟场景提升 70-85%
-  - `services/status-monitor.service.ts`：新增 `executeBatchCollect()`、`splitSections()` 等方法
-  - 保留 `fetchServerStatusLegacy()` 作为降级路径
-- **SSH 路由规划日志**：跳板链路结构化路由汇总
-  - `types/connection.types.ts`：新增 `RouteHop`、`ConnectionRoutePlan` 类型
-  - `services/ssh.service.ts`：递归跳板连接中收集路由信息
-  - `websocket/handlers/ssh.handler.ts`：发送 `ssh:route_plan` 消息
-- **登录地理定位增强**：
-  - `auth/ip-geo.service.ts`（新建）：IP 地理位置查询 + 24h 缓存
-  - `auth/auth-main-flow.utils.ts`：非阻塞 fire-and-forget 写入审计日志
-  - 新增环境变量：`ENABLE_GEO_LOOKUP=false` 可禁用
-- **数据备份模块**：
-  - `backup/backup.types.ts`：备份数据类型定义
-  - `backup/backup.service.ts`：导出/导入 14 类核心业务数据
-  - `backup/backup.routes.ts`：3 个 API 端点
-- **Docker standalone 镜像**：`Dockerfile.standalone` + `entrypoint-standalone.sh`
-- **API 端点更新**：新增 `/api/v1/backup`（3 端点），总计 23 个路由模块
-- **Codex 审查修复**：
-  - `auth/ip-geo.service.ts`：修复 IP 私有地址判定（172.x 改为 RFC 1918 的 172.16-31 范围）
-  - `auth/ip-geo.service.ts`：添加缓存上限（10000 条）防止内存泄漏
-  - `backup/backup.service.ts`：导入事务区分约束冲突与致命错误，致命错误触发回滚
-  - `backup/backup.routes.ts`：导入端点添加 5mb body size 限制
-  - `auth/auth-main-flow.utils.ts`：审计日志改用 `.catch().finally()` 模式确保不丢失
-
-### 2026-05-03 (仪表盘与监控模块新增)
-
-- **新增 dashboard 模块**：
-  - `services/dashboard.service.ts`：仪表盘统计数据服务（CPU、内存、存储、时间线分析）
-  - `services/dashboard.controller.ts`：HTTP 请求处理器
-  - `services/dashboard.routes.ts`：API 路由定义（5 个端点）
-  - 前端组件：`SessionDurationChart.vue`、`SystemResourcesHistoryChart.vue`（Chart.js）
-- **新增 metrics 模块**（Prometheus 监控）：
-  - `metrics/metrics.service.ts`：prom-client 初始化与自定义指标（HTTP 延迟、WebSocket 连接数）
-  - `metrics/metrics.controller.ts`：指标数据端点
-  - `metrics/metrics.routes.ts`：路由定义（受 `ENABLE_METRICS` 环境变量控制）
-- **新增日志与错误处理**：
-  - `logging/logger.ts`：容器日志等级控制 + 敏感信息自动脱敏（P1-5）
-  - `middleware/error.middleware.ts`：全局错误处理中间件，标准化错误响应（P1-6）
-  - `types/error.types.ts`：ErrorCode 枚举与 ErrorResponse 类型定义
-  - `utils/AppError.ts`：自定义应用错误类
-- **新增配置模块**：
-  - `config/env.validator.ts`：环境变量验证与启动检查
-  - `config/app.config.ts`：应用配置（Passkey RP 等）
-  - `config/middleware.ts`：安全中间件（Helmet、CORS、限流）
-  - `config/routes.ts`：集中式路由注册
-- **API 路由更新**：新增 `/api/v1/dashboard`（5 端点）和 `/api/v1/metrics`（1 端点），总计 22 个路由模块
-- **技术债务清零**：Backend 模块所有技术债务已全部修复
-
-### 2026-05-03 (技术债务全面治理与文档更新)
-
-- **文件统计更新**：
-  - 源文件: 207 个 TypeScript 文件
-  - 测试文件: 127 个
-- **技术债务清零**：Backend 模块所有技术债务已全部修复
-- **测试覆盖提升**：从 118 个测试文件增长至 127 个（+8%）
-
-### 2025-12-24 (安全增强与技术债务清零)
-
-- **安全配置升级**：
-  - bcrypt saltRounds 从 10 提升至 12（符合 2025 年安全标准）
-  - 新增 `src/config/security.config.ts`：集中管理所有安全相关常量
-- **加密密钥轮换机制**（`src/utils/crypto.ts` 重构）：
-  - 支持多版本密钥共存（KeyVersion 接口）
-  - 新加密格式：`[keyVersion(4B)][iv(16B)][encrypted][tag(16B)]`
-  - 新增 API：`initializeKeyRotation()`、`rotateEncryptionKey()`、`reEncrypt()`、`getKeyRotationStatus()`
-  - 保持向后兼容：`isLegacyFormat()` 自动识别并解密旧格式数据
-- **测试覆盖率大幅提升**：新增 15+ 测试文件，覆盖核心服务与控制器
-- **技术债务清零**：Backend 模块 11 项技术债务已全部修复
-
-### 2025-12-21 (Phase 5 - AI 智能运维)
-
-- **新增 ai-ops 模块**：实现 AI 智能运维功能
-  - `ai.types.ts`：AI 会话与消息类型定义
-  - `ai.repository.ts`：会话/消息数据访问层
-  - `ai.service.ts`：系统健康分析、命令模式分析、安全事件分析
-  - `ai.controller.ts`：HTTP 请求处理器
-  - `ai.routes.ts`：API 路由定义
-- **新增数据表**：`ai_sessions`、`ai_messages`
-- **Codex 审查通过**：90/100 APPROVE
-
-### 2025-12-21 (Phase 4 - 批量操作)
-
-- **新增 batch 模块**：实现批量命令执行功能
-  - `batch.types.ts`：批量任务与子任务类型定义
-  - `batch.repository.ts`：任务/子任务数据访问层
-  - `batch.service.ts`：并发执行逻辑（基于 AbortController）
-  - `batch.controller.ts`：HTTP 请求处理器
-  - `batch.routes.ts`：API 路由定义
-- **新增数据表**：`batch_tasks`、`batch_subtasks`
-- **WebSocket 集成**：实时进度推送（batch:subtask:update、batch:overall、batch:log 等）
-- **Codex 审查通过**：92/100 APPROVE
-
-### 2025-12-21 (Phase 3 - WebSocket 基础设施)
-
-- **心跳机制重构**：支持桌面/移动端差异化心跳间隔
-- **连接状态管理**：clientType 检测与白名单验证
-- **内存泄漏修复**：lastPingTime Map 清理机制
-- **广播优化**：自动清理失效连接
-- **Codex 审查通过**：94/100 APPROVE
-
-### 2025-12-20 22:27:42
-
-- **初始化模块文档**：完成后端模块架构分析与文档建立
-- **API 端点索引**：识别 18 个 API 路由模块
-- **数据库 Schema**：识别 16 个数据表定义
-- **覆盖率**：模块文档初始化完成
-
----
-
 ## 模块概述
 
 **@nexus-terminal/backend** 是星枢终端的核心后端服务，基于 Express.js 构建，提供：
@@ -178,7 +33,7 @@
 | 会话存储   | session-file-store                                        |
 | 国际化     | i18next                                                   |
 | 监控       | prom-client (Prometheus)                                  |
-| 日志       | pino, 自定义 console 重写（含敏感信息脱敏）               |
+| 日志       | pino + pino-pretty（dev），敏感信息脱敏                   |
 
 ---
 
@@ -273,7 +128,8 @@ packages/backend/
 │   │   └── swagger.config.ts       # OpenAPI/Swagger 配置
 │   │
 │   ├── logging/                    # 日志模块
-│   │   └── logger.ts               # 控制台日志等级 + 敏感信息脱敏
+│   │   ├── logger.ts               # 日志 re-export 薄包装
+│   │   └── redaction.ts            # 敏感信息脱敏（16 正则）
 │   │
 │   ├── middleware/                  # 中间件
 │   │   └── error.middleware.ts     # 全局错误处理（标准化错误响应）
@@ -420,7 +276,8 @@ packages/backend/
 - `src/metrics/metrics.service.ts` - Prometheus 指标采集（HTTP 延迟、WebSocket 连接数）
 - `src/metrics/metrics.controller.ts` - 指标数据端点
 - `src/metrics/metrics.routes.ts` - 路由定义
-- `src/logging/logger.ts` - 控制台日志等级 + 敏感信息自动脱敏
+- `src/logging/logger.ts` - 日志 re-export（脱敏逻辑在 `redaction.ts`）
+- `src/logging/redaction.ts` - 敏感信息脱敏（16 正则 + 循环引用检测）
 - `src/middleware/error.middleware.ts` - 全局错误处理中间件
 - `src/types/error.types.ts` - ErrorCode 枚举与 ErrorResponse 类型
 - `src/utils/AppError.ts` - 自定义应用错误类
@@ -528,4 +385,3 @@ repository.ts → 数据访问与 SQL 操作
 
 ---
 
-**文档生成时间**：2026-05-03（仪表盘与监控模块新增）

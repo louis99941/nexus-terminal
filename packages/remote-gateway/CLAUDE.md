@@ -4,25 +4,6 @@
 
 ---
 
-## 变更记录 (Changelog)
-
-### 2026-05-04 (内嵌 guacd 成为默认部署模式)
-
-- **Dockerfile 重命名**：`Dockerfile.standalone` → `Dockerfile`，旧 `Dockerfile`（纯 Node.js）已删除
-- **启动脚本重命名**：`entrypoint-standalone.sh` → `entrypoint.sh`
-- **架构变更**：guacd 内嵌为默认部署模式，容器基础镜像改为 `guacamole/guacd:latest`
-- **删除冗余**：移除 `docker-compose.standalone.yml`（主 `docker-compose.yml` 已统一为 3 容器部署）
-- **文档更新**：架构图、依赖说明、Docker 部署章节同步更新
-
-### 2025-12-20 22:27:42
-
-- **初始化模块文档**：完成远程网关模块架构分析与文档建立
-- **核心功能**：RDP/VNC 协议代理，基于 Guacamole Lite
-- **API 端点**：识别 1 个令牌生成端点
-- **覆盖率**：模块文档初始化完成
-
----
-
 ## 模块概述
 
 **@nexus-terminal/remote-gateway** 是星枢终端的远程桌面网关服务，基于 [guacamole-lite](https://www.npmjs.com/package/guacamole-lite) 构建，提供：
@@ -304,4 +285,3 @@ VNC 主要使用密码认证，`username` 字段可选。部分 VNC 服务器可
 
 ---
 
-**文档生成时间**：2025-12-20 22:27:42

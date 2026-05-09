@@ -158,6 +158,7 @@ dist
 ~/
 .omc
 .omx
+.context
 
 # Build/Distribution scripts
 dist-scripts/
