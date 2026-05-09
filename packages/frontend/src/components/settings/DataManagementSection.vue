@@ -112,13 +112,21 @@
         <h3 class="text-base font-semibold text-foreground mb-3">
           {{ t('settings.fullBackupExport.title', '完整数据备份') }}
         </h3>
-        <p class="text-sm text-text-secondary mb-4">
+        <p class="text-sm text-text-secondary mb-2">
           {{
             t(
               'settings.fullBackupExport.description',
               '导出全部核心业务数据为 JSON 文件，包含连接、标签、快捷指令、终端主题等。可用于跨实例完整恢复。'
             )
           }}
+        </p>
+        <p class="text-xs text-text-secondary mb-4">
+          <span class="font-semibold text-warning">{{
+            t(
+              'settings.fullBackupExport.encryptionKeyWarning',
+              '恢复时需使用与导出相同的 ENCRYPTION_KEY，否则连接密码和 SSH 密钥将无法解密。'
+            )
+          }}</span>
         </p>
         <form @submit.prevent="handleFullBackupExport" class="space-y-4">
           <div class="flex items-center justify-between">
@@ -451,6 +459,7 @@ import { useImportConnections } from '../../composables/settings/useImportConnec
 import { useAuditSettings } from '../../composables/settings/useAuditSettings';
 import apiClient from '../../utils/apiClient';
 import { log } from '@/utils/log';
+import { isAxiosError } from 'axios';
 
 const settingsStore = useSettingsStore();
 const { settings } = storeToRefs(settingsStore);
@@ -515,7 +524,24 @@ const handleFullBackupExport = async () => {
   } catch (error: unknown) {
     log.error('导出备份失败:', error);
     let message = t('settings.fullBackupExport.error', '导出备份时发生错误。');
-    if (error instanceof Error && error.message) {
+    if (isAxiosError(error) && error.response?.data) {
+      const data = error.response.data;
+      if (data instanceof Blob && data.type === 'application/json') {
+        try {
+          const errorJson = JSON.parse(await data.text());
+          message = errorJson.message || errorJson.error || message;
+        } catch {
+          // Blob 非 JSON 格式，使用默认消息
+        }
+      } else if (typeof data === 'object' && data !== null) {
+        message =
+          (data as { message?: string; error?: string }).message ||
+          (data as { error?: string }).error ||
+          message;
+      } else if (typeof data === 'string') {
+        message = data;
+      }
+    } else if (error instanceof Error && error.message) {
       message = error.message;
     }
     fullBackupMessage.value = message;

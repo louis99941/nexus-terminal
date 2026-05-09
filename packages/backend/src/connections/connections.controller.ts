@@ -284,7 +284,11 @@ export const exportConnections = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const password = typeof req.query.password === 'string' ? req.query.password : undefined;
+    const passwordHeader = req.header('x-export-password');
+    const password =
+      typeof passwordHeader === 'string' && passwordHeader.trim() !== ''
+        ? passwordHeader.trim()
+        : undefined;
     const exportedData = await ImportExportService.exportConnectionsAsEncryptedZip(false, password);
 
     // 设置响应头，提示浏览器下载文件

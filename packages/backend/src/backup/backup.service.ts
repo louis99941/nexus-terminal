@@ -205,6 +205,18 @@ export async function importData(
         continue;
       }
 
+      // 向前兼容：旧版备份文件中 quick_commands 使用 content/description/is_active 字段
+      const normalizedRows =
+        key === 'quickCommands'
+          ? rows.map((row) => {
+              const r = Object.assign({}, row) as Record<string, unknown>;
+              if (r.command == null && r.content != null) r.command = r.content;
+              if (r.usage_count == null && r.description != null) r.usage_count = 0;
+              if (r.variables == null && r.is_active != null) r.variables = null;
+              return r;
+            })
+          : rows;
+
       let imported = 0;
       let skipped = 0;
 
@@ -213,7 +225,7 @@ export async function importData(
         ? `INSERT OR REPLACE INTO ${config.table} (${config.columns.join(', ')}) VALUES (${placeholders})`
         : `INSERT OR IGNORE INTO ${config.table} (${config.columns.join(', ')}) VALUES (${placeholders})`;
 
-      for (const row of rows) {
+      for (const row of normalizedRows) {
         try {
           const values = config.columns.map((col) => (row as Record<string, unknown>)[col] ?? null);
           const { changes } = await runDb(db, insertSql, values);

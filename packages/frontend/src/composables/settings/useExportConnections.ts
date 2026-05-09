@@ -16,13 +16,13 @@ export function useExportConnections() {
     exportConnectionsMessage.value = '';
     exportConnectionsSuccess.value = false;
     try {
-      const params: Record<string, string> = {};
+      const headers: Record<string, string> = {};
       if (password && password.trim()) {
-        params.password = password.trim();
+        headers['x-export-password'] = password.trim();
       }
       const response = await apiClient.get('/settings/export-connections', {
         responseType: 'blob',
-        params,
+        headers,
       });
 
       let filename = 'nexus_connections_export.zip';

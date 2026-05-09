@@ -312,7 +312,8 @@ export const exportConnectionsAsEncryptedZip = async (
 
     const connectionsScriptContent = scriptLines.join('\n');
 
-    const zipPassword = customPassword || process.env.ENCRYPTION_KEY;
+    const normalizedCustomPassword = customPassword?.trim();
+    const zipPassword = normalizedCustomPassword || process.env.ENCRYPTION_KEY;
     if (!zipPassword || zipPassword.trim() === '') {
       logger.error('错误：未提供密码且 ENCRYPTION_KEY 环境变量未设置或为空！');
       throw new Error(

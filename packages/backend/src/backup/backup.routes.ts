@@ -57,7 +57,11 @@ router.post('/import', isAuthenticated, importBodyParser, async (req: Request, r
     }
 
     const result = await importData(data, { overwrite, tables });
-    res.json({ message: '导入完成', result });
+    const hasErrors = result.errors.length > 0;
+    res.status(hasErrors ? 207 : 200).json({
+      message: hasErrors ? '导入完成但存在错误，事务已回滚' : '导入完成',
+      result,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '导入失败';
     logger.error('[Backup] 导入失败:', message);
