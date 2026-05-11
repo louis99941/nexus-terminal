@@ -27,7 +27,7 @@ vi.mock('./handlers/sftp.handler', () => ({
   handleSftpUploadCancel: vi.fn(),
 }));
 
-vi.mock('./handlers/rdp.handler', () => ({
+vi.mock('./handlers/remote-desktop.handler', () => ({
   handleRdpProxyConnection: vi.fn(),
 }));
 

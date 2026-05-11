@@ -57,6 +57,7 @@ export function createSshTerminalManager(
   };
 
   const trimBuffer = (): void => {
+    let trimmedCount = 0;
     while (
       currentBufferSizeBytes > MAX_BUFFER_SIZE_BYTES &&
       terminalOutputBuffer.value.length > 0
@@ -64,7 +65,14 @@ export function createSshTerminalManager(
       const removed = terminalOutputBuffer.value.shift();
       if (removed) {
         currentBufferSizeBytes -= getItemByteSize(removed);
+        trimmedCount++;
       }
+    }
+    // 缓冲区截断时向终端输出提示信息
+    if (trimmedCount > 0 && terminalInstance.value) {
+      terminalInstance.value.writeln(
+        `\r\n\x1b[33m[终端输出已截断：丢弃了 ${trimmedCount} 条旧数据以释放缓冲区]\x1b[0m`
+      );
     }
   };
 
@@ -609,38 +617,5 @@ export function createSshTerminalManager(
     // --- 暴露状态 ---
     isSshConnected: readonly(isSshConnected), // 暴露 SSH 连接状态 (只读)
     terminalInstance, // 暴露 terminal 实例，以便 WorkspaceView 可以写入提示信息
-  };
-}
-
-// 保留兼容旧代码的函数（将在完全迁移后移除）
-export function useSshTerminal(_t: (key: string) => string) {
-  log.warn(
-    '⚠️ 使用已弃用的 useSshTerminal() 全局单例。请迁移到 createSshTerminalManager() 工厂函数。'
-  );
-
-  const terminalInstance = ref<Terminal | null>(null);
-
-  const handleTerminalReady = (term: Terminal) => {
-    log.info('[SSH终端模块][旧] 终端实例已就绪，但使用了已弃用的单例模式。');
-    terminalInstance.value = term;
-  };
-
-  const handleTerminalData = (_data: string) => {
-    log.warn('[SSH终端模块][旧] 收到终端数据，但使用了已弃用的单例模式，无法发送。');
-  };
-
-  const handleTerminalResize = (_dimensions: { cols: number; rows: number }) => {
-    log.warn('[SSH终端模块][旧] 收到终端大小调整，但使用了已弃用的单例模式，无法发送。');
-  };
-
-  // 返回与旧接口兼容的空函数，以避免错误
-  return {
-    terminalInstance,
-    handleTerminalReady,
-    handleTerminalData,
-    handleTerminalResize,
-    registerSshHandlers: () => log.warn('[SSH终端模块][旧] 调用了已弃用的 registerSshHandlers'),
-    unregisterAllSshHandlers: () =>
-      log.warn('[SSH终端模块][旧] 调用了已弃用的 unregisterAllSshHandlers'),
   };
 }

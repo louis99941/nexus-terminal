@@ -61,18 +61,9 @@ interface GuacamoleStatus {
   message?: string;
 }
 
-// Dynamically construct WebSocket URL based on environment
-let backendBaseUrl: string;
-const LOCAL_BACKEND_URL = 'ws://localhost:3001'; // For RDP proxy via main backend
-
-// Determine WebSocket URL based on hostname for RDP
-if (window.location.hostname === 'localhost') {
-  backendBaseUrl = LOCAL_BACKEND_URL;
-} else {
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHostAndPort = window.location.host;
-  backendBaseUrl = `${wsProtocol}//${wsHostAndPort}/ws`; // Assuming RDP proxy is at /ws path
-}
+// 统一使用当前页面地址构建 WebSocket URL，本地开发时 Vite 代理会转发到后端
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const backendBaseUrl = `${wsProtocol}//${window.location.host}/ws`;
 
 const handleConnection = async () => {
   if (!props.connection || !rdpDisplayRef.value) {
