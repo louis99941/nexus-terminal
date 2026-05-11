@@ -132,6 +132,10 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 | :---------------------------------------------------------------: | :-------------------------------------------------------------------: | :---------------------------------------------------------------------: |
 | ![ui_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e40570cc.png) | ![layout_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4122276.png) | ![settings_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4036cd6.png) |
 
+## 📚 Documentation
+
+> Deployment guide, advanced configuration, and FAQ are available at **[https://nexus.cosr.eu.org](https://nexus.cosr.eu.org)**
+
 ## 🚀 Quick Start
 
 ### 1️⃣ Configure Environment

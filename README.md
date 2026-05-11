@@ -4,7 +4,7 @@
 
 [![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)][docker-url] [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-4CAF50?style=flat-square)](https://github.com/Silentely/nexus-terminal/blob/main/LICENSE) [![Changelog](https://img.shields.io/badge/changelog-kittylog-10b981)](https://kittylog.app/c/Silentely/nexus-terminal)
 <br>
-[中文](./README.md) | [English](./doc/README_EN.md) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
+[中文](./README.md) | [English](./doc/README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
 
 [docker-url]: https://ghcr.io/silentely/nexus-terminal-frontend
 
@@ -133,6 +133,10 @@
 | ![1746339196937.png](https://lsky.tuyu.me/i/2025/05/04/6817056948ac2.png) | ![1746339222136.png](https://lsky.tuyu.me/i/2025/05/04/681705820fe01.png) |
 
 ---
+
+## 📚 完整文档
+
+> 部署教程、高级配置、常见问题等详见 **[官方文档](https://nexus.cosr.eu.org)**
 
 ## 🚀 快速开始
 
