@@ -1,9 +1,6 @@
 ---
-exclude_patterns:
+exclude_paths:
   - "node_modules/**"
-  - "packages/frontend/src/components/**"
-  - "packages/frontend/src/types/**"
-  - "packages/backend/src/locales/**"
   - "doc/**"
   - ".context/**"
   - "e2e/**"
@@ -11,3 +8,11 @@ exclude_patterns:
   - "coverage/**"
   - "data/**"
   - "uploads/**"
+
+engines:
+  eslint:
+    exclude_paths:
+      - "packages/frontend/src/components/**"
+      - "packages/frontend/src/types/**"
+      - "packages/frontend/src/assets/**"
+      - "packages/backend/src/locales/**"
