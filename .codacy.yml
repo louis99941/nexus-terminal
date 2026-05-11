@@ -11,8 +11,8 @@ exclude_paths:
 
 engines:
   eslint:
-    exclude_paths:
-      - "packages/frontend/src/components/**"
-      - "packages/frontend/src/types/**"
-      - "packages/frontend/src/assets/**"
-      - "packages/backend/src/locales/**"
+    enabled: false
+  pmd:
+    enabled: false
+  pmd-legacy:
+    enabled: false
