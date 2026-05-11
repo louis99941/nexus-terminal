@@ -184,3 +184,7 @@ electron-app/dist_electron/
 .husky/_/
 .ace-tool/
 .omx/
+
+# VitePress docs build output
+docs/.vitepress/dist/
+docs/.vitepress/cache/

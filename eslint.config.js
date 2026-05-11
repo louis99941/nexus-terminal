@@ -8,6 +8,7 @@ const vueParser = require('vue-eslint-parser');
 const ignores = [
   '**/node_modules/**',
   '**/dist/**',
+  'docs/**',
   '**/build/**',
   '**/coverage/**',
   '**/.vite/**',
