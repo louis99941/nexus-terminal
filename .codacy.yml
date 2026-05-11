@@ -1,0 +1,13 @@
+---
+exclude_patterns:
+  - "node_modules/**"
+  - "packages/frontend/src/components/**"
+  - "packages/frontend/src/types/**"
+  - "packages/backend/src/locales/**"
+  - "doc/**"
+  - ".context/**"
+  - "e2e/**"
+  - "dist/**"
+  - "coverage/**"
+  - "data/**"
+  - "uploads/**"
