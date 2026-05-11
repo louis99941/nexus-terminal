@@ -7,6 +7,10 @@ export default defineConfig({
 
   head: [
     ['meta', { name: 'theme-color', content: '#3c8dbc' }],
+    // Canonical URL
+    ['link', { rel: 'canonical', href: 'https://nexus.cosr.eu.org' }],
+    // Preconnect
+    ['link', { rel: 'preconnect', href: 'https://github.com' }],
     // Open Graph
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: '星枢终端 - Web SSH/RDP/VNC 远程连接客户端' }],
