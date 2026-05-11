@@ -131,10 +131,9 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 let hasDragged = false;
 
-let remoteDesktopWsBaseUrl: string; // Renamed for clarity
 // 统一使用当前页面地址构建 WebSocket URL，本地开发时 Vite 代理会转发到后端
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-remoteDesktopWsBaseUrl = `${wsProtocol}//${window.location.host}/ws/rdp-proxy`;
+const remoteDesktopWsBaseUrl = `${wsProtocol}//${window.location.host}/ws/rdp-proxy`;
 
 const handleConnection = async () => {
   if (!props.connection || !vncDisplayRef.value) {

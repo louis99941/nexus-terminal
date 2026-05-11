@@ -86,7 +86,7 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
     ? remoteGatewayWsBaseUrl.slice(0, -1)
     : remoteGatewayWsBaseUrl;
 
-  const remoteDesktopTargetUrl = `${cleanRemoteGatewayWsBaseUrl}/?token=${encodeURIComponent(rdpToken)}&width=${encodeURIComponent(rdpWidth)}&height=${encodeURIComponent(rdpHeight)}&dpi=${encodeURIComponent(calculatedDpi)}`;
+  const remoteDesktopTargetUrl = `${cleanRemoteGatewayWsBaseUrl}/?token=${encodeURIComponent(rdpToken)}&width=${rdpWidth}&height=${rdpHeight}&dpi=${calculatedDpi}`;
 
   // 安全日志：不记录包含 token 的完整 URL，避免 token 泄露
   const safeLogUrl = `${cleanRemoteGatewayWsBaseUrl}/?token=[REDACTED]&width=${rdpWidth}&height=${rdpHeight}&dpi=${calculatedDpi}`;
@@ -131,11 +131,10 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
     }
   });
 
-  // --- 消息转发: RDP -> Client ---
+  // --- 消息转发: RDP -> Client（保持原始二进制透传，避免 UTF-8 转码破坏协议帧） ---
   rdpWs.on('message', (message: RawData) => {
     if (ws.readyState === WebSocket.OPEN) {
-      const messageString = message.toString('utf-8');
-      ws.send(messageString);
+      ws.send(message);
     } else {
       logger.warn(
         `[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 客户端 WS 未打开，丢弃消息。`
@@ -161,6 +160,7 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
     clientWsClosed = true;
   });
   rdpWs.on('error', (error) => {
+    clearTimeout(rdpConnectTimeout);
     logger.error(
       `[RDP 代理 RDP WS 错误] 用户: ${ws.username}, 会话: ${ws.sessionId}, 连接到 ${safeLogUrl} 时出错:`,
       error
@@ -195,6 +195,7 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
     }
   });
   rdpWs.on('close', (code, reason) => {
+    clearTimeout(rdpConnectTimeout);
     rdpWsClosed = true;
     logger.debug(
       `[RDP 代理 RDP WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 连接已关闭。代码: ${code}, 原因: ${reason.toString()}`
@@ -213,7 +214,7 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
   rdpWs.on('open', () => {
     clearTimeout(rdpConnectTimeout);
     logger.info(
-      `[RDP 代理 RDP WS 打开] 用户: ${ws.username}, 会话: ${ws.sessionId}, 到 ${remoteDesktopTargetUrl} 的连接已建立。开始转发消息。`
+      `[RDP 代理 RDP WS 打开] 用户: ${ws.username}, 会话: ${ws.sessionId}, 到 ${safeLogUrl} 的连接已建立。开始转发消息。`
     );
   });
 }

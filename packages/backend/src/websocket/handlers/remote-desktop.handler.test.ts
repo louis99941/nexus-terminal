@@ -290,7 +290,7 @@ describe('RDP WebSocket Handler', () => {
       const testMessage = Buffer.from('rdp response');
       capturedRdpWs.emit('message', testMessage);
 
-      expect(mockWs.send).toHaveBeenCalledWith('rdp response');
+      expect(mockWs.send).toHaveBeenCalledWith(testMessage);
     });
 
     it('客户端 WebSocket 未打开时应丢弃 RDP 消息', () => {
