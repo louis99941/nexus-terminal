@@ -25,8 +25,10 @@ export default defineConfig({
     ['meta', { property: 'og:url', content: 'https://nexus.cosr.eu.org' }],
     ['meta', { property: 'og:site_name', content: 'Nexus Terminal' }],
     ['meta', { property: 'og:locale', content: 'zh_CN' }],
+    ['meta', { property: 'og:image', content: 'https://nexus.cosr.eu.org/og-image.png' }],
     // Twitter Card
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:image', content: 'https://nexus.cosr.eu.org/og-image.png' }],
     ['meta', { name: 'twitter:title', content: '星枢终端 - Web SSH/RDP/VNC 远程连接客户端' }],
     [
       'meta',
