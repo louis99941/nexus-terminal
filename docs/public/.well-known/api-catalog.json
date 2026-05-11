@@ -1,0 +1,21 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://nexus.cosr.eu.org/",
+      "item": [
+        {
+          "href": "https://github.com/Silentely/nexus-terminal",
+          "rel": ["service-doc"],
+          "title": "Nexus Terminal 源码仓库",
+          "type": "text/html"
+        },
+        {
+          "href": "https://github.com/Silentely/nexus-terminal/blob/main/packages/backend/src/index.ts",
+          "rel": ["service-desc"],
+          "title": "后端 API 入口",
+          "type": "application/json"
+        }
+      ]
+    }
+  ]
+}

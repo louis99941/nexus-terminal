@@ -1,0 +1,51 @@
+# Nexus Terminal 文档站 robots.txt
+# https://nexus.cosr.eu.org
+
+User-agent: *
+Allow: /
+Disallow: /assets/
+Disallow: /.well-known/
+
+# 搜索引擎爬虫
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+# AI 爬虫规则
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+# 内容信号声明（Content-Signal）
+# ai-train: 允许用于 AI 训练
+# search: 允许用于搜索索引
+# ai-input: 允许作为 AI 输入上下文
+Content-Signal: ai-train=yes, search=yes, ai-input=yes
+
+# 站点地图
+Sitemap: https://nexus.cosr.eu.org/sitemap.xml

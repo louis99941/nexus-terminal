@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agentskills.io/schema/v0.2.0",
+  "name": "Nexus Terminal",
+  "description": "星枢终端 — 现代化 Web SSH / RDP / VNC 客户端的 Agent 技能发现索引",
+  "skills": [
+    {
+      "name": "ssh-connect",
+      "type": "action",
+      "description": "通过 SSH 协议建立安全远程终端连接",
+      "url": "https://nexus.cosr.eu.org/features",
+      "sha256": ""
+    },
+    {
+      "name": "rdp-connect",
+      "type": "action",
+      "description": "通过 RDP 协议建立远程桌面连接",
+      "url": "https://nexus.cosr.eu.org/features",
+      "sha256": ""
+    },
+    {
+      "name": "vnc-connect",
+      "type": "action",
+      "description": "通过 VNC 协议建立远程桌面连接",
+      "url": "https://nexus.cosr.eu.org/features",
+      "sha256": ""
+    }
+  ]
+}

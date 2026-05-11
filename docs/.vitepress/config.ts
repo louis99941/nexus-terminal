@@ -10,6 +10,31 @@ export default defineConfig({
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:title', content: 'Nexus Terminal' }],
     ['meta', { name: 'og:description', content: '现代化、功能丰富的 Web SSH / RDP / VNC 客户端' }],
+    // RFC 8288 Link headers — 供 AI 代理发现 API 目录和 MCP 服务
+    [
+      'link',
+      {
+        rel: 'api-catalog',
+        href: '/.well-known/api-catalog.json',
+        type: 'application/linkset+json',
+      },
+    ],
+    [
+      'link',
+      {
+        rel: 'mcp-server-card',
+        href: '/.well-known/mcp/server-card.json',
+        type: 'application/json',
+      },
+    ],
+    [
+      'link',
+      {
+        rel: 'agent-skills',
+        href: '/.well-known/agent-skills/index.json',
+        type: 'application/json',
+      },
+    ],
   ],
 
   cleanUrls: true,

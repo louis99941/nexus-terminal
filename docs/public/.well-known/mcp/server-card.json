@@ -1,0 +1,17 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/server-card/v1",
+  "serverInfo": {
+    "name": "nexus-terminal",
+    "version": "1.0.0",
+    "description": "星枢终端 — 现代化 Web SSH / RDP / VNC 客户端文档与 API 服务"
+  },
+  "transport": {
+    "type": "http",
+    "url": "https://github.com/Silentely/nexus-terminal"
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": false,
+    "prompts": false
+  }
+}
