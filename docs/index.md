@@ -1,13 +1,13 @@
 ---
 layout: home
-title: Nexus Terminal
-titleTemplate: 现代化 Web 终端解决方案
-description: 功能丰富的 Web SSH / RDP / VNC 客户端，提供高度可定制的远程连接体验
+title: 星枢终端 - Web SSH/RDP/VNC 远程连接客户端 | Nexus Terminal
+titleTemplate: '%s'
+description: 现代化 Web SSH / RDP / VNC 客户端，支持 Docker 一键部署、2FA 安全认证、AI 智能助手，提供高度可定制的远程连接体验
 
 hero:
   name: Nexus Terminal
-  text: 现代化 Web 终端解决方案
-  tagline: 功能丰富的 Web SSH / RDP / VNC 客户端，提供高度可定制的远程连接体验
+  text: Web SSH/RDP/VNC 远程连接客户端
+  tagline: 现代化、轻量级的多协议 Web 终端解决方案，Docker 一键部署，支持 2FA / Passkey 安全认证
   image:
     src: /favicon.ico
     alt: Nexus Terminal
