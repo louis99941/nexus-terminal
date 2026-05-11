@@ -29,7 +29,7 @@ import { resetHeartbeat, cleanupHeartbeat } from './heartbeat'; // 导入心跳�
 import { validateWebSocketMessage } from './validate'; // 导入消息校验函数
 
 // Handlers
-import { handleRdpProxyConnection } from './handlers/rdp.handler';
+import { handleRdpProxyConnection } from './handlers/remote-desktop.handler';
 import {
   handleSshConnect,
   handleSshInput,

@@ -48,10 +48,27 @@ const normalizeGuacamoleStatus = (status: unknown): GuacamoleStatusPayload => {
   return {};
 };
 
+// 特殊按键到 X11 keysym 的映射表
+const SPECIAL_KEYSYMS: Record<string, number> = {
+  '\n': 0xff0d, // Enter (XK_Return)
+  '\r': 0xff0d, // Enter (XK_Return)
+  '\t': 0xff09, // Tab (XK_Tab)
+  '\b': 0xff08, // Backspace (XK_BackSpace)
+  '\x1b': 0xff1b, // Escape (XK_Escape)
+  '\x7f': 0xffff, // Delete (XK_Delete)
+};
+
+/** 将字符转换为 X11 keysym */
+const charToKeysym = (char: string): number => {
+  // 优先查特殊按键表
+  if (char in SPECIAL_KEYSYMS) return SPECIAL_KEYSYMS[char];
+  // 可打印 ASCII（0x20-0x7e）和 BMP Unicode 的码点直接等于 X11 keysym
+  return char.charCodeAt(0);
+};
+
 const sendInputTextToVnc = async () => {
   if (!guacClient.value || connectionStatus.value !== 'connected') {
     log.warn('[VncModal] Guacamole client not available or not connected to send text.');
-    // Можно добавить сообщение для пользователя здесь, если нужно
     return;
   }
   const textToSend = vncPasteInputText.value;
@@ -63,20 +80,13 @@ const sendInputTextToVnc = async () => {
   log.info(`[VncModal] Simulating keyboard input for: ${textToSend.substring(0, 50)}...`);
   try {
     for (const char of textToSend) {
-      const keysym = char.charCodeAt(0); //直接使用字符的 Unicode 码点作为 keysym
-
-      // 确保 keysym 是一个有效的数字，尽管 charCodeAt(0) 总是返回数字
-      if (typeof keysym === 'number' && !isNaN(keysym)) {
-        guacClient.value.sendKeyEvent(1, keysym); // Key press
-        await new Promise((resolve) => setTimeout(resolve, 20)); // 短暂延迟
-        guacClient.value.sendKeyEvent(0, keysym); // Key release
-        await new Promise((resolve) => setTimeout(resolve, 30)); // 短暂延迟
-      } else {
-        log.warn(`[VncModal] Invalid keysym for character "${char}". Skipping.`);
-      }
+      const keysym = charToKeysym(char);
+      guacClient.value.sendKeyEvent(1, keysym); // Key press
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      guacClient.value.sendKeyEvent(0, keysym); // Key release
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
     log.info('[VncModal] Finished simulating keyboard input.');
-    // vncPasteInputText.value = ''; // 如果希望发送后清空输入框，取消此行注释
   } catch (err: unknown) {
     const errorMessage = extractErrorMessage(err, t('term.unknownError'));
     log.error('[VncModal] Error simulating keyboard input:', err);
@@ -122,17 +132,9 @@ let dragOffsetY = 0;
 let hasDragged = false;
 
 let remoteDesktopWsBaseUrl: string; // Renamed for clarity
-const LOCAL_BACKEND_URL_FOR_PROXY = 'ws://localhost:3001'; // Main backend's WebSocket for proxying
-
-if (window.location.hostname === 'localhost') {
-  // For local development, VNC will also go through the main backend's proxy
-  remoteDesktopWsBaseUrl = `${LOCAL_BACKEND_URL_FOR_PROXY}/ws/rdp-proxy`; // Use the same RDP proxy path
-} else {
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHostAndPort = window.location.host;
-  // For deployed environments, assume the proxy is at /ws/rdp-proxy relative to the main backend
-  remoteDesktopWsBaseUrl = `${wsProtocol}//${wsHostAndPort}/ws/rdp-proxy`;
-}
+// 统一使用当前页面地址构建 WebSocket URL，本地开发时 Vite 代理会转发到后端
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+remoteDesktopWsBaseUrl = `${wsProtocol}//${window.location.host}/ws/rdp-proxy`;
 
 const handleConnection = async () => {
   if (!props.connection || !vncDisplayRef.value) {

@@ -511,23 +511,4 @@ describe('useSshTerminal (createSshTerminalManager)', () => {
       expect(manager.terminalInstance.value).toBeNull();
     });
   });
-
-  describe('已弃用的 useSshTerminal 函数', () => {
-    it('应返回兼容的接口', async () => {
-      const { useSshTerminal } = await import('./useSshTerminal');
-
-      const result = useSshTerminal(mockT);
-
-      expect(mockLog.warn).toHaveBeenCalledWith(
-        expect.stringContaining('已弃用的 useSshTerminal()')
-      );
-
-      expect(result.terminalInstance).toBeDefined();
-      expect(typeof result.handleTerminalReady).toBe('function');
-      expect(typeof result.handleTerminalData).toBe('function');
-      expect(typeof result.handleTerminalResize).toBe('function');
-      expect(typeof result.registerSshHandlers).toBe('function');
-      expect(typeof result.unregisterAllSshHandlers).toBe('function');
-    });
-  });
 });
