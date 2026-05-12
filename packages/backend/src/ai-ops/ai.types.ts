@@ -37,6 +37,7 @@ export interface AIQueryRequest {
       end: Date;
     };
   };
+  debug?: boolean; // 调试模式：输出详细请求/响应日志到容器日志
 }
 
 // AI 查询响应

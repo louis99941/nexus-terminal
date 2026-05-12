@@ -38,7 +38,7 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 
 - **Terminal Appearance Live Preview**: Real-time preview window in appearance settings for font, theme, stroke, and shadow changes
 - **Force Keyboard-Interactive Auth**: New `keyboard-interactive` option for SSH connections, supporting TOTP/2FA server authentication
-- **NL2CMD Natural Language Commands**: Multi-model integration (OpenAI/Claude), converting natural language directly to terminal commands (with 429 retry, structured output, SSE streaming)
+- **NL2CMD Natural Language Commands**: Multi-model integration (OpenAI/Claude), converting natural language directly to terminal commands (with 429 retry, structured output)
 - **Configurable Rate Limiting**: Flexible API rate limit control via environment variables (including dedicated AI route rate limiting)
 - **Unified Cache Manager**: Type-safe localStorage operations with version control and TTL expiration management
 - **Unified Error Extractor**: Eliminated duplicated error extraction patterns with globally unified error handling

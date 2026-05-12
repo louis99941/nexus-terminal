@@ -151,24 +151,24 @@
         </p>
       </div>
 
-      <!-- 流式响应开关（仅 OpenAI 支持） -->
-      <div v-if="localSettings.provider === 'openai'">
+      <!-- 调试模式开关 -->
+      <div>
         <div class="flex items-center">
           <input
             type="checkbox"
-            id="streaming"
-            v-model="localSettings.streamingEnabled"
-            class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer"
+            id="debugMode"
+            v-model="debugMode"
+            class="h-4 w-4 rounded border-border text-warning focus:ring-warning mr-2 cursor-pointer"
           />
           <label
-            for="streaming"
+            for="debugMode"
             class="text-sm font-medium text-foreground cursor-pointer select-none"
           >
-            启用流式响应
+            调试模式
           </label>
         </div>
         <p class="text-xs text-muted-foreground mt-1 ml-6">
-          启用后命令会逐步显示，有更好的交互体验（仅支持 OpenAI Chat Completions）
+          开启后 AI 请求/响应详情将输出到浏览器控制台和容器日志，用于排查问题
         </p>
       </div>
 
@@ -233,7 +233,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useAISettingsStore } from '../../stores/aiSettings.store';
+import { useAIStore } from '../../stores/ai.store';
 import type { AISettings } from '../../types/nl2cmd.types';
 import {
   DEFAULT_OPENAI_BASE_URL,
@@ -242,6 +244,8 @@ import {
 } from '../../utils/aiConstants';
 
 const aiSettingsStore = useAISettingsStore();
+const aiStore = useAIStore();
+const { debugMode } = storeToRefs(aiStore);
 
 // 本地设置（用于编辑）
 const localSettings = ref<AISettings>({
@@ -252,7 +256,6 @@ const localSettings = ref<AISettings>({
   model: AI_PROVIDER_DEFAULTS.openai.model,
   openaiEndpoint: AI_PROVIDER_DEFAULTS.openai.endpoint,
   rateLimitEnabled: true,
-  streamingEnabled: false,
 });
 
 const showPassword = ref(false);

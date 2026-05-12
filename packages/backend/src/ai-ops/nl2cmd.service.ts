@@ -98,10 +98,9 @@ export async function getAISettings(): Promise<AISettings | null> {
     }
     const config = JSON.parse(configJson) as AISettings;
 
-    // 确保 enabled 和 streamingEnabled 是 boolean 类型
+    // 确保 enabled 是 boolean 类型
     if (config) {
       config.enabled = !!config.enabled;
-      config.streamingEnabled = !!config.streamingEnabled;
     }
 
     // 解密 API Key
@@ -504,7 +503,7 @@ export async function generateCommandStream(
         ...(providerResult.usage ? { usage: providerResult.usage } : {}),
       });
     }
-    return { success: true, command, warning, streaming: true };
+    return { success: true, command, warning };
   } catch (error: unknown) {
     const totalMs = Date.now() - startTime;
     if (axios.isAxiosError(error)) {
@@ -802,19 +801,17 @@ export async function generateCommand(
 
     const prompt = buildNL2CMDPrompt(request);
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('[NL2CMD Debug] Request:', {
+    if (process.env.NODE_ENV === 'development' || request.debug) {
+      logger.info('[NL2CMD Debug] Request:', {
         ...request,
         query: request.query.substring(0, 50) + (request.query.length > 50 ? '...' : ''),
       });
-      logger.debug('[NL2CMD Debug] Generated Prompt:', prompt);
+      logger.info('[NL2CMD Debug] Generated Prompt:', prompt);
     }
 
     // 调用 AI Provider
     const providerStart = Date.now();
     let providerResult: ProviderResult;
-
-    const streamingEnabled = settings.streamingEnabled ?? false;
 
     // SSRF 防护：验证 AI Provider baseUrl 不指向私有/内部网络
     await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommand');
@@ -832,7 +829,7 @@ export async function generateCommand(
           providerResult = await callOpenAIChatCompletions(
             config,
             prompt,
-            streamingEnabled,
+            false,
             endpointPath
           );
         }
@@ -848,8 +845,8 @@ export async function generateCommand(
 
     const providerMs = Date.now() - providerStart;
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('[NL2CMD Debug] Raw AI Output:', rawCommand);
+    if (process.env.NODE_ENV === 'development' || request.debug) {
+      logger.info('[NL2CMD Debug] Raw AI Output:', rawCommand);
     }
 
     const command = cleanCommandOutput(rawCommand);
@@ -873,8 +870,8 @@ export async function generateCommand(
       return { success: false, error: 'AI 未能生成有效命令，请尝试更详细的描述' };
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('[NL2CMD Debug] Cleaned Command:', command);
+    if (process.env.NODE_ENV === 'development' || request.debug) {
+      logger.info('[NL2CMD Debug] Cleaned Command:', command);
     }
 
     const warning = detectDangerousCommand(command);
@@ -892,7 +889,6 @@ export async function generateCommand(
         queryLen: request.query.length,
         hasWarning: Boolean(warning),
         commandLen: command.length,
-        streaming: streamingEnabled,
         ...(providerResult.usage ? { usage: providerResult.usage } : {}),
       });
     }
@@ -901,7 +897,6 @@ export async function generateCommand(
       success: true,
       command,
       warning,
-      streaming: streamingEnabled,
     };
   } catch (error: unknown) {
     const totalMs = Date.now() - startTime;

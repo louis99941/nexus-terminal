@@ -8,6 +8,7 @@ import { ElMessage } from 'element-plus';
 import apiClient, { AI_REQUEST_TIMEOUT_MS } from '../../utils/apiClient';
 import type { NL2CMDRequest, NL2CMDResponse } from '../../types/nl2cmd.types';
 import { useAISettingsStore } from '../../stores/aiSettings.store';
+import { useAIStore } from '../../stores/ai.store';
 import { log } from '@/utils/log';
 
 // 远程服务器 OS/Shell 类型配置
@@ -19,6 +20,7 @@ export interface RemoteSystemInfo {
 
 export function useNL2CMD() {
   const aiSettingsStore = useAISettingsStore();
+  const aiStore = useAIStore();
 
   // 确保加载配置
   onMounted(async () => {
@@ -88,15 +90,22 @@ export function useNL2CMD() {
         osType: remoteSystemInfo.value.osType,
         shellType: remoteSystemInfo.value.shellType,
         currentPath: remoteSystemInfo.value.currentPath,
+        debug: aiStore.debugMode || undefined,
       };
 
       log.debug('[NL2CMD Debug] Request:', request);
+
+      // 调试模式：记录请求到 AI Store
+      aiStore.addDebugLog({ type: 'request', source: 'nl2cmd', data: request });
 
       const response = await apiClient.post<NL2CMDResponse>('/ai/nl2cmd', request, {
         timeout: AI_REQUEST_TIMEOUT_MS,
       });
 
       log.debug('[NL2CMD Debug] Response:', response.data);
+
+      // 调试模式：记录响应到 AI Store
+      aiStore.addDebugLog({ type: 'response', source: 'nl2cmd', data: response.data });
 
       if (response.data.success) {
         const command = response.data.command;
@@ -131,6 +140,10 @@ export function useNL2CMD() {
       log.error('[NL2CMD] 生成命令失败:', error);
       const err = error as { response?: { data?: { error?: string } }; message?: string };
       const errorMsg = err.response?.data?.error || err.message || '生成命令失败';
+
+      // 调试模式：记录错误到 AI Store
+      aiStore.addDebugLog({ type: 'error', source: 'nl2cmd', data: { error: errorMsg, raw: error } });
+
       ElMessage.error(errorMsg);
       return null;
     } finally {

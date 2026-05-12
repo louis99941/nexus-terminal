@@ -62,6 +62,25 @@ export async function processQuery(
   // 分析查询类型并生成响应
   const analysis = await analyzeQuery(request.query, userId, request.context);
 
+  // 调试模式：输出详细请求/响应日志到容器日志
+  if (request.debug) {
+    logger.info('[AI Debug] === AI Query Debug ===');
+    logger.info('[AI Debug] Request:', {
+      query: request.query,
+      sessionId: request.sessionId,
+      context: request.context,
+    });
+    logger.info('[AI Debug] Response:', {
+      sessionId: session.sessionId,
+      responseLength: analysis.response.length,
+      responsePreview: analysis.response.substring(0, 200),
+      insightsCount: analysis.insights.length,
+      insights: analysis.insights.map((i) => ({ type: i.type, severity: i.severity, title: i.title })),
+      suggestions: analysis.suggestions,
+    });
+    logger.info('[AI Debug] === End Debug ===');
+  }
+
   // 存储助手响应
   const assistantMessageId = uuidv4();
   const assistantMessage = await AIRepository.addMessage(

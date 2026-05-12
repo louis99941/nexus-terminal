@@ -17,7 +17,6 @@ export interface AISettings {
   model: string;
   openaiEndpoint?: OpenAIEndpoint;
   rateLimitEnabled?: boolean; // 是否启用速率限制（默认 true）
-  streamingEnabled?: boolean; // 是否启用流式响应（默认 false）
 }
 
 // NL2CMD 请求
@@ -26,6 +25,7 @@ export interface NL2CMDRequest {
   osType?: string;
   shellType?: string;
   currentPath?: string;
+  debug?: boolean; // 调试模式：输出详细请求/响应日志到容器日志
 }
 
 // NL2CMD 响应
@@ -35,7 +35,6 @@ export interface NL2CMDResponse {
   explanation?: string;
   warning?: string;
   error?: string;
-  streaming?: boolean; // 是否为流式响应
 }
 
 // AI 配置获取响应

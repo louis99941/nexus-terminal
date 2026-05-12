@@ -20,6 +20,15 @@ import type {
 } from '../types/ai.types';
 import { log } from '@/utils/log';
 
+// AI 调试日志条目
+export interface AIDebugLog {
+  id: string;
+  timestamp: Date;
+  type: 'request' | 'response' | 'error';
+  source: 'query' | 'nl2cmd';
+  data: unknown;
+}
+
 export const useAIStore = defineStore('ai', () => {
   // === State ===
   const currentSessionId = ref<string | null>(null);
@@ -30,6 +39,10 @@ export const useAIStore = defineStore('ai', () => {
   const error = ref<string | null>(null);
   const insights = ref<AIInsight[]>([]);
   const suggestions = ref<string[]>([]);
+
+  // 独立调试模式（不影响全局日志级别）
+  const debugMode = ref(false);
+  const debugLogs = ref<AIDebugLog[]>([]);
 
   // 系统健康摘要缓存
   const healthSummary = ref<AIHealthSummaryResponse['summary'] | null>(null);
@@ -61,6 +74,21 @@ export const useAIStore = defineStore('ai', () => {
     };
     messages.value.push(userMsg);
 
+    // 调试模式：记录请求
+    if (debugMode.value) {
+      const reqEntry: AIDebugLog = {
+        id: `dbg-${Date.now()}-req`,
+        timestamp: new Date(),
+        type: 'request',
+        source: 'query',
+        data: { query, sessionId: currentSessionId.value, context },
+      };
+      debugLogs.value.push(reqEntry);
+      console.groupCollapsed(`[AI Debug] Request: ${query.substring(0, 50)}...`);
+      console.log(reqEntry.data);
+      console.groupEnd();
+    }
+
     try {
       const response = await apiClient.post<AIQueryResponse>(
         '/ai/query',
@@ -68,9 +96,29 @@ export const useAIStore = defineStore('ai', () => {
           query,
           ...(currentSessionId.value && { sessionId: currentSessionId.value }),
           context,
+          debug: debugMode.value || undefined,
         },
         { timeout: AI_REQUEST_TIMEOUT_MS }
       );
+
+      // 调试模式：记录响应
+      if (debugMode.value) {
+        const resEntry: AIDebugLog = {
+          id: `dbg-${Date.now()}-res`,
+          timestamp: new Date(),
+          type: 'response',
+          source: 'query',
+          data: response.data,
+        };
+        debugLogs.value.push(resEntry);
+        console.groupCollapsed(`[AI Debug] Response (success: ${response.data.success})`);
+        console.log('Session ID:', response.data.sessionId);
+        console.log('Message:', response.data.message);
+        console.log('Insights:', response.data.insights);
+        console.log('Suggestions:', response.data.suggestions);
+        console.log('Full Response:', response.data);
+        console.groupEnd();
+      }
 
       if (response.data.success) {
         // 更新会话 ID
@@ -95,6 +143,22 @@ export const useAIStore = defineStore('ai', () => {
     } catch (err: unknown) {
       log.error('[AIStore] 发送查询失败:', err);
       error.value = extractErrorMessage(err, '发送查询失败');
+
+      // 调试模式：记录错误
+      if (debugMode.value) {
+        const errEntry: AIDebugLog = {
+          id: `dbg-${Date.now()}-err`,
+          timestamp: new Date(),
+          type: 'error',
+          source: 'query',
+          data: { message: extractErrorMessage(err, '发送查询失败'), raw: err },
+        };
+        debugLogs.value.push(errEntry);
+        console.groupCollapsed('[AI Debug] Error');
+        console.error(errEntry.data);
+        console.groupEnd();
+      }
+
       // 移除乐观更新的消息
       messages.value = messages.value.filter((m) => m.id !== userMsg.id);
     } finally {
@@ -272,6 +336,40 @@ export const useAIStore = defineStore('ai', () => {
     error.value = null;
   };
 
+  // === 调试模式 Actions ===
+
+  /**
+   * 切换调试模式
+   */
+  const toggleDebugMode = (): void => {
+    debugMode.value = !debugMode.value;
+    if (debugMode.value) {
+      log.info('[AIStore] 调试模式已开启');
+    } else {
+      log.info('[AIStore] 调试模式已关闭');
+    }
+  };
+
+  /**
+   * 清除调试日志
+   */
+  const clearDebugLogs = (): void => {
+    debugLogs.value = [];
+  };
+
+  /**
+   * 添加调试日志（供 NL2CMD 等外部模块使用）
+   */
+  const addDebugLog = (entry: Omit<AIDebugLog, 'id' | 'timestamp'>): void => {
+    if (!debugMode.value) return;
+    const fullEntry: AIDebugLog = {
+      ...entry,
+      id: `dbg-${Date.now()}-${entry.source}`,
+      timestamp: new Date(),
+    };
+    debugLogs.value.push(fullEntry);
+  };
+
   return {
     // State
     currentSessionId,
@@ -284,6 +382,8 @@ export const useAIStore = defineStore('ai', () => {
     suggestions,
     healthSummary,
     commandPatterns,
+    debugMode,
+    debugLogs,
 
     // Getters
     hasActiveSession,
@@ -300,5 +400,8 @@ export const useAIStore = defineStore('ai', () => {
     fetchCommandPatterns,
     cleanupSessions,
     clearError,
+    toggleDebugMode,
+    clearDebugLogs,
+    addDebugLog,
   };
 });

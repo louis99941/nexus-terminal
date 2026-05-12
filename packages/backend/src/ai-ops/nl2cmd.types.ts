@@ -25,6 +25,7 @@ export interface NL2CMDRequest {
   osType?: string; // 操作系统类型 (Ubuntu, CentOS, macOS, Windows 等)
   shellType?: string; // Shell 类型 (bash, zsh, fish, pwsh 等)
   currentPath?: string; // 当前工作目录
+  debug?: boolean; // 调试模式：输出详细请求/响应日志到容器日志
 }
 
 // NL2CMD 响应
@@ -34,7 +35,6 @@ export interface NL2CMDResponse {
   explanation?: string; // 命令解释
   warning?: string; // 警告信息（对于危险命令）
   error?: string; // 错误信息
-  streaming?: boolean; // 是否为流式响应
 }
 
 // 流式响应事件类型
@@ -150,5 +150,4 @@ export interface AISettings {
   model: string;
   openaiEndpoint?: OpenAIEndpoint;
   rateLimitEnabled?: boolean; // 是否启用速率限制（默认 true）
-  streamingEnabled?: boolean; // 是否启用流式响应（默认 false）
 }

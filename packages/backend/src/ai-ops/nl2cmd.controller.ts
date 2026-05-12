@@ -106,7 +106,6 @@ export const getAISettings = async (req: Request, res: Response): Promise<void> 
           model: 'gpt-5-nano',
           openaiEndpoint: '/chat/completions',
           rateLimitEnabled: true,
-          streamingEnabled: false,
         },
       });
       return;
@@ -144,7 +143,6 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
     model,
     openaiEndpoint,
     rateLimitEnabled,
-    streamingEnabled,
   } = req.body;
 
   // 参数验证
@@ -192,7 +190,6 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
       model,
       openaiEndpoint: provider === 'openai' ? openaiEndpoint || '/chat/completions' : undefined,
       rateLimitEnabled: rateLimitEnabled !== false,
-      streamingEnabled: streamingEnabled === true, // 显式处理流式开关
     };
 
     await NL2CMDService.saveAISettings(settings);
