@@ -6,6 +6,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import apiClient, { AI_REQUEST_TIMEOUT_MS } from '../utils/apiClient';
 import { extractErrorMessage } from '../utils/errorExtractor';
+import { log } from '@/utils/log';
 import type {
   AISession,
   AIMessage,
@@ -18,7 +19,6 @@ import type {
   AICleanupResponse,
   AIQueryContext,
 } from '../types/ai.types';
-import { log } from '@/utils/log';
 
 // AI 调试日志条目
 export interface AIDebugLog {
@@ -84,9 +84,7 @@ export const useAIStore = defineStore('ai', () => {
         data: { query, sessionId: currentSessionId.value, context },
       };
       debugLogs.value.push(reqEntry);
-      console.groupCollapsed(`[AI Debug] Request: ${query.substring(0, 50)}...`);
-      console.log(reqEntry.data);
-      console.groupEnd();
+      log.debug(`[AI Debug] Request: ${query.substring(0, 50)}...`, reqEntry.data);
     }
 
     try {
@@ -111,13 +109,13 @@ export const useAIStore = defineStore('ai', () => {
           data: response.data,
         };
         debugLogs.value.push(resEntry);
-        console.groupCollapsed(`[AI Debug] Response (success: ${response.data.success})`);
-        console.log('Session ID:', response.data.sessionId);
-        console.log('Message:', response.data.message);
-        console.log('Insights:', response.data.insights);
-        console.log('Suggestions:', response.data.suggestions);
-        console.log('Full Response:', response.data);
-        console.groupEnd();
+        log.debug(`[AI Debug] Response (success: ${response.data.success})`, {
+          sessionId: response.data.sessionId,
+          message: response.data.message,
+          insights: response.data.insights,
+          suggestions: response.data.suggestions,
+          fullResponse: response.data,
+        });
       }
 
       if (response.data.success) {
@@ -154,9 +152,7 @@ export const useAIStore = defineStore('ai', () => {
           data: { message: extractErrorMessage(err, '发送查询失败'), raw: err },
         };
         debugLogs.value.push(errEntry);
-        console.groupCollapsed('[AI Debug] Error');
-        console.error(errEntry.data);
-        console.groupEnd();
+        log.error('[AI Debug] Error', errEntry.data);
       }
 
       // 移除乐观更新的消息

@@ -37,7 +37,7 @@ const sessionStore = useSessionStore(); // +++ 实例化 Session Store +++
 const dialogStore = useDialogStore(); // +++ 实例化 DialogStore +++
 const { state: dialogState } = storeToRefs(dialogStore);
 const favoritePathsStore = useFavoritePathsStore(); // +++ 实例化 favoritePathsStore +++
-const { isAuthenticated } = storeToRefs(authStore);
+const { isAuthenticated, isInitCompleted } = storeToRefs(authStore);
 const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
 const { isStyleCustomizerVisible } = storeToRefs(appearanceStore);
 const { isLayoutVisible, isHeaderVisible } = storeToRefs(layoutStore); // 添加 isHeaderVisible
@@ -296,175 +296,184 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
 
 <template>
   <div id="app-container">
-    <!-- *** 修改 v-if 条件以使用 isHeaderVisible *** -->
-    <!-- Header with Tailwind classes using theme variables -->
-    <header
-      v-if="isAuthenticated && (!isWorkspaceRoute || isHeaderVisible)"
-      class="sticky top-0 z-50 flex items-center h-16 pl-4 pr-6 bg-header border-b border-border/50 shadow-sm transition-shadow duration-300"
-    >
-      <!-- Modernized Header -->
-      <!-- Nav with Tailwind classes -->
-      <nav ref="navRef" class="flex items-center justify-between w-full relative">
-        <!-- Added relative positioning for underline -->
-        <!-- Left navigation links with Tailwind classes using theme variables -->
-        <div class="flex items-center space-x-2">
-          <!-- 项目 Logo -->
-          <img
-            src="./assets/logo.png"
-            alt="Project Logo"
-            class="h-8 w-auto mr-2 opacity-90 hover:opacity-100 transition-opacity"
-          />
-          <RouterLink
-            to="/"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.dashboard') }}</RouterLink
-          >
-          <RouterLink
-            to="/workspace"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.terminal') }}</RouterLink
-          >
-          <RouterLink
-            to="/connections"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.connections') }}</RouterLink
-          >
-          <RouterLink
-            to="/proxies"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.proxies') }}</RouterLink
-          >
-          <RouterLink
-            to="/notifications"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.notifications') }}</RouterLink
-          >
-          <RouterLink
-            to="/audit-logs"
-            class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.auditLogs') }}</RouterLink
-          >
-          <RouterLink
-            to="/settings"
-            class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
-            active-class="text-primary bg-primary/10"
-            >{{ t('nav.settings') }}</RouterLink
-          >
-        </div>
-        <!-- Right navigation links with Tailwind classes using theme variables -->
-        <div class="flex items-center space-x-1">
-          <!-- GitHub Icon (Hide on mobile) -->
-          <a
-            v-if="!isMobile"
-            :href="GITHUB_REPO_URL"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Silentely/nexus-terminal"
-            class="px-2 py-2 rounded-md text-lg text-icon hover:text-icon-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              fill="currentColor"
-              viewBox="0 0 16 16"
+    <!-- 初始化加载动画：防止过期 session 导致的已登录页面闪现 -->
+    <div v-if="!isInitCompleted" class="init-loading">
+      <div class="init-spinner"></div>
+      <div class="init-loading-text">INITIALIZING NEXUS...</div>
+    </div>
+
+    <!-- 初始化完成后才渲染主内容 -->
+    <template v-else>
+      <!-- *** 修改 v-if 条件以使用 isHeaderVisible *** -->
+      <!-- Header with Tailwind classes using theme variables -->
+      <header
+        v-if="isAuthenticated && (!isWorkspaceRoute || isHeaderVisible)"
+        class="sticky top-0 z-50 flex items-center h-16 pl-4 pr-6 bg-header border-b border-border/50 shadow-sm transition-shadow duration-300"
+      >
+        <!-- Modernized Header -->
+        <!-- Nav with Tailwind classes -->
+        <nav ref="navRef" class="flex items-center justify-between w-full relative">
+          <!-- Added relative positioning for underline -->
+          <!-- Left navigation links with Tailwind classes using theme variables -->
+          <div class="flex items-center space-x-2">
+            <!-- 项目 Logo -->
+            <img
+              src="./assets/logo.png"
+              alt="Project Logo"
+              class="h-8 w-auto mr-2 opacity-90 hover:opacity-100 transition-opacity"
+            />
+            <RouterLink
+              to="/"
+              class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.dashboard') }}</RouterLink
             >
-              <path
-                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"
-              />
-            </svg>
-          </a>
-          <!-- PWA Install Button - REMOVED FROM HERE -->
-          <a
-            href="#"
-            @click.prevent="openStyleCustomizer"
-            :title="t('nav.customizeStyle')"
-            class="px-2 py-2 rounded-md text-lg text-icon hover:text-icon-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out"
-            ><i class="fas fa-paint-brush"></i
-          ></a>
-          <RouterLink
-            v-if="!isAuthenticated"
-            to="/login"
-            class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
-            >{{ t('nav.login') }}</RouterLink
-          >
-          <a
-            href="#"
-            v-if="isAuthenticated"
-            @click.prevent="handleLogout"
-            class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
-            >{{ t('nav.logout') }}</a
-          >
-        </div>
-        <!-- Sliding underline element with Tailwind classes using theme variables (JS still controls positioning) -->
-        <div
-          ref="underlineRef"
-          class="absolute bottom-0 h-0.5 bg-link-active rounded transition-opacity duration-300 ease-in-out pointer-events-none opacity-0 transform translate-y-1.5"
-        ></div>
-        <!-- Changed translate-y-1 to translate-y-1.5 -->
-      </nav>
-    </header>
+            <RouterLink
+              to="/workspace"
+              class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.terminal') }}</RouterLink
+            >
+            <RouterLink
+              to="/connections"
+              class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.connections') }}</RouterLink
+            >
+            <RouterLink
+              to="/proxies"
+              class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.proxies') }}</RouterLink
+            >
+            <RouterLink
+              to="/notifications"
+              class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.notifications') }}</RouterLink
+            >
+            <RouterLink
+              to="/audit-logs"
+              class="hidden md:inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.auditLogs') }}</RouterLink
+            >
+            <RouterLink
+              to="/settings"
+              class="inline-flex px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-200 ease-in-out whitespace-nowrap"
+              active-class="text-primary bg-primary/10"
+              >{{ t('nav.settings') }}</RouterLink
+            >
+          </div>
+          <!-- Right navigation links with Tailwind classes using theme variables -->
+          <div class="flex items-center space-x-1">
+            <!-- GitHub Icon (Hide on mobile) -->
+            <a
+              v-if="!isMobile"
+              :href="GITHUB_REPO_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Silentely/nexus-terminal"
+              class="px-2 py-2 rounded-md text-lg text-icon hover:text-icon-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                fill="currentColor"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"
+                />
+              </svg>
+            </a>
+            <!-- PWA Install Button - REMOVED FROM HERE -->
+            <a
+              href="#"
+              @click.prevent="openStyleCustomizer"
+              :title="t('nav.customizeStyle')"
+              class="px-2 py-2 rounded-md text-lg text-icon hover:text-icon-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out"
+              ><i class="fas fa-paint-brush"></i
+            ></a>
+            <RouterLink
+              v-if="!isAuthenticated"
+              to="/login"
+              class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
+              >{{ t('nav.login') }}</RouterLink
+            >
+            <a
+              href="#"
+              v-if="isAuthenticated"
+              @click.prevent="handleLogout"
+              class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:no-underline transition duration-150 ease-in-out whitespace-nowrap"
+              >{{ t('nav.logout') }}</a
+            >
+          </div>
+          <!-- Sliding underline element with Tailwind classes using theme variables (JS still controls positioning) -->
+          <div
+            ref="underlineRef"
+            class="absolute bottom-0 h-0.5 bg-link-active rounded transition-opacity duration-300 ease-in-out pointer-events-none opacity-0 transform translate-y-1.5"
+          ></div>
+          <!-- Changed translate-y-1 to translate-y-1.5 -->
+        </nav>
+      </header>
 
-    <main>
-      <!-- 使用 KeepAlive 包裹 RouterView，并指定缓存 WorkspaceView -->
-      <RouterView v-slot="{ Component }">
-        <KeepAlive :include="['WorkspaceView', 'ConnectionsView']">
-          <component :is="Component" />
-        </KeepAlive>
-      </RouterView>
-    </main>
+      <main>
+        <!-- 使用 KeepAlive 包裹 RouterView，并指定缓存 WorkspaceView -->
+        <RouterView v-slot="{ Component }">
+          <KeepAlive :include="['WorkspaceView', 'ConnectionsView']">
+            <component :is="Component" />
+          </KeepAlive>
+        </RouterView>
+      </main>
 
-    <!-- 添加全局通知显示 -->
-    <UINotificationDisplay />
+      <!-- 添加全局通知显示 -->
+      <UINotificationDisplay />
 
-    <!-- 全局命令面板 -->
-    <CommandPalette />
+      <!-- 全局命令面板 -->
+      <CommandPalette />
 
-    <!-- 根据设置条件渲染全局文件编辑器弹窗 -->
-    <FileEditorOverlay v-if="showPopupFileEditorBoolean" :is-mobile="isMobile" />
+      <!-- 根据设置条件渲染全局文件编辑器弹窗 -->
+      <FileEditorOverlay v-if="showPopupFileEditorBoolean" :is-mobile="isMobile" />
 
-    <!-- 条件渲染样式自定义器，使用 store 的状态和方法 -->
-    <StyleCustomizer v-if="isStyleCustomizerVisible" @close="closeStyleCustomizer" />
+      <!-- 条件渲染样式自定义器，使用 store 的状态和方法 -->
+      <StyleCustomizer v-if="isStyleCustomizerVisible" @close="closeStyleCustomizer" />
 
-    <!-- +++ 条件渲染焦点切换配置器 (使用 v-show 保持实例) +++ -->
-    <FocusSwitcherConfigurator
-      v-show="isFocusSwitcherVisible"
-      :isVisible="isFocusSwitcherVisible"
-      @close="focusSwitcherStore.toggleConfigurator(false)"
-    />
+      <!-- +++ 条件渲染焦点切换配置器 (使用 v-show 保持实例) +++ -->
+      <FocusSwitcherConfigurator
+        v-show="isFocusSwitcherVisible"
+        :isVisible="isFocusSwitcherVisible"
+        @close="focusSwitcherStore.toggleConfigurator(false)"
+      />
 
-    <!-- +++ 条件渲染 RDP 模态框 +++ -->
-    <RemoteDesktopModal
-      v-if="isRdpModalOpen"
-      :connection="rdpConnectionInfo"
-      @close="sessionStore.closeRdpModal()"
-    />
+      <!-- +++ 条件渲染 RDP 模态框 +++ -->
+      <RemoteDesktopModal
+        v-if="isRdpModalOpen"
+        :connection="rdpConnectionInfo"
+        @close="sessionStore.closeRdpModal()"
+      />
 
-    <!-- +++ 条件渲染 VNC 模态框 +++ -->
-    <VncModal
-      v-if="isVncModalOpen"
-      :connection="vncConnectionInfo"
-      @close="sessionStore.closeVncModal()"
-    />
+      <!-- +++ 条件渲染 VNC 模态框 +++ -->
+      <VncModal
+        v-if="isVncModalOpen"
+        :connection="vncConnectionInfo"
+        @close="sessionStore.closeVncModal()"
+      />
 
-    <!-- +++ 全局确认对话框 +++ -->
-    <ConfirmDialog
-      :visible="dialogState.visible"
-      :title="dialogState.title"
-      :message="dialogState.message"
-      :confirm-text="dialogState.confirmText"
-      :cancel-text="dialogState.cancelText"
-      :is-loading="dialogState.isLoading"
-      @confirm="dialogStore.handleConfirm"
-      @cancel="dialogStore.handleCancel"
-      @update:visible="(val: boolean) => (dialogStore.state.visible = val)"
-    />
+      <!-- +++ 全局确认对话框 +++ -->
+      <ConfirmDialog
+        :visible="dialogState.visible"
+        :title="dialogState.title"
+        :message="dialogState.message"
+        :confirm-text="dialogState.confirmText"
+        :cancel-text="dialogState.cancelText"
+        :is-loading="dialogState.isLoading"
+        @confirm="dialogStore.handleConfirm"
+        @cancel="dialogStore.handleCancel"
+        @update:visible="(val: boolean) => (dialogStore.state.visible = val)"
+      /> </template
+    ><!-- v-else: 初始化完成后渲染 -->
   </div>
 </template>
 
@@ -474,6 +483,44 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
   flex-direction: column;
   min-height: 100vh;
   font-family: var(--font-family-sans-serif); /* 使用字体变量 */
+}
+
+/* 初始化加载动画：与 index.html 风格保持一致 */
+.init-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #0f172a;
+  z-index: 9999;
+}
+
+.init-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: #0ea5e9;
+  animation: init-spin 1s ease-in-out infinite;
+}
+
+@keyframes init-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.init-loading-text {
+  margin-top: 20px;
+  font-size: 14px;
+  opacity: 0.7;
+  letter-spacing: 1px;
+  color: #e0e0e0;
 }
 
 main {
