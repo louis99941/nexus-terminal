@@ -81,25 +81,6 @@ describe('NL2CMD Service', () => {
       expect(result?.apiKey).toBe('sk-test-key');
       expect(crypto.decrypt).toHaveBeenCalledWith('encrypted_sk-test-key');
     });
-
-    it('应该正确处理 streamingEnabled 布尔值', async () => {
-      const { getAISettings } = await import('./nl2cmd.service');
-      const mockConfig = {
-        enabled: true,
-        provider: 'openai',
-        baseUrl: 'https://api.openai.com',
-        apiKey: 'encrypted_sk-test-key',
-        model: 'gpt-4o-mini',
-        openaiEndpoint: '/chat/completions',
-        streamingEnabled: true,
-      };
-      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockConfig));
-
-      const result = await getAISettings();
-
-      expect(result).not.toBeNull();
-      expect(result?.streamingEnabled).toBe(true);
-    });
   });
 
   describe('saveAISettings', () => {
@@ -121,25 +102,6 @@ describe('NL2CMD Service', () => {
         'aiProviderConfig',
         expect.stringContaining('encrypted_sk-test-key')
       );
-    });
-
-    it('应该正确保存 streamingEnabled', async () => {
-      const { saveAISettings } = await import('./nl2cmd.service');
-      const settings = {
-        enabled: true,
-        provider: 'openai' as const,
-        baseUrl: 'https://api.openai.com',
-        apiKey: 'sk-test-key',
-        model: 'gpt-4o-mini',
-        openaiEndpoint: '/chat/completions' as const,
-        streamingEnabled: true,
-      };
-
-      await saveAISettings(settings);
-
-      const savedJson = vi.mocked(settingsRepository.setSetting).mock.calls[0][1];
-      const savedConfig = JSON.parse(savedJson);
-      expect(savedConfig.streamingEnabled).toBe(true);
     });
   });
 
@@ -165,7 +127,6 @@ describe('NL2CMD Service', () => {
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
         openaiEndpoint: '/chat/completions',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -205,7 +166,6 @@ describe('NL2CMD Service', () => {
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
         openaiEndpoint: '/responses',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -245,7 +205,6 @@ describe('NL2CMD Service', () => {
         apiKey: 'encrypted_sk-test',
         model: 'gpt-3.5-turbo',
         openaiEndpoint: '/chat/completions',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -267,66 +226,6 @@ describe('NL2CMD Service', () => {
       expect(result.warning).toContain('极度危险');
     });
 
-    it('应该在流式响应模式下返回 streaming: true', async () => {
-      const { generateCommand } = await import('./nl2cmd.service');
-      const mockSettings = {
-        enabled: true,
-        provider: 'openai',
-        baseUrl: 'https://api.openai.com',
-        apiKey: 'encrypted_sk-test',
-        model: 'gpt-4o-mini',
-        openaiEndpoint: '/chat/completions',
-        streamingEnabled: true,
-      };
-      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
-
-      // 流式响应需要 Buffer 格式的 SSE 数据
-      const streamData = Buffer.from(
-        'data: {"choices":[{"delta":{"content":"ls"}}]}\ndata: [DONE]\n'
-      );
-      mockPost.mockResolvedValue({
-        data: streamData,
-      });
-
-      const result = await generateCommand({
-        query: '列出当前目录',
-        osType: 'Linux',
-        shellType: 'bash',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.streaming).toBe(true);
-    });
-
-    it('应该在非流式模式下返回 streaming: false', async () => {
-      const { generateCommand } = await import('./nl2cmd.service');
-      const mockSettings = {
-        enabled: true,
-        provider: 'openai',
-        baseUrl: 'https://api.openai.com',
-        apiKey: 'encrypted_sk-test',
-        model: 'gpt-4o-mini',
-        openaiEndpoint: '/chat/completions',
-        streamingEnabled: false,
-      };
-      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
-
-      mockPost.mockResolvedValue({
-        data: {
-          choices: [{ message: { content: 'ls' } }],
-        },
-      });
-
-      const result = await generateCommand({
-        query: '列出当前目录',
-        osType: 'Linux',
-        shellType: 'bash',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.streaming).toBe(false);
-    });
-
     it('应该正确清理反引号包裹的代码', async () => {
       const { generateCommand } = await import('./nl2cmd.service');
       const mockSettings = {
@@ -336,7 +235,6 @@ describe('NL2CMD Service', () => {
         apiKey: 'encrypted_sk-test',
         model: 'gpt-3.5-turbo',
         openaiEndpoint: '/chat/completions',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -364,7 +262,6 @@ describe('NL2CMD Service', () => {
         baseUrl: 'https://api.openai.com',
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -394,7 +291,6 @@ describe('NL2CMD Service', () => {
         baseUrl: 'https://api.openai.com',
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -423,7 +319,6 @@ describe('NL2CMD Service', () => {
         baseUrl: 'https://api.openai.com',
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -468,7 +363,6 @@ describe('NL2CMD Service', () => {
         baseUrl: 'https://api.openai.com',
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 
@@ -502,7 +396,6 @@ describe('NL2CMD Service', () => {
         baseUrl: 'https://api.openai.com',
         apiKey: 'encrypted_sk-test',
         model: 'gpt-4o-mini',
-        streamingEnabled: false,
       };
       vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
 

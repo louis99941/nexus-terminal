@@ -128,7 +128,6 @@ describe('NL2CMD Controller', () => {
           model: 'gpt-5-nano',
           openaiEndpoint: '/chat/completions',
           rateLimitEnabled: true,
-          streamingEnabled: false,
         },
       });
     });

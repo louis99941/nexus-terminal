@@ -88,16 +88,6 @@ export interface SystemHealthSummary {
   recentAlerts: AIInsight[];
 }
 
-// 审计日志分析请求
-export interface AuditAnalysisRequest {
-  timeRange?: {
-    start: Date;
-    end: Date;
-  };
-  actionTypes?: string[];
-  limit?: number;
-}
-
 // 命令模式分析结果
 export interface CommandPatternAnalysis {
   totalCommands: number;
@@ -126,30 +116,4 @@ export interface AIMessageRow {
   content: string;
   timestamp: number;
   metadata_json: string | null;
-}
-
-// API 响应类型
-export interface AISessionListResponse {
-  success: boolean;
-  sessions: AISession[];
-}
-
-export interface AIInsightsResponse {
-  success: boolean;
-  summary: SystemHealthSummary;
-  insights: AIInsight[];
-}
-
-// WebSocket 事件
-export type AIWsEventType = 'ai:response' | 'ai:typing' | 'ai:insight' | 'ai:error';
-
-export interface AIWsMessage {
-  type: AIWsEventType;
-  payload: {
-    sessionId?: string;
-    messageId?: string;
-    content?: string;
-    insight?: AIInsight;
-    error?: string;
-  };
 }

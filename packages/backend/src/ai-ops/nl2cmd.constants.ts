@@ -5,10 +5,6 @@
 
 import crypto from 'crypto';
 
-export type NL2CMDTraceOptions = {
-  traceId?: string;
-};
-
 /**
  * 创建 Trace ID
  */
@@ -53,35 +49,4 @@ export function safeBaseUrlForLog(baseUrl: string): string {
   } catch {
     return baseUrl;
   }
-}
-
-/**
- * 创建带超时的 Axios 实例
- */
-export function createAxiosClient(baseUrl: string, apiKey: string, timeout?: number) {
-  return {
-    baseURL: baseUrl,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    timeout: timeout ?? NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
-  };
-}
-
-/**
- * 日志格式化工具
- */
-export function formatTimingLog(
-  operation: string,
-  traceId: string,
-  totalMs: number,
-  extra?: Record<string, unknown>
-): Record<string, unknown> {
-  return {
-    operation,
-    traceId,
-    totalMs,
-    ...extra,
-  };
 }

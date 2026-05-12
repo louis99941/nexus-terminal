@@ -72,16 +72,6 @@ async function flushOutputBuffers(): Promise<void> {
   }
 }
 
-/**
- * 停止输出缓冲定时器（模块卸载或测试清理时调用）
- */
-export function stopOutputFlushTimer(): void {
-  if (flushTimer) {
-    clearInterval(flushTimer);
-    flushTimer = null;
-  }
-}
-
 // 行数据转换为 BatchTask 对象
 const rowToTask = (row: BatchTaskRow, subTasks: BatchSubTask[] = []): BatchTask => {
   let payload: BatchExecPayload;

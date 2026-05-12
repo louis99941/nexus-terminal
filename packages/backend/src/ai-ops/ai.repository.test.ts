@@ -259,63 +259,6 @@ describe('AI Repository', () => {
     });
   });
 
-  describe('getRecentMessages', () => {
-    it('应返回最近 N 条消息', async () => {
-      const mockMessageRows = [
-        {
-          id: 'msg-001',
-          session_id: mockSessionId,
-          role: 'user',
-          content: 'Recent 1',
-          timestamp: Math.floor(Date.now() / 1000) - 10,
-          metadata_json: null,
-        },
-        {
-          id: 'msg-002',
-          session_id: mockSessionId,
-          role: 'assistant',
-          content: 'Recent 2',
-          timestamp: Math.floor(Date.now() / 1000),
-          metadata_json: null,
-        },
-      ];
-
-      (allDb as any).mockResolvedValueOnce(mockMessageRows);
-
-      const result = await aiRepository.getRecentMessages(mockSessionId, 5);
-
-      expect(result).toHaveLength(2);
-    });
-  });
-
-  describe('deleteMessage', () => {
-    it('应删除消息', async () => {
-      await aiRepository.deleteMessage(mockMessageId);
-
-      expect(runDb).toHaveBeenCalled();
-      const call = (runDb as any).mock.calls[0];
-      expect(call[1]).toContain('DELETE FROM ai_messages');
-    });
-  });
-
-  describe('getSessionCount', () => {
-    it('应返回用户的会话数量', async () => {
-      (getDb as any).mockResolvedValueOnce({ count: 5 });
-
-      const result = await aiRepository.getSessionCount(mockUserId);
-
-      expect(result).toBe(5);
-    });
-
-    it('无会话时应返回 0', async () => {
-      (getDb as any).mockResolvedValueOnce(null);
-
-      const result = await aiRepository.getSessionCount(mockUserId);
-
-      expect(result).toBe(0);
-    });
-  });
-
   describe('cleanupOldSessions', () => {
     it('应清理旧会话保留最近 N 个', async () => {
       const mockKeepSessions = [{ id: 'session-001' }, { id: 'session-002' }];

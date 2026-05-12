@@ -222,53 +222,6 @@ export const getMessages = async (
 };
 
 /**
- * 获取会话的最新 N 条消息（用于上下文构建）
- */
-export const getRecentMessages = async (
-  sessionId: string,
-  count: number = 10
-): Promise<AIMessage[]> => {
-  const db = await getDbInstance();
-  const rows = await allDb<AIMessageRow>(
-    db,
-    `
-        SELECT * FROM (
-            SELECT * FROM ai_messages
-            WHERE session_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-        ) ORDER BY timestamp ASC
-    `,
-    [sessionId, count]
-  );
-
-  return rows.map(rowToMessage);
-};
-
-/**
- * 删除消息
- */
-export const deleteMessage = async (messageId: string): Promise<void> => {
-  const db = await getDbInstance();
-  await runDb(db, 'DELETE FROM ai_messages WHERE id = ?', [messageId]);
-};
-
-/**
- * 获取用户的会话数量
- */
-export const getSessionCount = async (userId: number | string): Promise<number> => {
-  const db = await getDbInstance();
-  const result = await getDb<{ count: number }>(
-    db,
-    `
-        SELECT COUNT(*) as count FROM ai_sessions WHERE user_id = ?
-    `,
-    [userId]
-  );
-  return result?.count || 0;
-};
-
-/**
  * 清理用户的旧会话（保留最近 N 个）
  */
 export const cleanupOldSessions = async (

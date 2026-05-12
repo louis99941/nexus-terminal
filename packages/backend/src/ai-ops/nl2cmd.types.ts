@@ -37,13 +37,6 @@ export interface NL2CMDResponse {
   error?: string; // 错误信息
 }
 
-// 流式响应事件类型
-export interface NL2CMDStreamEvent {
-  type: 'chunk' | 'done' | 'error';
-  data?: string;
-  error?: string;
-}
-
 // OpenAI Chat Completions API 请求
 export interface OpenAIChatRequest {
   model: string;
