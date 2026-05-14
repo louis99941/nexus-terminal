@@ -438,8 +438,8 @@ onBeforeUnmount(() => {
   <div
     :class="[
       'flex bg-header border border-border overflow-hidden',
-      { 'rounded-t-md mx-2 mt-2': !props.isMobile }, // Desktop margins/rounding - Use props.isMobile
-      props.isMobile ? 'h-8' : 'h-10', // Mobile height h-8, Desktop h-10 - Use props.isMobile
+      { 'rounded-t-md mx-2 mt-2': !props.isMobile },
+      props.isMobile ? 'h-11' : 'h-10',
     ]"
   >
     <div class="flex items-center overflow-x-auto flex-shrink min-w-0 h-full pl-1">

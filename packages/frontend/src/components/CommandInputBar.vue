@@ -454,7 +454,8 @@ const handleQuickCommandExecute = (command: string) => {
       <!-- Clear Terminal Button -->
       <button
         @click="emitWorkspaceEvent('terminal:clear')"
-        class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+        class="flex-shrink-0 flex items-center justify-center min-w-[32px] min-h-[32px] w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+        :class="{ 'min-w-[44px] min-h-[44px]': props.isMobile }"
         :title="t('commandInputBar.clearTerminal', '清空终端')"
         :aria-label="t('commandInputBar.clearTerminal', '清空终端')"
       >
@@ -464,7 +465,7 @@ const handleQuickCommandExecute = (command: string) => {
       <button
         v-if="props.isMobile"
         @click="openQuickCommandsModal"
-        class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+        class="flex-shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px] border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
         :title="t('quickCommands.title', '快捷指令')"
         :aria-label="t('quickCommands.title', '快捷指令')"
       >
@@ -559,7 +560,7 @@ const handleQuickCommandExecute = (command: string) => {
         <button
           v-if="props.isMobile"
           @click="openSuspendedSshSessionsModal"
-          class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          class="flex-shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px] border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
           :title="t('suspendedSshSessions.title', '挂起会话')"
           :aria-label="t('suspendedSshSessions.title', '挂起会话')"
         >
@@ -569,7 +570,7 @@ const handleQuickCommandExecute = (command: string) => {
         <button
           v-if="props.isMobile"
           @click="emit('toggle-virtual-keyboard')"
-          class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          class="flex-shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px] border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
           :title="
             props.isVirtualKeyboardVisible
               ? t('commandInputBar.hideKeyboard', '隐藏虚拟键盘')
@@ -653,7 +654,8 @@ const handleQuickCommandExecute = (command: string) => {
         <button
           v-if="showPopupFileManagerBoolean || props.isMobile"
           @click="openFileManagerModal"
-          class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          class="flex-shrink-0 flex items-center justify-center min-w-[32px] min-h-[32px] w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          :class="{ 'min-w-[44px] min-h-[44px]': props.isMobile }"
           :aria-label="t('fileManager.modalTitle', '文件管理器')"
         >
           <i class="fas fa-folder text-base"></i>
@@ -662,7 +664,8 @@ const handleQuickCommandExecute = (command: string) => {
         <button
           v-if="showPopupFileEditorBoolean || props.isMobile"
           @click="openFileEditorModal"
-          class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          class="flex-shrink-0 flex items-center justify-center min-w-[32px] min-h-[32px] w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          :class="{ 'min-w-[44px] min-h-[44px]': props.isMobile }"
           :aria-label="t('fileManager.actions.openEditor', '打开编辑器')"
         >
           <i class="fas fa-edit text-base"></i>
