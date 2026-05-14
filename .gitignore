@@ -188,3 +188,22 @@ electron-app/dist_electron/
 # VitePress docs build output
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+
+dev-debug.log
+# Environment variables
+.env
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+.DS_Store
+
+# Task files
+.taskmaster
+tasks.json
+tasks/ 
