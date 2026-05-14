@@ -65,10 +65,10 @@ vi.mock('../utils/errorExtractor', () => ({
 }));
 
 vi.mock('../components/AddConnectionForm.vue', () => ({
-  default: { template: '<div />' },
+  default: { name: 'AddConnectionForm', template: '<div />' },
 }));
 vi.mock('../components/BatchEditConnectionForm.vue', () => ({
-  default: { template: '<div />' },
+  default: { name: 'BatchEditConnectionForm', template: '<div />' },
 }));
 
 function makeConnection(overrides: Record<string, any> = {}) {
@@ -105,8 +105,8 @@ describe('ConnectionsView', () => {
     const wrapper = mount(ConnectionsView, {
       global: {
         stubs: {
-          AddConnectionForm: { template: '<div />' },
-          BatchEditConnectionForm: { template: '<div />' },
+          AddConnectionForm: { name: 'AddConnectionForm', template: '<div />' },
+          BatchEditConnectionForm: { name: 'BatchEditConnectionForm', template: '<div />' },
         },
       },
     });
@@ -276,13 +276,20 @@ describe('ConnectionsView', () => {
       mockConnectionsStore.connections.value = [makeConnection({ id: 1, name: 'Server A' })];
       const wrapper = await mountView();
 
-      const sortBtn = wrapper.find('button[aria-label]');
-      expect(sortBtn.exists()).toBe(true);
-      // 点击排序方向按钮不应抛出错误
-      await sortBtn.trigger('click');
+      // 找到排序方向按钮（有 aria-label 属性且包含 sort 关键字）
+      const sortBtns = wrapper.findAll('button[aria-label]');
+      const sortDirBtn = sortBtns.find((b) => b.attributes('aria-label')?.includes('sort'));
+      expect(sortDirBtn).toBeDefined();
+      // 默认排序为降序，aria-label 应包含 sortDescending
+      expect(sortDirBtn!.attributes('aria-label')).toContain('sortDescending');
+      // 点击切换为升序
+      await sortDirBtn!.trigger('click');
       await nextTick();
-      // 点击后按钮仍应存在（切换图标方向）
-      expect(wrapper.find('button[aria-label]').exists()).toBe(true);
+      // aria-label 应变为包含 sortAscending
+      const updatedBtn = wrapper
+        .findAll('button[aria-label]')
+        .find((b) => b.attributes('aria-label')?.includes('sort'));
+      expect(updatedBtn!.attributes('aria-label')).toContain('sortAscending');
     });
   });
 
@@ -305,13 +312,16 @@ describe('ConnectionsView', () => {
       mockConnectionsStore.connections.value = [makeConnection()];
       const wrapper = await mountView();
 
-      // 找到包含 fa-plus 图标的按钮并点击
-      const addBtn = wrapper.find('button:has(.fa-plus)');
-      expect(addBtn.exists()).toBe(true);
-      await addBtn.trigger('click');
+      // 点击前 AddConnectionForm 不应渲染（v-if=false）
+      expect(wrapper.findComponent({ name: 'AddConnectionForm' }).exists()).toBe(false);
+      // 找到含 fa-plus 图标的按钮（新增连接按钮）并点击
+      const buttons = wrapper.findAll('button');
+      const addBtn = buttons.find((b) => b.find('.fa-plus').exists());
+      expect(addBtn).toBeDefined();
+      await addBtn!.trigger('click');
       await nextTick();
-      // 点击后不应抛出错误，组件保持挂载状态
-      expect(wrapper.exists()).toBe(true);
+      // 点击后 AddConnectionForm 应渲染（v-if=true）
+      expect(wrapper.findComponent({ name: 'AddConnectionForm' }).exists()).toBe(true);
     });
   });
 
