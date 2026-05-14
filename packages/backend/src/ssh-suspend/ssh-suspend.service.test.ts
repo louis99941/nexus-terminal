@@ -601,7 +601,6 @@ describe('SshSuspendService', () => {
   describe('Channel 事件处理', () => {
     it('channel close 事件应更新会话状态', async () => {
       const mockClient = createMockSshClient();
-      // 需要使用真实的 EventEmitter 来触发事件
       const realChannel = new EventEmitter() as any;
       realChannel.readable = true;
       realChannel.writable = true;
@@ -618,7 +617,6 @@ describe('SshSuspendService', () => {
         logIdentifier: 'log-123',
       });
 
-      // 触发 close 事件
       realChannel.emit('close');
 
       const sessions = await service.listSuspendedSessions(1);
@@ -632,7 +630,6 @@ describe('SshSuspendService', () => {
       realChannel.writable = true;
       realChannel.end = vi.fn();
       realChannel.close = vi.fn();
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       await service.takeOverMarkedSession({
         userId: 1,
@@ -644,13 +641,256 @@ describe('SshSuspendService', () => {
         logIdentifier: 'log-123',
       });
 
-      // 触发 error 事件
       realChannel.emit('error', new Error('Channel error'));
 
       const sessions = await service.listSuspendedSessions(1);
       expect(sessions[0].backendSshStatus).toBe('disconnected_by_backend');
+    });
 
-      consoleSpy.mockRestore();
+    it('channel end 事件应更新会话状态', async () => {
+      const mockClient = createMockSshClient();
+      const realChannel = new EventEmitter() as any;
+      realChannel.readable = true;
+      realChannel.writable = true;
+      realChannel.end = vi.fn();
+      realChannel.close = vi.fn();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: realChannel,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      realChannel.emit('end');
+
+      const sessions = await service.listSuspendedSessions(1);
+      expect(sessions[0].backendSshStatus).toBe('disconnected_by_backend');
+    });
+
+    it('channel exit 事件应更新会话状态', async () => {
+      const mockClient = createMockSshClient();
+      const realChannel = new EventEmitter() as any;
+      realChannel.readable = true;
+      realChannel.writable = true;
+      realChannel.end = vi.fn();
+      realChannel.close = vi.fn();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: realChannel,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      realChannel.emit('exit', 0, 'SIGTERM');
+
+      const sessions = await service.listSuspendedSessions(1);
+      expect(sessions[0].backendSshStatus).toBe('disconnected_by_backend');
+    });
+
+    it('sshClient error 事件应更新会话状态', async () => {
+      const mockClient = createMockSshClient();
+      const realChannel = new EventEmitter() as any;
+      realChannel.readable = true;
+      realChannel.writable = true;
+      realChannel.end = vi.fn();
+      realChannel.close = vi.fn();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: realChannel,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      mockClient.emit('error', new Error('SSH client error'));
+
+      const sessions = await service.listSuspendedSessions(1);
+      expect(sessions[0].backendSshStatus).toBe('disconnected_by_backend');
+    });
+
+    it('sshClient end 事件应更新会话状态', async () => {
+      const mockClient = createMockSshClient();
+      const realChannel = new EventEmitter() as any;
+      realChannel.readable = true;
+      realChannel.writable = true;
+      realChannel.end = vi.fn();
+      realChannel.close = vi.fn();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: realChannel,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      mockClient.emit('end');
+
+      const sessions = await service.listSuspendedSessions(1);
+      expect(sessions[0].backendSshStatus).toBe('disconnected_by_backend');
+    });
+  });
+
+  describe('handleUnexpectedDisconnection 边界条件', () => {
+    it('会话不存在时应安全跳过', async () => {
+      // 不创建任何会话，直接调用
+      service.handleUnexpectedDisconnection(999, 'nonexistent');
+      // 不应抛出错误
+      const sessions = await service.listSuspendedSessions(999);
+      expect(sessions).toHaveLength(0);
+    });
+
+    it('会话已断开时应安全跳过', async () => {
+      const mockClient = createMockSshClient();
+      const mockChannel = createMockChannel();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: mockChannel as any,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      // 第一次断开
+      service.handleUnexpectedDisconnection(1, 'mock-uuid-12345');
+      // 第二次断开（会话已不在 hanging 状态）
+      service.handleUnexpectedDisconnection(1, 'mock-uuid-12345');
+
+      const sessions = await service.listSuspendedSessions(1);
+      expect(sessions[0].backendSshStatus).toBe('disconnected_by_backend');
+    });
+  });
+
+  describe('editSuspendedSessionName 断开会话', () => {
+    it('应更新已断开会话的名称并同步元数据', async () => {
+      const mockClient = createMockSshClient();
+      const mockChannel = createMockChannel();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: mockChannel as any,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      // 断开会话
+      service.handleUnexpectedDisconnection(1, 'mock-uuid-12345');
+
+      // 更新名称
+      const result = await service.editSuspendedSessionName(
+        1,
+        'mock-uuid-12345',
+        'Renamed Session'
+      );
+
+      expect(result).toBe(true);
+      expect(mockLogStorageService.writeMetadata).toHaveBeenCalled();
+
+      const sessions = await service.listSuspendedSessions(1);
+      expect(sessions[0].customSuspendName).toBe('Renamed Session');
+    });
+  });
+
+  describe('removeDisconnectedSessionEntry 不在内存中的会话', () => {
+    it('应尝试删除日志和元数据文件', async () => {
+      // 不在内存中的会话，但仍应尝试删除文件
+      const result = await service.removeDisconnectedSessionEntry(1, 'not-in-memory');
+
+      expect(result).toBe(true);
+      expect(mockLogStorageService.deleteLog).toHaveBeenCalledWith('not-in-memory');
+      expect(mockLogStorageService.deleteMetadata).toHaveBeenCalledWith('not-in-memory');
+    });
+  });
+
+  describe('getSessionLogContent 缺少 tempLogPath', () => {
+    it('tempLogPath 为空时应返回 null', async () => {
+      const mockClient = createMockSshClient();
+      const mockChannel = createMockChannel();
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: mockChannel as any,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: '',
+      });
+
+      // logIdentifier 为空字符串，tempLogPath 也会是空字符串
+      const result = await service.getSessionLogContent(1, 'mock-uuid-12345');
+
+      // 空字符串的 tempLogPath 是 falsy，会触发 null 返回
+      expect(result).toBeNull();
+      expect(mockLogStorageService.readLog).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('takeOverMarkedSession channel 关闭失败', () => {
+    it('channel.end 抛出异常时应安全忽略', async () => {
+      const mockClient = createMockSshClient();
+      const mockChannel = createMockChannel(false, true);
+      mockChannel.end.mockImplementation(() => {
+        throw new Error('Channel already closed');
+      });
+
+      const result = await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: mockChannel as any,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('terminateSuspendedSession 关闭失败', () => {
+    it('channel.close 和 sshClient.end 抛出异常时应安全忽略', async () => {
+      const mockClient = createMockSshClient();
+      const mockChannel = createMockChannel();
+      mockChannel.close.mockImplementation(() => {
+        throw new Error('Close failed');
+      });
+      mockClient.end.mockImplementation(() => {
+        throw new Error('End failed');
+      });
+
+      await service.takeOverMarkedSession({
+        userId: 1,
+        originalSessionId: 'original-123',
+        sshClient: mockClient as any,
+        channel: mockChannel as any,
+        connectionName: 'Test Server',
+        connectionId: '1',
+        logIdentifier: 'log-123',
+      });
+
+      const result = await service.terminateSuspendedSession(1, 'mock-uuid-12345');
+
+      expect(result).toBe(true);
     });
   });
 });

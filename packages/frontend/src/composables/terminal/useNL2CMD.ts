@@ -142,7 +142,11 @@ export function useNL2CMD() {
       const errorMsg = err.response?.data?.error || err.message || '生成命令失败';
 
       // 调试模式：记录错误到 AI Store
-      aiStore.addDebugLog({ type: 'error', source: 'nl2cmd', data: { error: errorMsg, raw: error } });
+      aiStore.addDebugLog({
+        type: 'error',
+        source: 'nl2cmd',
+        data: { error: errorMsg, raw: error },
+      });
 
       ElMessage.error(errorMsg);
       return null;

@@ -387,7 +387,6 @@ describe('NL2CMD Service', () => {
 
   describe('clearAxiosClientCache', () => {
     it('应该清除所有缓存的客户端', async () => {
-      // 动态导入服务模块
       const { generateCommand, clearAxiosClientCache } = await import('./nl2cmd.service');
 
       const mockSettings = {
@@ -403,17 +402,398 @@ describe('NL2CMD Service', () => {
         data: { choices: [{ message: { content: 'ls' } }] },
       });
 
-      // 第一次调用，创建缓存的客户端
       await generateCommand({ query: 'test' });
-
-      // 清除缓存
       clearAxiosClientCache();
-
-      // 第二次调用，应该创建新的客户端
       await generateCommand({ query: 'test' });
 
-      // 验证 create 被调用了至少 2 次
       expect(mockCreate).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('testAIConnection', () => {
+    it('应该成功测试 OpenAI 连接', async () => {
+      const { testAIConnection } = await import('./nl2cmd.service');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(null);
+
+      mockPost.mockResolvedValue({
+        data: { choices: [{ message: { content: 'ls -la' } }] },
+      });
+
+      const result = await testAIConnection({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'sk-test',
+        model: 'gpt-4o-mini',
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('应该成功测试 Claude 连接', async () => {
+      const { testAIConnection } = await import('./nl2cmd.service');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(null);
+
+      mockPost.mockResolvedValue({
+        data: { content: [{ text: 'ls -la' }], usage: { input_tokens: 10, output_tokens: 10 } },
+      });
+
+      const result = await testAIConnection({
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com',
+        apiKey: 'sk-ant-test',
+        model: 'claude-3-haiku',
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('连接失败时应返回 false', async () => {
+      const { testAIConnection } = await import('./nl2cmd.service');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(null);
+
+      mockPost.mockRejectedValue(new Error('Connection refused'));
+      mockIsAxiosError.mockReturnValue(false);
+
+      const result = await testAIConnection({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'sk-bad',
+        model: 'gpt-4o-mini',
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('不支持的 provider 应返回 false', async () => {
+      const { testAIConnection } = await import('./nl2cmd.service');
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(null);
+
+      const result = await testAIConnection({
+        provider: 'unsupported' as any,
+        baseUrl: 'https://example.com',
+        apiKey: 'key',
+        model: 'model',
+      });
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('generateCommand - 不支持的 provider', () => {
+    it('不支持的 provider 应返回错误', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'unsupported',
+        baseUrl: 'https://example.com',
+        apiKey: 'encrypted_key',
+        model: 'model',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('不支持的 AI Provider');
+    });
+  });
+
+  describe('generateCommand - Claude provider', () => {
+    it('应该正确调用 Claude API', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com',
+        apiKey: 'encrypted_sk-ant-test',
+        model: 'claude-3-haiku-20240307',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: {
+          content: [{ text: 'ls -la' }],
+          usage: { input_tokens: 10, output_tokens: 10 },
+        },
+      });
+
+      const result = await generateCommand({
+        query: '列出文件',
+        osType: 'Linux',
+        shellType: 'bash',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.command).toBe('ls -la');
+    });
+
+    it('Claude API 返回空内容应报错', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com',
+        apiKey: 'encrypted_sk-ant-test',
+        model: 'claude-3-haiku',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: { content: [], usage: {} },
+      });
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('generateCommand - 空命令', () => {
+    it('AI 返回空命令时应返回错误', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: { choices: [{ message: { content: '' } }] },
+      });
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('未能生成有效命令');
+    });
+  });
+
+  describe('generateCommand - 非 Axios 错误', () => {
+    it('非 Axios 错误应返回通用错误信息', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockRejectedValue(new Error('Something went wrong'));
+      mockIsAxiosError.mockReturnValue(false);
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Something went wrong');
+    });
+  });
+
+  describe('generateCommand - 403 错误', () => {
+    it('应返回权限不足错误', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockRejectedValue({
+        response: { status: 403, data: { error: { message: 'Forbidden' } } },
+        isAxiosError: true,
+        code: undefined,
+        config: { timeout: 30000 },
+      });
+      mockIsAxiosError.mockReturnValue(true);
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('权限不足');
+    });
+  });
+
+  describe('generateCommand - 404 错误', () => {
+    it('应返回端点不存在错误', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockRejectedValue({
+        response: { status: 404, data: { error: { message: 'Not Found' } } },
+        isAxiosError: true,
+        code: undefined,
+        config: { timeout: 30000 },
+      });
+      mockIsAxiosError.mockReturnValue(true);
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('不存在');
+    });
+  });
+
+  describe('generateCommand - 400 错误', () => {
+    it('应返回请求参数错误', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockRejectedValue({
+        response: { status: 400, data: { error: { message: 'Bad Request' } } },
+        isAxiosError: true,
+        code: undefined,
+        config: { timeout: 30000 },
+      });
+      mockIsAxiosError.mockReturnValue(true);
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('参数错误');
+    });
+  });
+
+  describe('generateCommand - 网络错误', () => {
+    it('无响应时应返回网络错误', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockRejectedValue({
+        request: {},
+        isAxiosError: true,
+        code: undefined,
+        config: { timeout: 30000 },
+      });
+      mockIsAxiosError.mockReturnValue(true);
+
+      const result = await generateCommand({ query: 'test' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('无法连接');
+    });
+  });
+
+  describe('generateCommand - JSON 响应清理', () => {
+    it('应解析 JSON 格式的命令输出', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: {
+          choices: [{ message: { content: '{"command": "ls -la"}' } }],
+        },
+      });
+
+      const result = await generateCommand({ query: '列出文件' });
+
+      expect(result.success).toBe(true);
+      expect(result.command).toBe('ls -la');
+    });
+
+    it('应处理带 Markdown 围栏的 JSON 响应', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: {
+          choices: [{ message: { content: '```json\n{"command": "ls"}\n```' } }],
+        },
+      });
+
+      const result = await generateCommand({ query: '列出文件' });
+
+      expect(result.success).toBe(true);
+      expect(result.command).toBe('ls');
+    });
+  });
+
+  describe('generateCommand - 危险命令检测', () => {
+    it('dd 命令应返回警告', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: {
+          choices: [{ message: { content: 'dd if=/dev/zero of=/dev/sda' } }],
+        },
+      });
+
+      const result = await generateCommand({ query: '写入磁盘' });
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toContain('磁盘设备');
+    });
+
+    it('chmod 777 应返回警告', async () => {
+      const { generateCommand } = await import('./nl2cmd.service');
+      const mockSettings = {
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'encrypted_sk-test',
+        model: 'gpt-4o-mini',
+      };
+      vi.mocked(settingsRepository.getSetting).mockResolvedValue(JSON.stringify(mockSettings));
+
+      mockPost.mockResolvedValue({
+        data: {
+          choices: [{ message: { content: 'chmod 777 /var/www' } }],
+        },
+      });
+
+      const result = await generateCommand({ query: '修改权限' });
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toContain('完全权限');
     });
   });
 });

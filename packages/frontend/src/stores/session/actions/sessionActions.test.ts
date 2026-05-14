@@ -73,10 +73,11 @@ import {
   closeSession,
   cleanupAllSessions,
   handleConnectRequest,
+  handleOpenNewSession,
   openNewSession,
 } from './sessionActions';
 import { log } from '@/utils/log';
-import { workspaceEmitter } from '../../../composables/workspaceEvents';
+
 import { createWebSocketConnectionManager } from '../../../composables/useWebSocketConnection';
 import type { ConnectionInfo } from '../../connections.store';
 
@@ -505,6 +506,276 @@ describe('session/actions/sessionActions', () => {
       expect(session.sftpManagers).toBeInstanceOf(Map);
       expect(session.editorTabs).toBeDefined();
       expect(session.activeEditorTabId).toBeDefined();
+    });
+
+    it('非 SSH 类型连接时不应注册挂起处理器', () => {
+      const conn = createMockConnection({ id: 1, type: 'RDP' });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1]
+      );
+
+      expect(mockSessions.value.size).toBe(1);
+      // 非 SSH 连接也会创建会话，但不注册挂起处理器
+      const session = Array.from(mockSessions.value.values())[0];
+      expect(session.wsManager.onMessage).not.toHaveBeenCalledWith(
+        'SSH_SUSPEND_TERMINATED',
+        expect.any(Function)
+      );
+    });
+
+    it('连接名称为空时应回退到 host 作为 connectionName', () => {
+      const conn = createMockConnection({ id: 1, name: '', host: '10.0.0.1' });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1]
+      );
+
+      const session = Array.from(mockSessions.value.values())[0];
+      expect(session.connectionName).toBe('10.0.0.1');
+    });
+
+    it('ssh:connected 处理器应更新 sessionId', () => {
+      const conn = createMockConnection({ id: 1 });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1]
+      );
+
+      const wsManager = vi.mocked(createWebSocketConnectionManager).mock.results[0].value;
+      const connectedHandler = wsManager.onMessage.mock.calls.find(
+        (c: unknown[]) => c[0] === 'ssh:connected'
+      )?.[1];
+
+      expect(connectedHandler).toBeDefined();
+
+      // 模拟后端返回不同的 sessionId
+      connectedHandler({ sessionId: 'backend-sid-123', connectionId: '1' });
+
+      // 会话 key 应被更新
+      expect(mockSessions.value.has('backend-sid-123')).toBe(true);
+      expect(mockActiveSessionId.value).toBe('backend-sid-123');
+    });
+
+    it('ssh:connected 处理器在 connectionId 不匹配时应跳过更新', () => {
+      const conn = createMockConnection({ id: 1 });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1]
+      );
+
+      const wsManager = vi.mocked(createWebSocketConnectionManager).mock.results[0].value;
+      const connectedHandler = wsManager.onMessage.mock.calls.find(
+        (c: unknown[]) => c[0] === 'ssh:connected'
+      )?.[1];
+
+      // connectionId 不匹配
+      connectedHandler({ sessionId: 'backend-sid', connectionId: '999' });
+
+      // sessionId 不应改变（因为 CID 不匹配）
+      const sessionKeys = Array.from(mockSessions.value.keys());
+      expect(sessionKeys).not.toContain('backend-sid');
+    });
+
+    it('ssh:connected 处理器在后端 SID 与前端 SID 相同时不应重映射', () => {
+      const conn = createMockConnection({ id: 1 });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1],
+        'same-sid'
+      );
+
+      const wsManager = vi.mocked(createWebSocketConnectionManager).mock.results[0].value;
+      const connectedHandler = wsManager.onMessage.mock.calls.find(
+        (c: unknown[]) => c[0] === 'ssh:connected'
+      )?.[1];
+
+      // 后端 SID 与前端相同
+      connectedHandler({ sessionId: 'same-sid', connectionId: '1' });
+
+      // 不应改变
+      expect(mockSessions.value.has('same-sid')).toBe(true);
+      expect(mockActiveSessionId.value).toBe('same-sid');
+    });
+
+    it('ssh:connected 处理器在 SID 冲突时应跳过重映射', () => {
+      const conn = createMockConnection({ id: 1 });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1],
+        'frontend-sid'
+      );
+
+      // 预先创建一个冲突的会话
+      const conflictSession = createMockSession('conflict-sid', { connectionId: '1' });
+      mockSessions.value.set('conflict-sid', conflictSession);
+
+      const wsManager = vi.mocked(createWebSocketConnectionManager).mock.results[0].value;
+      const connectedHandler = wsManager.onMessage.mock.calls.find(
+        (c: unknown[]) => c[0] === 'ssh:connected'
+      )?.[1];
+
+      // 尝试重映射到已存在的 SID
+      connectedHandler({ sessionId: 'conflict-sid', connectionId: '1' });
+
+      // 原始 frontend-sid 应仍然存在（因为冲突检测跳过了重映射）
+      expect(mockSessions.value.has('frontend-sid')).toBe(true);
+    });
+
+    it('ssh:connected 处理器在会话被删除时不应崩溃', () => {
+      const conn = createMockConnection({ id: 1 });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1],
+        'temp-sid'
+      );
+
+      const wsManager = vi.mocked(createWebSocketConnectionManager).mock.results[0].value;
+      const connectedHandler = wsManager.onMessage.mock.calls.find(
+        (c: unknown[]) => c[0] === 'ssh:connected'
+      )?.[1];
+
+      // 清空 sessions（模拟会话被删除）
+      mockSessions.value = new Map();
+
+      expect(() => {
+        connectedHandler({ sessionId: 'new-sid', connectionId: '1' });
+      }).not.toThrow();
+    });
+
+    it('ssh:connected 处理器在 sessionId 缺失时不应崩溃', () => {
+      const conn = createMockConnection({ id: 1 });
+      const deps = createMockDependencies();
+
+      openNewSession(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1],
+        'test-sid'
+      );
+
+      const wsManager = vi.mocked(createWebSocketConnectionManager).mock.results[0].value;
+      const connectedHandler = wsManager.onMessage.mock.calls.find(
+        (c: unknown[]) => c[0] === 'ssh:connected'
+      )?.[1];
+
+      expect(() => {
+        connectedHandler({ sessionId: '', connectionId: '1' });
+      }).not.toThrow();
+    });
+  });
+
+  describe('handleOpenNewSession', () => {
+    const createMockDependencies = () => ({
+      connectionsStore: {
+        connections: [
+          {
+            id: 1,
+            name: '测试连接',
+            type: 'SSH',
+            host: '192.168.1.1',
+            port: 22,
+            username: 'root',
+            auth_method: 'password' as const,
+            created_at: Date.now(),
+            updated_at: Date.now(),
+            last_connected_at: null,
+          },
+        ] as ConnectionInfo[],
+      },
+      t: ((key: string, ...args: unknown[]) => {
+        const last = args[args.length - 1];
+        return typeof last === 'string' ? last : key;
+      }) as unknown as (key: string) => string,
+    });
+
+    it('应调用 openNewSession 创建新会话', () => {
+      const deps = createMockDependencies();
+
+      handleOpenNewSession(1, deps as unknown as Parameters<typeof handleConnectRequest>[1]);
+
+      expect(mockSessions.value.size).toBe(1);
+      expect(mockActiveSessionId.value).toBeTruthy();
+    });
+  });
+
+  describe('handleConnectRequest 特殊分支', () => {
+    const createMockConnection = (
+      overrides: { type?: string; id?: number; name?: string; host?: string } = {}
+    ) => ({
+      id: overrides.id ?? 1,
+      name: overrides.name ?? '测试连接',
+      type: overrides.type ?? 'SSH',
+      host: overrides.host ?? '192.168.1.1',
+      port: 22,
+      username: 'root',
+      auth_method: 'password' as const,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      last_connected_at: null,
+    });
+
+    const createMockDependencies = () => ({
+      connectionsStore: {
+        connections: [] as ConnectionInfo[],
+      },
+      router: {
+        push: vi.fn(),
+      },
+      openRdpModalAction: vi.fn(),
+      openVncModalAction: vi.fn(),
+      t: ((key: string, ...args: unknown[]) => {
+        const last = args[args.length - 1];
+        return typeof last === 'string' ? last : key;
+      }) as unknown as (key: string) => string,
+    });
+
+    it('SSH 连接且活动会话为 error 状态时应尝试重连', () => {
+      const session = createMockSession('s1', { connectionId: '1' });
+      session.wsManager.connectionStatus = ref('error');
+      mockSessions.value.set('s1', session);
+      mockActiveSessionId.value = 's1';
+
+      const conn = createMockConnection({ type: 'SSH', id: 1 });
+      const deps = createMockDependencies();
+
+      handleConnectRequest(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1]
+      );
+
+      expect(session.wsManager.connect).toHaveBeenCalled();
+      expect(deps.router.push).toHaveBeenCalledWith({ name: 'Workspace' });
+    });
+
+    it('SSH 连接且活动会话连接不同 connectionId 时应打开新会话', () => {
+      const session = createMockSession('s1', { connectionId: '999' });
+      mockSessions.value.set('s1', session);
+      mockActiveSessionId.value = 's1';
+
+      const conn = createMockConnection({ type: 'SSH', id: 1 });
+      const deps = createMockDependencies();
+
+      handleConnectRequest(
+        conn as unknown as ConnectionInfo,
+        deps as unknown as Parameters<typeof handleConnectRequest>[1]
+      );
+
+      // 不同 connectionId → 不走重连，走 openNewSession
+      expect(deps.router.push).toHaveBeenCalledWith({ name: 'Workspace' });
     });
   });
 });

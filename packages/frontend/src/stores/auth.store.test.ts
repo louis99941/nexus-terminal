@@ -524,6 +524,274 @@ describe('auth.store', () => {
     });
   });
 
+  describe('loadInitData', () => {
+    it('成功加载应更新所有状态', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          needsSetup: false,
+          isAuthenticated: true,
+          user: { id: 1, username: 'testuser', language: 'zh' },
+          captchaConfig: {
+            enabled: true,
+            provider: 'hcaptcha',
+            hcaptchaSiteKey: 'key-123',
+            recaptchaSiteKey: null,
+          },
+        },
+      });
+
+      await store.loadInitData();
+
+      expect(store.needsSetup).toBe(false);
+      expect(store.isAuthenticated).toBe(true);
+      expect(store.user).toEqual({ id: 1, username: 'testuser', language: 'zh' });
+      expect(store.publicCaptchaConfig).toEqual({
+        enabled: true,
+        provider: 'hcaptcha',
+        hcaptchaSiteKey: 'key-123',
+        recaptchaSiteKey: undefined,
+      });
+      expect(store.isInitCompleted).toBe(true);
+      expect(setLocale).toHaveBeenCalledWith('zh');
+    });
+
+    it('无效 CAPTCHA provider 时应降级处理', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: {
+          needsSetup: false,
+          isAuthenticated: false,
+          user: null,
+          captchaConfig: {
+            enabled: false,
+            provider: 'invalid-provider',
+            hcaptchaSiteKey: null,
+            recaptchaSiteKey: null,
+          },
+        },
+      });
+
+      await store.loadInitData();
+
+      expect(store.isInitCompleted).toBe(true);
+      expect(store.needsSetup).toBe(true); // 首次加载降级
+    });
+
+    it('API 失败时应标记初始化完成并保留旧状态', async () => {
+      const store = useAuthStore();
+      store.user = { id: 1, username: 'existing' };
+      store.isAuthenticated = true;
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('network'));
+
+      await store.loadInitData();
+
+      expect(store.isInitCompleted).toBe(true);
+      // 旧状态被保留
+      expect(store.user).toEqual({ id: 1, username: 'existing' });
+      expect(store.isLoading).toBe(false);
+    });
+
+    it('API 失败且无旧状态时应设置 needsSetup=true', async () => {
+      const store = useAuthStore();
+      // 默认状态: user=null, needsSetup=false, isAuthenticated=false
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('network'));
+
+      await store.loadInitData();
+
+      expect(store.isInitCompleted).toBe(true);
+      expect(store.needsSetup).toBe(true);
+    });
+  });
+
+  describe('loginWithPasskey', () => {
+    it('登录失败应返回错误', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.post).mockRejectedValueOnce({
+        response: { data: { message: 'Passkey 验证失败' } },
+      });
+
+      const result = await store.loginWithPasskey('testuser', { id: 'cred-123' });
+
+      expect(result).toEqual({ success: false, error: 'Passkey 验证失败' });
+      expect(store.isAuthenticated).toBe(false);
+      expect(store.user).toBeNull();
+    });
+  });
+
+  describe('getPasskeyRegistrationOptions', () => {
+    it('成功时应返回 FIDO2 选项', async () => {
+      const store = useAuthStore();
+      const mockOptions = { challenge: 'abc', rp: { name: 'test' } };
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({ data: mockOptions });
+
+      const result = await store.getPasskeyRegistrationOptions('testuser');
+
+      expect(result).toEqual(mockOptions);
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/passkey/registration-options', {
+        username: 'testuser',
+      });
+    });
+
+    it('失败时应设置 error 并抛出', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.post).mockRejectedValueOnce({
+        response: { data: { message: '获取选项失败' } },
+      });
+
+      await expect(store.getPasskeyRegistrationOptions('testuser')).rejects.toThrow('获取选项失败');
+      expect(store.error).toBeTruthy();
+    });
+  });
+
+  describe('registerPasskey', () => {
+    it('成功时应返回 success', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({});
+
+      const result = await store.registerPasskey('testuser', { id: 'cred-123' });
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it('失败时应设置 error 并抛出', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.post).mockRejectedValueOnce({
+        response: { data: { message: '注册失败' } },
+      });
+
+      await expect(store.registerPasskey('testuser', { id: 'cred' })).rejects.toThrow('注册失败');
+      expect(store.error).toBeTruthy();
+    });
+  });
+
+  describe('IP 黑名单管理 失败路径', () => {
+    it('fetchIpBlacklist 失败时应设置 error 并抛出', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce({
+        response: { data: { message: '获取黑名单失败' } },
+      });
+
+      await expect(store.fetchIpBlacklist()).rejects.toThrow();
+      expect(store.error).toBeTruthy();
+    });
+
+    it('deleteIpFromBlacklist 失败时应设置 error 并抛出', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.delete).mockRejectedValueOnce({
+        response: { data: { message: '删除失败' } },
+      });
+
+      await expect(store.deleteIpFromBlacklist('10.0.0.1')).rejects.toThrow();
+      expect(store.error).toBeTruthy();
+    });
+  });
+
+  describe('login 特殊路径', () => {
+    it('响应既无 user 也无 requiresTwoFactor 时应返回错误', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({
+        data: { message: '意外响应' },
+      });
+
+      const result = await store.login({ username: 'test', password: 'pass' });
+
+      expect(result).toEqual({ success: false, error: expect.any(String) });
+      expect(store.isAuthenticated).toBe(false);
+    });
+  });
+
+  describe('Passkey 失败路径', () => {
+    it('loginWithPasskey 失败时应返回错误', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.post).mockRejectedValueOnce({
+        response: { data: { message: 'Passkey 登录失败' } },
+      });
+
+      const result = await store.loginWithPasskey('user', { id: 'cred' });
+
+      expect(result).toEqual({ success: false, error: 'Passkey 登录失败' });
+      expect(store.isAuthenticated).toBe(false);
+    });
+
+    it('fetchPasskeys 失败时应清空 passkeys', async () => {
+      const store = useAuthStore();
+      store.isAuthenticated = true;
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('fetch failed'));
+
+      await store.fetchPasskeys();
+
+      expect(store.passkeys).toBeNull();
+      expect(store.error).toBeTruthy();
+      expect(store.passkeysLoading).toBe(false);
+    });
+
+    it('deletePasskey 未认证时应抛出错误', async () => {
+      const store = useAuthStore();
+      store.isAuthenticated = false;
+
+      await expect(store.deletePasskey('cred-1')).rejects.toThrow('not authenticated');
+    });
+
+    it('deletePasskey 失败时应设置 error 并抛出', async () => {
+      const store = useAuthStore();
+      store.isAuthenticated = true;
+
+      vi.mocked(apiClient.delete).mockRejectedValueOnce({
+        response: { data: { message: '删除 Passkey 失败' } },
+      });
+
+      await expect(store.deletePasskey('cred-1')).rejects.toThrow();
+      expect(store.error).toBeTruthy();
+    });
+
+    it('updatePasskeyName 未认证时应抛出错误', async () => {
+      const store = useAuthStore();
+      store.isAuthenticated = false;
+
+      await expect(store.updatePasskeyName('cred-1', 'Name')).rejects.toThrow('not authenticated');
+    });
+
+    it('updatePasskeyName 失败时应设置 error 并抛出', async () => {
+      const store = useAuthStore();
+      store.isAuthenticated = true;
+
+      vi.mocked(apiClient.put).mockRejectedValueOnce({
+        response: { data: { message: '更新名称失败' } },
+      });
+
+      await expect(store.updatePasskeyName('cred-1', 'Name')).rejects.toThrow();
+      expect(store.error).toBeTruthy();
+    });
+  });
+
+  describe('checkHasPasskeysConfigured 失败路径', () => {
+    it('检查失败时应默认返回 false', async () => {
+      const store = useAuthStore();
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('check failed'));
+
+      const result = await store.checkHasPasskeysConfigured('testuser');
+
+      expect(result).toBe(false);
+      expect(store.hasPasskeysAvailable).toBe(false);
+    });
+  });
+
   describe('Getters', () => {
     it('loggedInUser 应返回用户名', () => {
       const store = useAuthStore();

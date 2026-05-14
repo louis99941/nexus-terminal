@@ -135,15 +135,7 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  const {
-    enabled,
-    provider,
-    baseUrl,
-    apiKey,
-    model,
-    openaiEndpoint,
-    rateLimitEnabled,
-  } = req.body;
+  const { enabled, provider, baseUrl, apiKey, model, openaiEndpoint, rateLimitEnabled } = req.body;
 
   // 参数验证
   if (typeof enabled !== 'boolean') {

@@ -56,7 +56,7 @@ describe('apiClient', () => {
   describe('请求拦截器', () => {
     it('应为请求添加 debug 日志', async () => {
       // 使用拦截器触发日志
-      const config = { method: 'get', url: '/test' };
+      const _config = { method: 'get', url: '/test' };
       // 通过 apiClient 内部拦截器验证 debug 被调用
       try {
         await apiClient.get('/nonexistent-endpoint-404');
