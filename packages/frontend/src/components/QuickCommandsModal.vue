@@ -55,6 +55,11 @@ onMounted(() => {
     log.info('[QuickCommandsModal] Received terminal:sendCommand event, closing modal.');
     closeModal();
   });
+  // 监听 quickCommand:executeProcessed 事件以关闭模态框（快捷指令视图发出的事件）
+  onWorkspaceEvent('quickCommand:executeProcessed', () => {
+    log.info('[QuickCommandsModal] Received quickCommand:executeProcessed event, closing modal.');
+    closeModal();
+  });
 });
 </script>
 

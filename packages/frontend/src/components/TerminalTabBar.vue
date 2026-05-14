@@ -492,8 +492,11 @@ onBeforeUnmount(() => {
               session.connectionName
             }}</span>
             <button
-              class="ml-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-text-secondary hover:bg-border hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-              :class="{ 'text-foreground hover:bg-header': session.sessionId === activeSessionId }"
+              class="ml-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-text-secondary hover:bg-border hover:text-foreground transition-opacity duration-150"
+              :class="[
+                props.isMobile ? 'opacity-70' : 'opacity-0 group-hover:opacity-100',
+                { 'text-foreground hover:bg-header': session.sessionId === activeSessionId },
+              ]"
               @click="closeSession($event, session.sessionId)"
               :title="$t('tabs.closeTabTooltip')"
               :aria-label="$t('tabs.closeTabTooltip')"
