@@ -435,7 +435,6 @@ describe('DashboardService', () => {
         },
       ]);
 
-      // 不应抛出错误
       const result = await getActivityTimeline();
       expect(result.length).toBe(1);
     });
@@ -448,6 +447,213 @@ describe('DashboardService', () => {
       const result = await getActivityTimeline();
 
       expect(result[0].details).toBeUndefined();
+    });
+  });
+
+  describe('getDashboardStats 动作类型映射', () => {
+    it('应正确映射所有安全相关动作类型', async () => {
+      // countAuditLogs 使用 getDbRow（即 mockGetDb），不是 mockAllDb
+      mockAllDb
+        .mockResolvedValueOnce([]) // connectEvents
+        .mockResolvedValueOnce([]); // disconnectEvents
+      mockGetDb
+        .mockResolvedValueOnce({ count: 1 }) // loginFailures
+        .mockResolvedValueOnce({ count: 2 }) // commandBlocks
+        .mockResolvedValueOnce({ count: 3 }); // alerts
+
+      const result = await getDashboardStats();
+
+      expect(result.security.loginFailures).toBe(1);
+      expect(result.security.commandBlocks).toBe(2);
+      expect(result.security.alerts).toBe(3);
+    });
+
+    it('countAuditLogs 返回 0 当 actionTypes 为空', async () => {
+      mockAllDb.mockResolvedValue([]);
+
+      const result = await getDashboardStats();
+
+      expect(result.security.loginFailures).toBe(0);
+      expect(result.security.commandBlocks).toBe(0);
+      expect(result.security.alerts).toBe(0);
+    });
+  });
+
+  describe('getActivityTimeline 更多动作类型', () => {
+    it('应映射 SSH_DISCONNECT 为 connection_disconnected', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'SSH_DISCONNECT', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('connection_disconnected');
+    });
+
+    it('应映射 SSH_SESSION_SUSPENDED 为 session_suspended', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'SSH_SESSION_SUSPENDED', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('session_suspended');
+    });
+
+    it('应映射 LOGIN_FAILURE 为 auth_login_failed', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'LOGIN_FAILURE', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('auth_login_failed');
+    });
+
+    it('应映射 COMMAND_BLOCKED 为 command_blocked', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'COMMAND_BLOCKED', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('command_blocked');
+    });
+
+    it('应映射 FILE_DOWNLOAD 为 file_download', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'FILE_DOWNLOAD', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('file_download');
+    });
+
+    it('应映射 PASSKEY_AUTH_FAILURE 为 alert_security', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'PASSKEY_AUTH_FAILURE', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('alert_security');
+    });
+
+    it('应映射 SSH_CONNECT_FAILURE 为 alert_error', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'SSH_CONNECT_FAILURE', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('alert_error');
+    });
+
+    it('未知动作类型应映射为 alert_error', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'UNKNOWN_ACTION', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionType).toBe('alert_error');
+    });
+  });
+
+  describe('getStorageStats 实际文件', () => {
+    it('目录存在时应计算大小', async () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([]);
+      mockFs.statSync.mockReturnValue({ size: 1024 } as any);
+
+      const result = await getStorageStats();
+
+      expect(typeof result.recordingsSize).toBe('number');
+      expect(typeof result.databaseSize).toBe('number');
+    });
+
+    it('readdirSync 失败时应安全处理', async () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+
+      const result = await getStorageStats();
+
+      expect(result.recordingsSize).toBe(0);
+    });
+  });
+
+  describe('getSystemResources 磁盘信息', () => {
+    it('statfsSync 可用时应返回磁盘使用情况', async () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.statfsSync.mockReturnValue({
+        blocks: 1000000,
+        bsize: 4096,
+        bfree: 500000,
+      } as any);
+
+      const result = await getSystemResources();
+
+      expect(result.diskTotal).toBe(1000000 * 4096);
+      expect(result.diskUsed).toBe(500000 * 4096);
+      expect(result.diskPercent).toBe(50);
+    });
+
+    it('statfsSync 不可用时应返回 0', async () => {
+      // 删除 statfsSync
+      delete (mockFs as any).statfsSync;
+      mockFs.existsSync.mockReturnValue(true);
+
+      const result = await getSystemResources();
+
+      expect(result.diskTotal).toBe(0);
+      expect(result.diskUsed).toBe(0);
+      expect(result.diskPercent).toBe(0);
+    });
+
+    it('data 目录不存在时应返回 0', async () => {
+      mockFs.existsSync.mockReturnValue(false);
+
+      const result = await getSystemResources();
+
+      expect(result.diskTotal).toBe(0);
+    });
+  });
+
+  describe('getDashboardStats 会话时长 - 活跃会话', () => {
+    it('活跃会话（在 clientStates 中）应按时长分类', async () => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      mockClientStates.set('sess-active', { connected: true });
+
+      mockAllDb
+        .mockResolvedValueOnce([
+          {
+            timestamp: nowSeconds - 120,
+            details: '{"sessionId": "sess-active"}',
+          },
+        ])
+        .mockResolvedValueOnce([]); // 无 disconnect 事件
+
+      const result = await getDashboardStats();
+
+      // 活跃会话按时长应分类到 lt5min（2 分钟 < 5 分钟）
+      expect(result.sessions.durationDistribution.lt5min).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('getActivityTimeline actionLabel', () => {
+    it('应为每个动作生成正确的 label key', async () => {
+      mockAllDb.mockResolvedValue([
+        { id: 1, timestamp: 1700000000, action_type: 'LOGIN_SUCCESS', details: null },
+        { id: 2, timestamp: 1700000100, action_type: 'SSH_CONNECT_SUCCESS', details: null },
+      ]);
+
+      const result = await getActivityTimeline();
+
+      expect(result[0].actionLabel).toBe('dashboard.actions.auth_login_success');
+      expect(result[1].actionLabel).toBe('dashboard.actions.connection_connected');
     });
   });
 });

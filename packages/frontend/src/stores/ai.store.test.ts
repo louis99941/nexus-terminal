@@ -451,4 +451,175 @@ describe('ai.store', () => {
       expect(store.error).toBeNull();
     });
   });
+
+  describe('调试模式', () => {
+    it('toggleDebugMode 应切换调试模式状态', () => {
+      const store = useAIStore();
+      expect(store.debugMode).toBe(false);
+
+      store.toggleDebugMode();
+      expect(store.debugMode).toBe(true);
+
+      store.toggleDebugMode();
+      expect(store.debugMode).toBe(false);
+    });
+
+    it('clearDebugLogs 应清空调试日志', () => {
+      const store = useAIStore();
+      store.debugLogs = [
+        {
+          id: 'dbg-1',
+          timestamp: new Date(),
+          type: 'request',
+          source: 'query',
+          data: {},
+        },
+      ];
+
+      store.clearDebugLogs();
+      expect(store.debugLogs).toEqual([]);
+    });
+
+    it('addDebugLog 调试模式开启时应添加日志', () => {
+      const store = useAIStore();
+      store.toggleDebugMode(); // 开启
+
+      store.addDebugLog({ type: 'request', source: 'nl2cmd', data: { cmd: 'ls' } });
+
+      expect(store.debugLogs).toHaveLength(1);
+      expect(store.debugLogs[0].type).toBe('request');
+      expect(store.debugLogs[0].source).toBe('nl2cmd');
+    });
+
+    it('addDebugLog 调试模式关闭时应忽略', () => {
+      const store = useAIStore();
+      // debugMode 默认 false
+
+      store.addDebugLog({ type: 'request', source: 'query', data: {} });
+
+      expect(store.debugLogs).toHaveLength(0);
+    });
+
+    it('sendQuery 调试模式开启时应记录请求和响应日志', async () => {
+      const store = useAIStore();
+      store.toggleDebugMode(); // 开启调试
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({
+        data: {
+          success: true,
+          sessionId: 's1',
+          message: {
+            id: 'm1',
+            sessionId: 's1',
+            role: 'assistant',
+            content: 'ok',
+            timestamp: new Date(),
+          },
+          insights: [],
+          suggestions: [],
+        },
+      });
+
+      await store.sendQuery('测试');
+
+      // 应有 request + response 两条日志
+      const reqLogs = store.debugLogs.filter((l) => l.type === 'request');
+      const resLogs = store.debugLogs.filter((l) => l.type === 'response');
+      expect(reqLogs).toHaveLength(1);
+      expect(resLogs).toHaveLength(1);
+    });
+
+    it('sendQuery 调试模式下失败应记录错误日志', async () => {
+      const store = useAIStore();
+      store.toggleDebugMode();
+
+      vi.mocked(apiClient.post).mockRejectedValueOnce({
+        response: { data: { message: '失败' } },
+      });
+
+      await store.sendQuery('测试');
+
+      const errLogs = store.debugLogs.filter((l) => l.type === 'error');
+      expect(errLogs).toHaveLength(1);
+    });
+  });
+
+  describe('sendQuery 补充', () => {
+    it('响应 success=false 时应回滚乐观更新', async () => {
+      const store = useAIStore();
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({
+        data: { success: false, sessionId: 's1', message: null, insights: [], suggestions: [] },
+      });
+
+      await store.sendQuery('测试');
+
+      expect(store.messages).toEqual([]);
+      expect(store.error).toBeTruthy();
+    });
+  });
+
+  describe('loadSession', () => {
+    it('加载失败应设置错误', async () => {
+      const store = useAIStore();
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce({
+        response: { data: { message: '加载失败' } },
+      });
+
+      await store.loadSession('session-x');
+
+      expect(store.error).toBe('加载失败');
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  describe('fetchHealthSummary', () => {
+    it('获取失败应设置错误', async () => {
+      const store = useAIStore();
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce({
+        response: { data: { message: '健康检查失败' } },
+      });
+
+      await store.fetchHealthSummary();
+
+      expect(store.error).toBe('健康检查失败');
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  describe('fetchCommandPatterns', () => {
+    it('获取失败应设置错误', async () => {
+      const store = useAIStore();
+
+      vi.mocked(apiClient.get).mockRejectedValueOnce({
+        response: { data: { message: '模式分析失败' } },
+      });
+
+      await store.fetchCommandPatterns();
+
+      expect(store.error).toBe('模式分析失败');
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  describe('deleteSession 补充', () => {
+    it('删除非当前会话应保留当前会话状态', async () => {
+      const store = useAIStore();
+      store.sessions = [
+        { sessionId: 's1', userId: 1, messages: [], createdAt: new Date(), updatedAt: new Date() },
+        { sessionId: 's2', userId: 1, messages: [], createdAt: new Date(), updatedAt: new Date() },
+      ];
+      store.currentSessionId = 's1';
+
+      vi.mocked(apiClient.delete).mockResolvedValueOnce({});
+
+      const result = await store.deleteSession('s2');
+
+      expect(result).toBe(true);
+      expect(store.currentSessionId).toBe('s1');
+      expect(store.sessions).toHaveLength(1);
+    });
+  });
 });

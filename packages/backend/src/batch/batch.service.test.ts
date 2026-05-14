@@ -545,4 +545,182 @@ describe('Batch Service', () => {
       expect(broadcastToUser).not.toHaveBeenCalled();
     });
   });
+
+  describe('命令安全校验', () => {
+    it('应拒绝包含反引号的命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: '`whoami`',
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+
+      await expect(execCommandBatch(payload, 1)).rejects.toThrow('命令包含非法字符');
+    });
+
+    it('应拒绝包含 $() 的命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: '$(whoami)',
+      };
+
+      await expect(execCommandBatch(payload, 1)).rejects.toThrow('命令包含非法字符');
+    });
+
+    it('应拒绝包含 ${} 的命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'echo ${PATH}',
+      };
+
+      await expect(execCommandBatch(payload, 1)).rejects.toThrow('命令包含非法字符');
+    });
+
+    it('应拒绝包含换行符的命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'echo hello\nrm -rf /',
+      };
+
+      await expect(execCommandBatch(payload, 1)).rejects.toThrow('命令包含非法字符');
+    });
+
+    it('应拒绝空命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: '',
+      };
+
+      await expect(execCommandBatch(payload, 1)).rejects.toThrow('命令包含非法字符');
+    });
+
+    it('应拒绝纯空格命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: '   ',
+      };
+
+      await expect(execCommandBatch(payload, 1)).rejects.toThrow('命令包含非法字符');
+    });
+
+    it('应允许包含管道符的合法命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'cat file | grep pattern',
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.command).toBe('cat file | grep pattern');
+    });
+
+    it('应允许包含 && 的合法命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'cd /tmp && ls',
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.command).toBe('cd /tmp && ls');
+    });
+
+    it('应允许包含环境变量引用的合法命令', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'echo $USER',
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.command).toBe('echo $USER');
+    });
+  });
+
+  describe('execCommandBatch 带高级选项', () => {
+    it('应支持 sudo 选项', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'systemctl restart nginx',
+        sudo: true,
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.sudo).toBe(true);
+    });
+
+    it('应支持 env 选项', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'echo $APP_ENV',
+        env: { APP_ENV: 'production' },
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.env).toEqual({ APP_ENV: 'production' });
+    });
+
+    it('应支持 workdir 选项', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'ls',
+        workdir: '/var/log',
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.workdir).toBe('/var/log');
+    });
+
+    it('应支持 timeoutSeconds 选项', async () => {
+      const payload: BatchExecPayload = {
+        connectionIds: [1],
+        command: 'sleep 10',
+        timeoutSeconds: 60,
+      };
+      (ConnectionRepository.findConnectionByIdWithTags as any).mockResolvedValue({
+        id: 1,
+        name: 'server',
+      });
+      (BatchRepository.createTask as any).mockResolvedValue(undefined);
+      (BatchRepository.getTask as any).mockResolvedValue(null);
+
+      const result = await execCommandBatch(payload, 1);
+      expect(result.payload.timeoutSeconds).toBe(60);
+    });
+  });
 });

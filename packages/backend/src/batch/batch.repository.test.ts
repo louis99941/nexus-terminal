@@ -219,15 +219,48 @@ describe('Batch Repository', () => {
   });
 
   describe('appendSubTaskOutput', () => {
-    it('应缓冲输出内容并支持刷盘', async () => {
-      // appendSubTaskOutput 现在是同步缓冲写入
+    it('应缓冲输出内容且不抛出异常', async () => {
+      // appendSubTaskOutput 是同步缓冲写入，不直接调用 runDb
       batchRepository.appendSubTaskOutput('sub-001', 'new output line\n');
+      batchRepository.appendSubTaskOutput('sub-001', 'second line\n');
 
-      // 调用 stopOutputFlushTimer 清理定时器（测试环境）
-      batchRepository.stopOutputFlushTimer();
-
-      // 缓冲写入不直接调用 runDb，验证不抛出异常即可
+      // 验证不抛出异常即可
       expect(true).toBe(true);
+    });
+  });
+
+  describe('recoverOrphanedTasks', () => {
+    it('应恢复孤儿任务并更新子任务状态', async () => {
+      (runDb as any)
+        .mockResolvedValueOnce({ changes: 2 }) // 主任务更新
+        .mockResolvedValueOnce({ changes: 3 }); // 子任务更新
+
+      const result = await batchRepository.recoverOrphanedTasks();
+
+      expect(result).toBe(2);
+      expect(runDb).toHaveBeenCalledTimes(2);
+    });
+
+    it('应支持传入 processStartedAt 参数', async () => {
+      (runDb as any).mockResolvedValueOnce({ changes: 1 }).mockResolvedValueOnce({ changes: 1 });
+
+      const result = await batchRepository.recoverOrphanedTasks(1700000000);
+
+      expect(result).toBe(1);
+      // 验证 SQL 包含 updated_at < ? 条件
+      const call = (runDb as any).mock.calls[0];
+      expect(call[1]).toContain('updated_at < ?');
+      expect(call[2]).toContain(1700000000);
+    });
+
+    it('无孤儿任务时应返回 0', async () => {
+      (runDb as any).mockResolvedValueOnce({ changes: 0 });
+
+      const result = await batchRepository.recoverOrphanedTasks();
+
+      expect(result).toBe(0);
+      // 只调用一次（主任务查询），不触发子任务更新
+      expect(runDb).toHaveBeenCalledTimes(1);
     });
   });
 
