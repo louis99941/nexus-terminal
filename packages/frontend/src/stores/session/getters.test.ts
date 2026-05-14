@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, shallowRef } from 'vue';
+import { ref } from 'vue';
 
 vi.mock('@/utils/log', () => ({
   log: {
@@ -223,8 +223,8 @@ describe('session/getters', () => {
 
       const session = activeSession.value;
       expect(session).not.toBeNull();
-      expect(session!.sessionId).toBe('s1');
-      expect(session!.connectionName).toBe('活跃会话');
+      expect(session?.sessionId).toBe('s1');
+      expect(session?.connectionName).toBe('活跃会话');
     });
 
     it('切换活动会话 ID 时应返回不同的会话', () => {
@@ -233,10 +233,10 @@ describe('session/getters', () => {
       setSessions(s1, s2);
 
       activeSessionId.value = 's1';
-      expect(activeSession.value!.connectionName).toBe('A');
+      expect(activeSession.value?.connectionName).toBe('A');
 
       activeSessionId.value = 's2';
-      expect(activeSession.value!.connectionName).toBe('B');
+      expect(activeSession.value?.connectionName).toBe('B');
     });
   });
 });

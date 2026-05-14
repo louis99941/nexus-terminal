@@ -5,7 +5,7 @@
  * 注意：connection.ts 在导入时会执行目录创建和 SQLite 初始化逻辑，
  * 无法通过 vi.mock 完全隔离。本测试直接验证 Promise 封装模式的正确性。
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('数据库连接辅助函数', () => {
   describe('runDb 模式验证', () => {

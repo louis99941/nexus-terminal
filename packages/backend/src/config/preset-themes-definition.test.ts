@@ -68,7 +68,7 @@ describe('预设终端主题定义', () => {
 
     for (const theme of presetTerminalThemes) {
       const themeData = theme.themeData as Record<string, string>;
-      for (const [key, value] of Object.entries(themeData)) {
+      for (const [, value] of Object.entries(themeData)) {
         expect(value).toMatch(hexColorPattern);
       }
     }

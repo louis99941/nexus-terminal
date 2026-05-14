@@ -447,7 +447,9 @@ const handleQuickCommandExecute = (command: string) => {
 <template>
   <div :class="$attrs.class" class="flex items-center py-1.5 bg-background overflow-hidden">
     <!-- Bind $attrs.class, removed px-2 and gap-1 -->
-    <div class="flex-grow flex items-center bg-transparent relative gap-1 px-2 w-full overflow-hidden">
+    <div
+      class="flex-grow flex items-center bg-transparent relative gap-1 px-2 w-full overflow-hidden"
+    >
       <!-- Added px-2 here, ensure full width -->
       <!-- Clear Terminal Button -->
       <button

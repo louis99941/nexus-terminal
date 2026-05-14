@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ref, nextTick } from 'vue';
+import { ref } from 'vue';
 import { createBackgroundStore, safeJsonParse } from './appearance-background.store';
 import type { AppearanceSettings } from '../types/appearance.types';
 

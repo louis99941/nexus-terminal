@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 
@@ -380,7 +380,9 @@ describe('WorkspaceView', () => {
         (call: unknown[]) => call[0] === 'connection:openNewSession'
       );
       expect(openNewSessionCall).toBeDefined();
-      const handler = openNewSessionCall![1] as (payload: { connectionId: number }) => void;
+      const handler = (openNewSessionCall as unknown[])[1] as (payload: {
+        connectionId: number;
+      }) => void;
       handler({ connectionId: 1 });
       await nextTick();
       expect(mockSessionStore.handleOpenNewSession).toHaveBeenCalledWith(1);
@@ -393,7 +395,7 @@ describe('WorkspaceView', () => {
       const wrapper = await mountView();
 
       // VirtualKeyboard 初始应隐藏（v-show）
-      const keyboard = wrapper.findComponent({ name: 'VirtualKeyboard' });
+      const _keyboard = wrapper.findComponent({ name: 'VirtualKeyboard' });
       // 不应抛出错误
       expect(wrapper.exists()).toBe(true);
     });

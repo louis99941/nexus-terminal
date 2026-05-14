@@ -66,7 +66,7 @@ describe('useTerminalEvents', () => {
 
       handleSendCommand('ls -la');
 
-      const tm = deps.activeSession.value!.terminalManager as any;
+      const tm = (deps.activeSession.value as any)?.terminalManager;
       expect(tm.sendData).toHaveBeenCalledWith('ls -la\r');
     });
 
@@ -158,7 +158,7 @@ describe('useTerminalEvents', () => {
 
       handleTerminalInput({ sessionId: 's1', data: 'a' });
 
-      const tm = deps.sessionStore.sessions.get('s1')!.terminalManager as any;
+      const tm = (deps.sessionStore.sessions.get('s1') as any)?.terminalManager;
       expect(tm.handleTerminalData).toHaveBeenCalledWith('a');
     });
 
@@ -196,7 +196,7 @@ describe('useTerminalEvents', () => {
 
       handleTerminalResize({ sessionId: 's1', dims: { cols: 120, rows: 40 } });
 
-      const tm = deps.sessionStore.sessions.get('s1')!.terminalManager as any;
+      const tm = (deps.sessionStore.sessions.get('s1') as any)?.terminalManager;
       expect(tm.handleTerminalResize).toHaveBeenCalledWith({ cols: 120, rows: 40 });
     });
 
@@ -218,7 +218,7 @@ describe('useTerminalEvents', () => {
 
       handleTerminalReady(payload);
 
-      const tm = deps.sessionStore.sessions.get('s1')!.terminalManager as any;
+      const tm = (deps.sessionStore.sessions.get('s1') as any)?.terminalManager;
       expect(tm.handleTerminalReady).toHaveBeenCalledWith(payload);
     });
   });
@@ -230,7 +230,7 @@ describe('useTerminalEvents', () => {
 
       handleClearTerminal();
 
-      const tm = deps.activeSession.value!.terminalManager as any;
+      const tm = (deps.activeSession.value as any)?.terminalManager;
       expect(tm.terminalInstance.value.clear).toHaveBeenCalled();
     });
 
@@ -251,7 +251,7 @@ describe('useTerminalEvents', () => {
 
       handleScrollToBottomRequest({ sessionId: 's1' });
 
-      const tm = deps.sessionStore.sessions.get('s1')!.terminalManager as any;
+      const tm = (deps.sessionStore.sessions.get('s1') as any)?.terminalManager;
       expect(tm.terminalInstance.value.scrollToBottom).toHaveBeenCalled();
     });
 
@@ -272,7 +272,7 @@ describe('useTerminalEvents', () => {
 
       handleVirtualKeyPress('\x1b[A');
 
-      const tm = deps.activeSession.value!.terminalManager as any;
+      const tm = (deps.activeSession.value as any)?.terminalManager;
       expect(tm.sendData).toHaveBeenCalledWith('\x1b[A');
     });
 
@@ -293,7 +293,7 @@ describe('useTerminalEvents', () => {
 
       handleQuickCommandExecuteProcessed({ command: 'uptime', sessionId: 's1' });
 
-      const tm = deps.sessionStore.sessions.get('s1')!.terminalManager as any;
+      const tm = (deps.sessionStore.sessions.get('s1') as any)?.terminalManager;
       expect(tm.sendData).toHaveBeenCalledWith('uptime\r');
     });
   });

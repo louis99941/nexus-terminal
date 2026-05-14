@@ -131,7 +131,7 @@ describe('WebSocket 状态管理', () => {
       registerUserSocket(1, mockWs);
 
       expect(userSockets.has(1)).toBe(true);
-      expect(userSockets.get(1)!.size).toBe(1);
+      expect(userSockets.get(1)?.size).toBe(1);
     });
 
     it('应支持同一用户多个连接', async () => {
@@ -142,7 +142,7 @@ describe('WebSocket 状态管理', () => {
       registerUserSocket(1, mockWs1);
       registerUserSocket(1, mockWs2);
 
-      expect(userSockets.get(1)!.size).toBe(2);
+      expect(userSockets.get(1)?.size).toBe(2);
     });
   });
 
@@ -152,7 +152,7 @@ describe('WebSocket 状态管理', () => {
       const mockWs = { readyState: WebSocket.OPEN } as unknown;
 
       registerUserSocket(1, mockWs);
-      expect(userSockets.get(1)!.size).toBe(1);
+      expect(userSockets.get(1)?.size).toBe(1);
 
       unregisterUserSocket(1, mockWs);
       expect(userSockets.has(1)).toBe(false);
@@ -168,7 +168,7 @@ describe('WebSocket 状态管理', () => {
 
       unregisterUserSocket(1, mockWs1);
 
-      expect(userSockets.get(1)!.size).toBe(1);
+      expect(userSockets.get(1)?.size).toBe(1);
     });
 
     it('用户不存在时应安全处理', async () => {

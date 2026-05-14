@@ -17,7 +17,7 @@ const mockPut = vi.mocked(apiClient.put);
 // initializeLayout 内部有多个 await，需要多轮微任务才能全部完成
 // 使用 vi.waitFor 轮询直到布局初始化完成（layoutTree 或 mockGet 被调用）
 async function waitForInit() {
-  const store = useLayoutStore();
+  const _store = useLayoutStore();
   await vi.waitFor(
     () => {
       // initializeLayout 完成后 layoutTree 会被赋值，或 mockGet 被调用
@@ -91,7 +91,7 @@ describe('layout.store', () => {
       expect(store.layoutTree).not.toBeNull();
       expect(store.layoutTree?.type).toBe('container');
       expect(store.layoutTree?.children).toBeDefined();
-      expect(store.layoutTree!.children!.length).toBeGreaterThan(0);
+      expect(store.layoutTree?.children?.length).toBeGreaterThan(0);
     });
 
     it('后端加载失败时应使用默认布局', async () => {
@@ -307,7 +307,7 @@ describe('layout.store', () => {
       expect(defaultLayout.type).toBe('container');
       expect(defaultLayout.direction).toBe('horizontal');
       expect(defaultLayout.children).toBeDefined();
-      expect(defaultLayout.children!.length).toBeGreaterThan(0);
+      expect(defaultLayout.children?.length).toBeGreaterThan(0);
     });
   });
 

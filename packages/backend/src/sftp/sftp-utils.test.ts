@@ -244,12 +244,12 @@ describe('SftpUtils', () => {
             if (typeof _optsOrCb === 'function') {
               _optsOrCb(mkdirError);
             } else {
-              cbOrUndefined!(mkdirError);
+              cbOrUndefined?.(mkdirError);
             }
           } else {
             // 非 recursive mkdir 成功
             const cb = typeof _optsOrCb === 'function' ? _optsOrCb : cbOrUndefined;
-            cb!(null);
+            cb?.(null);
           }
         }
       );
@@ -387,9 +387,9 @@ describe('SftpUtils', () => {
       // ensureDirectoryExists: dest 路径不存在（ENOENT），需要 mkdir
       const enoentError = Object.assign(new Error('No such file'), { code: 'ENOENT' });
 
-      let lstatCallCount = 0;
+      let _lstatCallCount = 0;
       mockSftp.lstat.mockImplementation((_path: string, cb: (...args: unknown[]) => void) => {
-        lstatCallCount++;
+        _lstatCallCount++;
         if (_path === '/dest') {
           // dest 不存在，触发创建
           cb(enoentError, null);

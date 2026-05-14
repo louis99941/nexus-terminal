@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 
@@ -281,15 +281,15 @@ describe('ConnectionsView', () => {
       const sortDirBtn = sortBtns.find((b) => b.attributes('aria-label')?.includes('sort'));
       expect(sortDirBtn).toBeDefined();
       // 默认排序为降序，aria-label 应包含 sortDescending
-      expect(sortDirBtn!.attributes('aria-label')).toContain('sortDescending');
+      expect(sortDirBtn?.attributes('aria-label')).toContain('sortDescending');
       // 点击切换为升序
-      await sortDirBtn!.trigger('click');
+      await sortDirBtn?.trigger('click');
       await nextTick();
       // aria-label 应变为包含 sortAscending
       const updatedBtn = wrapper
         .findAll('button[aria-label]')
         .find((b) => b.attributes('aria-label')?.includes('sort'));
-      expect(updatedBtn!.attributes('aria-label')).toContain('sortAscending');
+      expect(updatedBtn?.attributes('aria-label')).toContain('sortAscending');
     });
   });
 
@@ -303,7 +303,7 @@ describe('ConnectionsView', () => {
         .findAll('button')
         .find((b) => b.text().includes('connections.actions.connect'));
       expect(connectBtn).toBeDefined();
-      await connectBtn!.trigger('click');
+      await connectBtn?.trigger('click');
       await nextTick();
       expect(mockSessionStore.handleConnectRequest).toHaveBeenCalledWith(conn);
     });
@@ -318,7 +318,7 @@ describe('ConnectionsView', () => {
       const buttons = wrapper.findAll('button');
       const addBtn = buttons.find((b) => b.find('.fa-plus').exists());
       expect(addBtn).toBeDefined();
-      await addBtn!.trigger('click');
+      await addBtn?.trigger('click');
       await nextTick();
       // 点击后 AddConnectionForm 应渲染（v-if=true）
       expect(wrapper.findComponent({ name: 'AddConnectionForm' }).exists()).toBe(true);
@@ -386,7 +386,7 @@ describe('ConnectionsView', () => {
       const editBtn = wrapper.findAll('button').find((b) => b.text().includes('编辑选中'));
       expect(editBtn).toBeDefined();
       // 无选择时按钮应被禁用
-      expect(editBtn!.attributes('disabled')).toBeDefined();
+      expect(editBtn?.attributes('disabled')).toBeDefined();
     });
   });
 

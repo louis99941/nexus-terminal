@@ -77,7 +77,7 @@ import {
   openNewSession,
 } from './sessionActions';
 import { log } from '@/utils/log';
-import { workspaceEmitter } from '../../../composables/workspaceEvents';
+
 import { createWebSocketConnectionManager } from '../../../composables/useWebSocketConnection';
 import type { ConnectionInfo } from '../../connections.store';
 

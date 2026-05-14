@@ -53,7 +53,7 @@ import {
   updateTabScrollPositionInSession,
 } from './editorActions';
 import { log } from '@/utils/log';
-import { getLanguageFromFilename, decodeRawContent } from '../utils';
+import { getLanguageFromFilename } from '../utils';
 import type { FileTab } from '../types';
 
 /** 创建模拟标签页 */

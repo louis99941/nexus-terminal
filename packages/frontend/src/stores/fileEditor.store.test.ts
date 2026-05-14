@@ -513,7 +513,7 @@ describe('fileEditor.store', () => {
       await store.saveFile(tabId);
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       // rawContentBase64 应该被更新（重新编码了保存后的内容）
       expect(tab.rawContentBase64).toBeTruthy();
       expect(tab.rawContentBase64).not.toBe(rawBefore);
@@ -536,7 +536,7 @@ describe('fileEditor.store', () => {
       await store.saveFile(tabId);
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       expect(tab.saveStatus).toBe('error');
       expect(tab.saveError).toBeTruthy();
       expect(tab.isSaving).toBe(false);
@@ -580,7 +580,7 @@ describe('fileEditor.store', () => {
 
       // 验证 tab 的 instanceId 被正确设置
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       expect(tab.instanceId).toBe('inst-abc');
 
       store.updateFileContent(tabId, 'test content');
@@ -614,7 +614,7 @@ describe('fileEditor.store', () => {
       await store.saveFile(tabId);
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       expect(tab.saveStatus).toBe('error');
       expect(tab.saveError).toBeTruthy();
     });
@@ -775,7 +775,7 @@ describe('fileEditor.store', () => {
         await store.saveFile(tabId);
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const tab = store.tabs.get(tabId)!;
+        const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
         expect(tab.saveStatus).toBe('success');
 
         // 推进定时器
@@ -799,7 +799,7 @@ describe('fileEditor.store', () => {
       const tabId = 's1:/test.txt';
 
       // 模拟 rawContentBase64 为 null（文件内容未加载）
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       (tab as any).rawContentBase64 = null;
       (tab as any).content = 'something';
       (tab as any).isLoading = false;
@@ -829,12 +829,12 @@ describe('fileEditor.store', () => {
       store.updateFileContent(tabId, 'content');
 
       // 清空 sftpManagers（openFile 会添加一个）
-      const session = mockSessions.get('s1')!;
+      const session = mockSessions.get('s1') as NonNullable<ReturnType<typeof mockSessions.get>>;
       session.sftpManagers.clear();
 
       await store.saveFile(tabId);
 
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       expect(tab.saveStatus).toBe('error');
     });
 
@@ -858,7 +858,7 @@ describe('fileEditor.store', () => {
 
       await store.saveFile(tabId);
 
-      const tab = store.tabs.get(tabId)!;
+      const tab = store.tabs.get(tabId) as NonNullable<ReturnType<typeof store.tabs.get>>;
       expect(tab.saveStatus).toBe('error');
     });
   });
