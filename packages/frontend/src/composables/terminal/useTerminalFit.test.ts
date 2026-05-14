@@ -319,17 +319,25 @@ describe('useTerminalFit', () => {
       const isActive = ref(false);
       const shouldFitByWidth = ref(true);
 
-      useTerminalFit(terminal, el, 's1', isActive, shouldFitByWidth);
+      const { setupResizeObserver } = useTerminalFit(
+        terminal,
+        el,
+        's1',
+        isActive,
+        shouldFitByWidth
+      );
+      setupResizeObserver();
+      mockObserve.mockClear();
 
-      // watch 不会触发因为 setupResizeObserver 未调用
-      // 但如果已经 setup 过，isActive 变化应触发
+      isActive.value = true;
+      await nextTick();
+
+      expect(mockObserve).toHaveBeenCalledWith(el.value);
     });
   });
 
-  describe('onBeforeUnmount', () => {
-    it('组件卸载时应断开 ResizeObserver', () => {
-      // onBeforeUnmount 在测试环境中不会自动触发
-      // 但我们可以验证 ResizeObserver 的 disconnect 方法存在
+  describe('ResizeObserver 初始化', () => {
+    it('setupResizeObserver 应成功创建并启动 ResizeObserver', () => {
       const terminal = ref(makeTerminal() as any);
       const el = ref(makeElement() as any);
       const isActive = ref(true);
@@ -344,8 +352,8 @@ describe('useTerminalFit', () => {
       );
       setupResizeObserver();
 
-      // 验证 ResizeObserver 已创建
-      expect(mockObserve).toHaveBeenCalled();
+      // 验证 ResizeObserver 已创建并观察目标元素
+      expect(mockObserve).toHaveBeenCalledWith(el.value);
     });
   });
 });

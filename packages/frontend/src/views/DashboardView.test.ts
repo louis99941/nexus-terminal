@@ -268,11 +268,10 @@ describe('DashboardView', () => {
 
       // 点击连接项触发 handleConnectRecent
       const connItem = wrapper.find('.cursor-pointer');
-      if (connItem.exists()) {
-        await connItem.trigger('click');
-        await nextTick();
-        expect(mockUiNotifications.showError).toHaveBeenCalled();
-      }
+      expect(connItem.exists()).toBe(true);
+      await connItem.trigger('click');
+      await nextTick();
+      expect(mockUiNotifications.showError).toHaveBeenCalled();
     });
   });
 });

@@ -757,28 +757,31 @@ describe('fileEditor.store', () => {
 
     it('保存成功后 saveStatus 应在超时后重置为 idle', async () => {
       vi.useFakeTimers();
-      const store = useFileEditorStore();
-      const writeFileMock = vi.fn().mockResolvedValue(undefined);
-      const readFileMock = vi.fn().mockResolvedValue({
-        rawContentBase64: Buffer.from('content').toString('base64'),
-        encodingUsed: 'utf-8',
-      });
-      setupSessionWithSftpManager('s1', { writeFile: writeFileMock, readFile: readFileMock });
+      try {
+        const store = useFileEditorStore();
+        const writeFileMock = vi.fn().mockResolvedValue(undefined);
+        const readFileMock = vi.fn().mockResolvedValue({
+          rawContentBase64: Buffer.from('content').toString('base64'),
+          encodingUsed: 'utf-8',
+        });
+        setupSessionWithSftpManager('s1', { writeFile: writeFileMock, readFile: readFileMock });
 
-      await store.openFile('/test.txt', 's1', 'primary');
-      const tabId = 's1:/test.txt';
-      store.updateFileContent(tabId, 'modified');
+        await store.openFile('/test.txt', 's1', 'primary');
+        const tabId = 's1:/test.txt';
+        store.updateFileContent(tabId, 'modified');
 
-      await store.saveFile(tabId);
+        await store.saveFile(tabId);
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const tab = store.tabs.get(tabId)!;
-      expect(tab.saveStatus).toBe('success');
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const tab = store.tabs.get(tabId)!;
+        expect(tab.saveStatus).toBe('success');
 
-      // 推进定时器
-      await vi.advanceTimersByTimeAsync(2500);
-      expect(tab.saveStatus).toBe('idle');
-      vi.useRealTimers();
+        // 推进定时器
+        await vi.advanceTimersByTimeAsync(2500);
+        expect(tab.saveStatus).toBe('idle');
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('rawContentBase64 为 null 且未加载时应尝试重新加载', async () => {

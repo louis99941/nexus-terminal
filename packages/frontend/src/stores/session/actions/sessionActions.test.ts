@@ -519,6 +519,11 @@ describe('session/actions/sessionActions', () => {
 
       expect(mockSessions.value.size).toBe(1);
       // 非 SSH 连接也会创建会话，但不注册挂起处理器
+      const session = Array.from(mockSessions.value.values())[0];
+      expect(session.wsManager.onMessage).not.toHaveBeenCalledWith(
+        'SSH_SUSPEND_TERMINATED',
+        expect.any(Function)
+      );
     });
 
     it('连接名称为空时应回退到 host 作为 connectionName', () => {

@@ -376,11 +376,14 @@ describe('WorkspaceView', () => {
       mockConnectionsStore.connections = [
         { id: 1, name: 'Server A', type: 'SSH', host: '10.0.0.1', port: 22, username: 'root' },
       ];
-      const wrapper = await mountView();
+      await mountView();
 
-      // 通过触发 connection:connect 事件来测试
-      // 但该事件已被注释掉，所以直接验证 store 方法存在
-      expect(mockSessionStore.handleConnectRequest).toBeDefined();
+      // 触发 connection:openNewSession 事件来验证事件处理链路
+      const subscribeCalls = mockSubscribe.mock.calls;
+      const openNewSessionHandler = subscribeCalls.find(
+        (call: unknown[]) => call[0] === 'connection:openNewSession'
+      );
+      expect(openNewSessionHandler).toBeDefined();
     });
   });
 

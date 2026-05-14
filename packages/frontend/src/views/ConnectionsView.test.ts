@@ -277,8 +277,12 @@ describe('ConnectionsView', () => {
       const wrapper = await mountView();
 
       const sortBtn = wrapper.find('button[aria-label]');
-      // 不应抛出错误
       expect(sortBtn.exists()).toBe(true);
+      // 点击排序方向按钮不应抛出错误
+      await sortBtn.trigger('click');
+      await nextTick();
+      // 点击后按钮仍应存在（切换图标方向）
+      expect(wrapper.find('button[aria-label]').exists()).toBe(true);
     });
   });
 
@@ -291,11 +295,10 @@ describe('ConnectionsView', () => {
       const connectBtn = wrapper
         .findAll('button')
         .find((b) => b.text().includes('connections.actions.connect'));
-      if (connectBtn) {
-        await connectBtn.trigger('click');
-        await nextTick();
-        expect(mockSessionStore.handleConnectRequest).toHaveBeenCalledWith(conn);
-      }
+      expect(connectBtn).toBeDefined();
+      await connectBtn!.trigger('click');
+      await nextTick();
+      expect(mockSessionStore.handleConnectRequest).toHaveBeenCalledWith(conn);
     });
 
     it('打开新增连接表单', async () => {
@@ -304,12 +307,11 @@ describe('ConnectionsView', () => {
 
       // 找到包含 fa-plus 图标的按钮并点击
       const addBtn = wrapper.find('button:has(.fa-plus)');
-      if (addBtn.exists()) {
-        await addBtn.trigger('click');
-        await nextTick();
-        // 不应抛出错误
-        expect(addBtn.exists()).toBe(true);
-      }
+      expect(addBtn.exists()).toBe(true);
+      await addBtn.trigger('click');
+      await nextTick();
+      // 点击后不应抛出错误，组件保持挂载状态
+      expect(wrapper.exists()).toBe(true);
     });
   });
 
@@ -362,7 +364,7 @@ describe('ConnectionsView', () => {
       expect(wrapper.text()).not.toContain('全选');
     });
 
-    it('无选择时点击编辑选中应弹出提示', async () => {
+    it('无选择时编辑选中按钮应处于禁用状态', async () => {
       mockConnectionsStore.connections.value = [makeConnection({ id: 1, name: 'Server A' })];
       const wrapper = await mountView();
 
@@ -370,15 +372,11 @@ describe('ConnectionsView', () => {
       await toggleBtn.trigger('click');
       await nextTick();
 
-      // 找到编辑选中按钮
-      const editBtn = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('connections.batchEdit.editSelected'));
-      if (editBtn) {
-        await editBtn.trigger('click');
-        await nextTick();
-        expect(mockShowAlertDialog).toHaveBeenCalled();
-      }
+      // 找到编辑选中按钮（mock t() 返回 fallback 文本 '编辑选中'）
+      const editBtn = wrapper.findAll('button').find((b) => b.text().includes('编辑选中'));
+      expect(editBtn).toBeDefined();
+      // 无选择时按钮应被禁用
+      expect(editBtn!.attributes('disabled')).toBeDefined();
     });
   });
 
@@ -515,10 +513,12 @@ describe('ConnectionsView', () => {
       // 通过 v-if="conn.type === 'SSH'" 控制，RDP 的 li 中不应有测试按钮
       const connItems = wrapper.findAll('li');
       expect(connItems.length).toBe(1);
-      // RDP 项中不应包含单个测试按钮（mock t 返回 fallback '测试'）
+      // RDP 项中不应包含单个测试按钮（mock t 返回 fallback 'connections.actions.test'）
       const rdpItem = connItems[0];
       const buttonsInItem = rdpItem.findAll('button');
-      const singleTestBtn = buttonsInItem.find((b) => b.text() === '测试');
+      const singleTestBtn = buttonsInItem.find((b) =>
+        b.text().includes('connections.actions.test')
+      );
       expect(singleTestBtn).toBeUndefined();
     });
   });
