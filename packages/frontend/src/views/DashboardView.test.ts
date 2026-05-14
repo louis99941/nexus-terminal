@@ -65,13 +65,6 @@ vi.mock('pinia', async () => {
   };
 });
 
-vi.mock('vue', async () => {
-  const actual = await vi.importActual<typeof import('vue')>('vue');
-  return {
-    ...actual,
-  };
-});
-
 vi.mock('@/utils/log', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));

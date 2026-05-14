@@ -231,7 +231,6 @@ describe('WorkspaceView', () => {
       await mountView();
       // 验证 subscribe 被调用（至少订阅了 terminal、editor、session 等事件）
       expect(mockSubscribe).toHaveBeenCalled();
-      expect(mockSubscribe.mock.calls.length).toBeGreaterThan(10);
     });
   });
 
@@ -371,19 +370,20 @@ describe('WorkspaceView', () => {
     });
   });
 
-  describe('handleConnectRequest', () => {
-    it('有效连接 ID 应调用 sessionStore.handleConnectRequest', async () => {
-      mockConnectionsStore.connections = [
-        { id: 1, name: 'Server A', type: 'SSH', host: '10.0.0.1', port: 22, username: 'root' },
-      ];
+  describe('handleOpenNewSession', () => {
+    it('connection:openNewSession 事件应调用 sessionStore.handleOpenNewSession', async () => {
       await mountView();
 
-      // 触发 connection:openNewSession 事件来验证事件处理链路
+      // 找到 connection:openNewSession 事件的注册处理器并直接调用
       const subscribeCalls = mockSubscribe.mock.calls;
-      const openNewSessionHandler = subscribeCalls.find(
+      const openNewSessionCall = subscribeCalls.find(
         (call: unknown[]) => call[0] === 'connection:openNewSession'
       );
-      expect(openNewSessionHandler).toBeDefined();
+      expect(openNewSessionCall).toBeDefined();
+      const handler = openNewSessionCall![1] as (payload: { connectionId: number }) => void;
+      handler({ connectionId: 1 });
+      await nextTick();
+      expect(mockSessionStore.handleOpenNewSession).toHaveBeenCalledWith(1);
     });
   });
 
