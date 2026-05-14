@@ -826,12 +826,7 @@ export async function generateCommand(
         if (endpointPath.includes('responses')) {
           providerResult = await callOpenAIResponses(config, prompt, endpointPath);
         } else {
-          providerResult = await callOpenAIChatCompletions(
-            config,
-            prompt,
-            false,
-            endpointPath
-          );
+          providerResult = await callOpenAIChatCompletions(config, prompt, false, endpointPath);
         }
         break;
       case 'claude':

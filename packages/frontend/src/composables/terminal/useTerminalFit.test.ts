@@ -335,25 +335,4 @@ describe('useTerminalFit', () => {
       expect(mockObserve).toHaveBeenCalledWith(el.value);
     });
   });
-
-  describe('ResizeObserver 初始化', () => {
-    it('setupResizeObserver 应成功创建并启动 ResizeObserver', () => {
-      const terminal = ref(makeTerminal() as any);
-      const el = ref(makeElement() as any);
-      const isActive = ref(true);
-      const shouldFitByWidth = ref(true);
-
-      const { setupResizeObserver } = useTerminalFit(
-        terminal,
-        el,
-        's1',
-        isActive,
-        shouldFitByWidth
-      );
-      setupResizeObserver();
-
-      // 验证 ResizeObserver 已创建并观察目标元素
-      expect(mockObserve).toHaveBeenCalledWith(el.value);
-    });
-  });
 });

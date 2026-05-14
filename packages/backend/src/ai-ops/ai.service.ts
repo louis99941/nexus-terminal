@@ -75,7 +75,11 @@ export async function processQuery(
       responseLength: analysis.response.length,
       responsePreview: analysis.response.substring(0, 200),
       insightsCount: analysis.insights.length,
-      insights: analysis.insights.map((i) => ({ type: i.type, severity: i.severity, title: i.title })),
+      insights: analysis.insights.map((i) => ({
+        type: i.type,
+        severity: i.severity,
+        title: i.title,
+      })),
       suggestions: analysis.suggestions,
     });
     logger.info('[AI Debug] === End Debug ===');
