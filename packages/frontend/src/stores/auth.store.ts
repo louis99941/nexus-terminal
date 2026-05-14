@@ -1,39 +1,34 @@
 import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
 import apiClient from '../utils/apiClient';
 import { setLocale } from '../i18n';
 import { extractErrorMessage } from '../utils/errorExtractor';
 import { navigateToLoginAfterLogout } from '../utils/authRuntimeBridge';
 import { log } from '@/utils/log';
 
-// 扩展的用户信息接口，包含 2FA 状态和语言偏好
 interface UserInfo {
   id: number;
   username: string;
-  isTwoFactorEnabled?: boolean; // 后端 /status 接口会返回这个
-  language?: 'en' | 'zh'; // 用户偏好语言
+  isTwoFactorEnabled?: boolean;
+  language?: 'en' | 'zh';
 }
 
-// Passkey Information Interface
 export interface PasskeyInfo {
-  // + Export 接口
   credentialID: string;
-  publicKey: string; // Or a more specific type if available
+  publicKey: string;
   counter: number;
-  transports?: AuthenticatorTransport[]; // e.g., "usb", "nfc", "ble", "internal"
-  creationDate: string; // ISO date string
-  lastUsedDate: string; // ISO date string
-  name?: string; // User-friendly name for the passkey
-  // Add other relevant fields from your backend response
+  transports?: AuthenticatorTransport[];
+  creationDate: string;
+  lastUsedDate: string;
+  name?: string;
 }
 
-// 登录请求的载荷接口
 interface LoginPayload {
   username: string;
   password: string;
-  rememberMe?: boolean; // 可选的"记住我"标志
+  rememberMe?: boolean;
 }
 
-// Public CAPTCHA Config Interface (mirrors backend public config)
 interface PublicCaptchaConfig {
   enabled: boolean;
   provider: 'hcaptcha' | 'recaptcha' | 'none';
@@ -41,17 +36,15 @@ interface PublicCaptchaConfig {
   recaptchaSiteKey?: string;
 }
 
-// Backend's full CAPTCHA Settings Interface (as returned by /settings/captcha)
 interface FullCaptchaSettings {
   enabled: boolean;
   provider: 'hcaptcha' | 'recaptcha' | 'none';
   hcaptchaSiteKey?: string;
-  hcaptchaSecretKey?: string; // We won't use this in authStore
+  hcaptchaSecretKey?: string;
   recaptchaSiteKey?: string;
-  recaptchaSecretKey?: string; // We won't use this in authStore
+  recaptchaSecretKey?: string;
 }
 
-// IP 黑名单条目接口
 export interface IpBlacklistEntry {
   ip: string;
   attempts: number;
@@ -59,516 +52,420 @@ export interface IpBlacklistEntry {
   blocked_until: number | null;
 }
 
-// Auth Store State 接口
-interface AuthState {
-  isAuthenticated: boolean;
-  user: UserInfo | null;
-  isLoading: boolean;
-  error: string | null;
-  loginRequires2FA: boolean;
-  tempToken: string | null; // 2FA 临时令牌
-  // 存储 IP 黑名单数据
-  ipBlacklist: {
-    entries: IpBlacklistEntry[];
-    total: number;
-  };
-  needsSetup: boolean; // 是否需要初始设置
-  publicCaptchaConfig: PublicCaptchaConfig | null;
-  passkeys: PasskeyInfo[] | null;
-  passkeysLoading: boolean;
-  hasPasskeysAvailable: boolean;
-  isInitCompleted: boolean; // 初始化是否已完成（用于防止路由守卫在数据加载前做决策）
-}
+export const useAuthStore = defineStore(
+  'auth',
+  () => {
+    // --- State ---
+    const isAuthenticated = ref(false);
+    const user = ref<UserInfo | null>(null);
+    const isLoading = ref(false);
+    const error = ref<string | null>(null);
+    const loginRequires2FA = ref(false);
+    const tempToken = ref<string | null>(null);
+    const ipBlacklist = ref<{ entries: IpBlacklistEntry[]; total: number }>({
+      entries: [],
+      total: 0,
+    });
+    const needsSetup = ref(false);
+    const publicCaptchaConfig = ref<PublicCaptchaConfig | null>(null);
+    const passkeys = ref<PasskeyInfo[] | null>(null);
+    const passkeysLoading = ref(false);
+    const hasPasskeysAvailable = ref(false);
+    const isInitCompleted = ref(false);
 
-export const useAuthStore = defineStore('auth', {
-  state: (): AuthState => ({
-    isAuthenticated: false, // 初始为未登录
-    user: null,
-    isLoading: false,
-    error: null,
-    loginRequires2FA: false, // 初始为不需要
-    tempToken: null, // 2FA 临时令牌
-    ipBlacklist: { entries: [], total: 0 }, // 初始化黑名单状态
-    needsSetup: false, // 初始假设不需要设置
-    publicCaptchaConfig: null, //  Initialize CAPTCHA config as null
-    passkeys: null, // Initialize passkeys as null
-    passkeysLoading: false, // Initialize passkeysLoading as false
-    hasPasskeysAvailable: false, // Initialize as false
-    isInitCompleted: false, // 初始化未完成，防止路由守卫在数据加载前做决策
-  }),
-  getters: {
-    // 可以添加一些 getter，例如获取用户名
-    loggedInUser: (state) => state.user?.username,
-  },
-  actions: {
-    // 清除错误状态
-    clearError() {
-      this.error = null;
-    },
-    // 设置错误状态
-    setError(errorMessage: string) {
-      this.error = errorMessage;
-    },
+    // --- Getters ---
+    const loggedInUser = computed(() => user.value?.username);
 
-    // 登录 Action - 更新为接受 LoginPayload + optional captchaToken
-    async login(payload: LoginPayload & { captchaToken?: string }) {
-      // Add captchaToken to payload
-      this.isLoading = true;
-      this.error = null;
-      this.loginRequires2FA = false; // 重置 2FA 状态
+    // --- Actions ---
+    function clearError() {
+      error.value = null;
+    }
+
+    function setError(errorMessage: string) {
+      error.value = errorMessage;
+    }
+
+    async function login(payload: LoginPayload & { captchaToken?: string }) {
+      isLoading.value = true;
+      error.value = null;
+      loginRequires2FA.value = false;
       try {
-        // 后端可能返回 user 或 requiresTwoFactor
-        // 将完整的 payload (包含 rememberMe 和 captchaToken) 发送给后端
         const response = await apiClient.post<{
           message: string;
           user?: UserInfo;
           requiresTwoFactor?: boolean;
-          tempToken?: string; // 后端返回的临时令牌，用于 2FA 验证
-        }>('/auth/login', payload); // 使用 apiClient
+          tempToken?: string;
+        }>('/auth/login', payload);
 
         if (response.data.requiresTwoFactor) {
-          // 需要 2FA 验证
           log.info('登录需要 2FA 验证');
-          this.loginRequires2FA = true;
-          // 保存 tempToken 用于后续 2FA 验证
-          this.tempToken = response.data.tempToken || null;
-          // 不设置 isAuthenticated 和 user，等待 2FA 验证
-          return { requiresTwoFactor: true }; // 返回特殊状态给调用者
+          loginRequires2FA.value = true;
+          tempToken.value = response.data.tempToken || null;
+          return { requiresTwoFactor: true };
         }
         if (response.data.user) {
-          // 登录成功 (无 2FA)
-          this.isAuthenticated = true;
-          this.user = response.data.user;
-          log.info('登录成功 (无 2FA):', this.user);
-          // 设置语言
-          if (this.user?.language) {
-            setLocale(this.user.language);
+          isAuthenticated.value = true;
+          user.value = response.data.user;
+          log.info('登录成功 (无 2FA):', user.value);
+          if (user.value?.language) {
+            setLocale(user.value.language);
           }
-          // await router.push({ name: 'Workspace' }); // 改为页面刷新
-          window.location.href = '/'; // 跳转到根路径并刷新
+          window.location.href = '/';
           return { success: true };
         }
-        // 不应该发生，但作为防御性编程
         throw new Error('登录响应无效');
       } catch (err: unknown) {
         log.error('登录失败:', err);
-        this.isAuthenticated = false;
-        this.user = null;
-        this.loginRequires2FA = false;
-        this.tempToken = null; // 清理临时令牌
-        this.error = extractErrorMessage(err, '');
-        return { success: false, error: this.error };
+        isAuthenticated.value = false;
+        user.value = null;
+        loginRequires2FA.value = false;
+        tempToken.value = null;
+        error.value = extractErrorMessage(err, '');
+        return { success: false, error: error.value };
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // 登录时的 2FA 验证 Action
-    async verifyLogin2FA(token: string) {
-      if (!this.loginRequires2FA) {
+    async function verifyLogin2FA(token: string) {
+      if (!loginRequires2FA.value) {
         throw new Error('当前登录流程不需要 2FA 验证。');
       }
-      this.isLoading = true;
-      this.error = null;
+      isLoading.value = true;
+      error.value = null;
       try {
         const response = await apiClient.post<{ message: string; user: UserInfo }>(
           '/auth/login/2fa',
-          { token, tempToken: this.tempToken } // 发送 tempToken 用于后端验证
-        ); // 使用 apiClient
-        // 2FA 验证成功
-        this.isAuthenticated = true;
-        this.user = response.data.user;
-        this.loginRequires2FA = false; // 重置状态
-        this.tempToken = null; // 清理临时令牌
-        log.info('2FA 验证成功，登录完成:', this.user);
-        // 设置语言
-        if (this.user?.language) {
-          setLocale(this.user.language);
+          { token, tempToken: tempToken.value }
+        );
+        isAuthenticated.value = true;
+        user.value = response.data.user;
+        loginRequires2FA.value = false;
+        tempToken.value = null;
+        log.info('2FA 验证成功，登录完成:', user.value);
+        if (user.value?.language) {
+          setLocale(user.value.language);
         }
-        // await router.push({ name: 'Workspace' }); // 改为页面刷新
-        window.location.href = '/'; // 跳转到根路径并刷新
+        window.location.href = '/';
         return { success: true };
       } catch (err: unknown) {
         log.error('2FA 验证失败:', err);
-        // 不清除 isAuthenticated 或 user，因为用户可能只是输错了验证码
-        this.error = extractErrorMessage(err, '');
-        return { success: false, error: this.error };
+        error.value = extractErrorMessage(err, '');
+        return { success: false, error: error.value };
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // 登出 Action
-    async logout() {
-      this.isLoading = true;
-      this.error = null;
-      this.loginRequires2FA = false; // 重置 2FA 状态
+    async function logout() {
+      isLoading.value = true;
+      error.value = null;
+      loginRequires2FA.value = false;
       try {
-        // 调用后端的登出 API
-        await apiClient.post('/auth/logout'); // 使用 apiClient
-
-        // 清除本地状态
-        this.isAuthenticated = false;
-        this.user = null;
-        // Removed passkeys clear on logout
+        await apiClient.post('/auth/logout');
+        isAuthenticated.value = false;
+        user.value = null;
         log.info('已登出');
-        // 登出后重定向到登录页
         await navigateToLoginAfterLogout();
       } catch (err: unknown) {
         log.error('登出失败:', err);
-        this.error = extractErrorMessage(err, '');
+        error.value = extractErrorMessage(err, '');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // 检查并更新认证状态 Action
-    async checkAuthStatus() {
-      this.isLoading = true;
+    async function checkAuthStatus() {
+      isLoading.value = true;
       try {
         const response = await apiClient.get<{ isAuthenticated: boolean; user: UserInfo }>(
           '/auth/status'
-        ); // 使用 apiClient
+        );
         if (response.data.isAuthenticated && response.data.user) {
-          this.isAuthenticated = true;
-          this.user = response.data.user; // 更新用户信息，包含 isTwoFactorEnabled 和 language
-          this.loginRequires2FA = false; // 确保重置
-          log.info('认证状态已更新:', this.user);
-          // 设置语言
-          if (this.user?.language) {
-            setLocale(this.user.language);
+          isAuthenticated.value = true;
+          user.value = response.data.user;
+          loginRequires2FA.value = false;
+          log.info('认证状态已更新:', user.value);
+          if (user.value?.language) {
+            setLocale(user.value.language);
           }
         } else {
-          this.isAuthenticated = false;
-          this.user = null;
-          this.loginRequires2FA = false;
-          // Removed passkeys clear on unauthenticated
+          isAuthenticated.value = false;
+          user.value = null;
+          loginRequires2FA.value = false;
         }
-      } catch (error: unknown) {
-        // 如果获取状态失败 (例如 session 过期)，则认为未认证
-        log.warn('检查认证状态失败:', extractErrorMessage(error, '检查认证状态失败'));
-        this.isAuthenticated = false;
-        this.user = null;
-        this.loginRequires2FA = false;
-        // Removed passkeys clear on error
-        // 可选：如果不是 401 错误，可以记录更详细的日志
+      } catch (err: unknown) {
+        log.warn('检查认证状态失败:', extractErrorMessage(err, '检查认证状态失败'));
+        isAuthenticated.value = false;
+        user.value = null;
+        loginRequires2FA.value = false;
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // 修改密码 Action
-    async changePassword(currentPassword: string, newPassword: string) {
-      if (!this.isAuthenticated) {
+    async function changePassword(currentPassword: string, newPassword: string) {
+      if (!isAuthenticated.value) {
         throw new Error('用户未登录，无法修改密码。');
       }
-      this.isLoading = true;
-      this.error = null;
+      isLoading.value = true;
+      error.value = null;
       try {
         const response = await apiClient.put<{ message: string }>('/auth/password', {
-          // 使用 apiClient
           currentPassword,
           newPassword,
         });
         log.info('密码修改成功:', response.data.message);
-        // 密码修改成功后，通常不需要更新本地状态，但可以清除错误
         return true;
       } catch (err: unknown) {
         log.error('修改密码失败:', err);
-        this.error = extractErrorMessage(err, '');
-        // 抛出错误，以便组件可以捕获并显示 (提供默认消息以防 this.error 为 null)
-        throw new Error(this.error ?? '修改密码时发生未知错误。');
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? '修改密码时发生未知错误。');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // --- IP 黑名单管理 Actions ---
-    /**
-     * 获取 IP 黑名单列表
-     * @param limit 每页数量
-     * @param offset 偏移量
-     */
-    async fetchIpBlacklist(limit: number = 50, offset: number = 0) {
-      this.isLoading = true;
-      this.error = null;
+    async function fetchIpBlacklist(limit: number = 50, offset: number = 0) {
+      isLoading.value = true;
+      error.value = null;
       try {
         const response = await apiClient.get('/settings/ip-blacklist', {
-          // 使用 apiClient
           params: { limit, offset },
         });
-        // 更新本地状态
-        this.ipBlacklist.entries = response.data.entries;
-        this.ipBlacklist.total = response.data.total;
+        ipBlacklist.value.entries = response.data.entries;
+        ipBlacklist.value.total = response.data.total;
         log.info('获取 IP 黑名单成功:', response.data);
-        return response.data; // { entries: [], total: number }
+        return response.data;
       } catch (err: unknown) {
         log.error('获取 IP 黑名单失败:', err);
-        this.error = extractErrorMessage(err, '');
-        // 确保抛出 Error 时提供字符串消息
-        throw new Error(this.error ?? '获取 IP 黑名单时发生未知错误。');
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? '获取 IP 黑名单时发生未知错误。');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    /**
-     * 从 IP 黑名单中删除一个 IP
-     * @param ip 要删除的 IP 地址
-     */
-    async deleteIpFromBlacklist(ip: string) {
-      this.isLoading = true;
-      this.error = null;
+    async function deleteIpFromBlacklist(ip: string) {
+      isLoading.value = true;
+      error.value = null;
       try {
-        await apiClient.delete(`/settings/ip-blacklist/${encodeURIComponent(ip)}`); // 使用 apiClient
+        await apiClient.delete(`/settings/ip-blacklist/${encodeURIComponent(ip)}`);
         log.info(`IP ${ip} 已从黑名单删除`);
-        // 从本地 state 中移除 (或者重新获取列表)
-        this.ipBlacklist.entries = this.ipBlacklist.entries.filter((entry) => entry.ip !== ip);
-        this.ipBlacklist.total = Math.max(0, this.ipBlacklist.total - 1);
+        ipBlacklist.value.entries = ipBlacklist.value.entries.filter((entry) => entry.ip !== ip);
+        ipBlacklist.value.total = Math.max(0, ipBlacklist.value.total - 1);
         return true;
       } catch (err: unknown) {
         log.error(`删除 IP ${ip} 失败:`, err);
-        this.error = extractErrorMessage(err, '');
-        // 确保抛出 Error 时提供字符串消息
-        throw new Error(this.error ?? '删除 IP 时发生未知错误。');
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? '删除 IP 时发生未知错误。');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // 检查是否需要初始设置
-    async checkSetupStatus() {
-      // 不需要设置 isLoading，这个检查应该在后台快速完成
+    async function checkSetupStatus() {
       try {
-        const response = await apiClient.get<{ needsSetup: boolean }>('/auth/needs-setup'); // 使用 apiClient
-        this.needsSetup = response.data.needsSetup;
-        log.info(`[AuthStore] Needs setup status: ${this.needsSetup}`);
-        return this.needsSetup; // 返回状态给调用者
-      } catch (error: unknown) {
-        log.error('检查设置状态失败:', extractErrorMessage(error, '检查设置状态失败'));
-        // 如果检查失败，保守起见假设不需要设置，以避免卡在设置页面
-        this.needsSetup = false;
+        const response = await apiClient.get<{ needsSetup: boolean }>('/auth/needs-setup');
+        needsSetup.value = response.data.needsSetup;
+        log.info(`[AuthStore] Needs setup status: ${needsSetup.value}`);
+        return needsSetup.value;
+      } catch (err: unknown) {
+        log.error('检查设置状态失败:', extractErrorMessage(err, '检查设置状态失败'));
+        needsSetup.value = false;
         return false;
       }
-    },
+    }
 
-    //  获取公共 CAPTCHA 配置 (修改为从 /settings/captcha 获取)
-    async fetchCaptchaConfig() {
-      log.info('[AuthStore] fetchCaptchaConfig called. Forcing refetch.'); // 更新日志，表明强制刷新
-
-      // Don't set isLoading for this, it should be quick background fetch
+    async function fetchCaptchaConfig() {
+      log.info('[AuthStore] fetchCaptchaConfig called. Forcing refetch.');
       try {
         log.info('[AuthStore] Fetching CAPTCHA config from /settings/captcha...');
-        // 修改 API 端点
         const response = await apiClient.get<FullCaptchaSettings>('/settings/captcha');
         const fullConfig = response.data;
-
-        // 从完整配置中提取公共部分
-        this.publicCaptchaConfig = {
+        publicCaptchaConfig.value = {
           enabled: fullConfig.enabled,
           provider: fullConfig.provider,
           hcaptchaSiteKey: fullConfig.hcaptchaSiteKey,
           recaptchaSiteKey: fullConfig.recaptchaSiteKey,
         };
-
         log.info(
           '[AuthStore] Public CAPTCHA config derived from /settings/captcha:',
-          this.publicCaptchaConfig
+          publicCaptchaConfig.value
         );
-      } catch (error: unknown) {
+      } catch (err: unknown) {
         log.error(
           '获取 CAPTCHA 配置失败 (from /settings/captcha):',
-          extractErrorMessage(error, '获取 CAPTCHA 配置失败')
+          extractErrorMessage(err, '获取 CAPTCHA 配置失败')
         );
-        // Set a default disabled config on error to prevent blocking login UI
-        this.publicCaptchaConfig = {
+        publicCaptchaConfig.value = {
           enabled: false,
           provider: 'none',
         };
       }
-    },
+    }
 
-    // --- Passkey Actions ---
-    async loginWithPasskey(username: string, assertionResponse: unknown) {
-      this.isLoading = true;
-      this.error = null;
-      this.loginRequires2FA = false; // Passkey login bypasses traditional 2FA
+    async function loginWithPasskey(username: string, assertionResponse: unknown) {
+      isLoading.value = true;
+      error.value = null;
+      loginRequires2FA.value = false;
       try {
         const response = await apiClient.post<{ message: string; user: UserInfo }>(
           '/auth/passkey/authenticate',
-          {
-            username,
-            assertionResponse,
-          }
+          { username, assertionResponse }
         );
-
-        this.isAuthenticated = true;
-        this.user = response.data.user;
-        log.info('Passkey 登录成功:', this.user);
-        if (this.user?.language) {
-          setLocale(this.user.language);
+        isAuthenticated.value = true;
+        user.value = response.data.user;
+        log.info('Passkey 登录成功:', user.value);
+        if (user.value?.language) {
+          setLocale(user.value.language);
         }
-        window.location.href = '/'; // 跳转到根路径并刷新
+        window.location.href = '/';
         return { success: true };
       } catch (err: unknown) {
         log.error('Passkey 登录失败:', err);
-        this.isAuthenticated = false;
-        this.user = null;
-        this.error = extractErrorMessage(err, '');
-        return { success: false, error: this.error };
+        isAuthenticated.value = false;
+        user.value = null;
+        error.value = extractErrorMessage(err, '');
+        return { success: false, error: error.value };
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    async getPasskeyRegistrationOptions(username: string) {
-      this.isLoading = true;
-      this.error = null;
+    async function getPasskeyRegistrationOptions(username: string) {
+      isLoading.value = true;
+      error.value = null;
       try {
         const response = await apiClient.post('/auth/passkey/registration-options', { username });
-        return response.data; // Returns FIDO2 creation options
+        return response.data;
       } catch (err: unknown) {
         log.error('获取 Passkey 注册选项失败:', err);
-        this.error = extractErrorMessage(err, '');
-        throw new Error(this.error ?? '获取 Passkey 注册选项失败。');
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? '获取 Passkey 注册选项失败。');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    async registerPasskey(username: string, registrationResponse: unknown) {
-      this.isLoading = true;
-      this.error = null;
+    async function registerPasskey(username: string, registrationResponse: unknown) {
+      isLoading.value = true;
+      error.value = null;
       try {
         await apiClient.post('/auth/passkey/register', {
           username,
           registrationResponse,
         });
         log.info('Passkey 注册成功');
-        // Optionally, refresh user data or passkeys list if applicable
         return { success: true };
       } catch (err: unknown) {
         log.error('Passkey 注册失败:', err);
-        this.error = extractErrorMessage(err, '');
-        throw new Error(this.error ?? 'Passkey 注册失败。');
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? 'Passkey 注册失败。');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // Action to fetch user's passkeys
-    async fetchPasskeys() {
-      if (!this.isAuthenticated) {
+    async function fetchPasskeys() {
+      if (!isAuthenticated.value) {
         log.warn('User not authenticated. Cannot fetch passkeys.');
-        this.passkeys = null;
+        passkeys.value = null;
         return;
       }
-      this.passkeysLoading = true;
-      this.error = null; // Clear previous errors
+      passkeysLoading.value = true;
+      error.value = null;
       try {
-        // Define an interface for the backend response structure
         interface BackendPasskeyInfo {
           credential_id: string;
           public_key: string;
           counter: number;
           transports?: AuthenticatorTransport[];
-          created_at: string; // Backend uses snake_case
-          last_used_at: string; // Backend uses snake_case
+          created_at: string;
+          last_used_at: string;
           name?: string;
         }
         const response = await apiClient.get<BackendPasskeyInfo[]>('/passkey');
-        // Map backend response to frontend PasskeyInfo structure
-        this.passkeys = response.data.map((pk) => ({
+        passkeys.value = response.data.map((pk) => ({
           credentialID: pk.credential_id,
           publicKey: pk.public_key,
           counter: pk.counter,
           transports: pk.transports,
-          creationDate: pk.created_at, // Map created_at to creationDate
-          lastUsedDate: pk.last_used_at, // Map last_used_at to lastUsedDate
+          creationDate: pk.created_at,
+          lastUsedDate: pk.last_used_at,
           name: pk.name,
         }));
-        log.info('Passkeys fetched and mapped successfully:', this.passkeys);
+        log.info('Passkeys fetched and mapped successfully:', passkeys.value);
       } catch (err: unknown) {
         log.error('Failed to fetch passkeys:', err);
-        this.error = extractErrorMessage(err, '');
-        this.passkeys = null; // Clear passkeys on error
+        error.value = extractErrorMessage(err, '');
+        passkeys.value = null;
       } finally {
-        this.passkeysLoading = false;
+        passkeysLoading.value = false;
       }
-    },
+    }
 
-    // Action to delete a passkey
-    async deletePasskey(credentialID: string) {
-      if (!this.isAuthenticated) {
+    async function deletePasskey(credentialID: string) {
+      if (!isAuthenticated.value) {
         throw new Error('User not authenticated. Cannot delete passkey.');
       }
-      this.isLoading = true; // Use general isLoading or a specific one for this action
-      this.error = null;
+      isLoading.value = true;
+      error.value = null;
       try {
         await apiClient.delete(`/passkey/${credentialID}`);
         log.info(`Passkey ${credentialID} deleted successfully.`);
-        // Refresh the passkey list
-        await this.fetchPasskeys();
+        await fetchPasskeys();
         return { success: true };
       } catch (err: unknown) {
         log.error(`Failed to delete passkey ${credentialID}:`, err);
-        this.error = extractErrorMessage(err, '');
-        throw new Error(this.error ?? 'Failed to delete passkey.');
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? 'Failed to delete passkey.');
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
 
-    // Action to update a passkey's name
-    async updatePasskeyName(credentialID: string, newName: string) {
-      if (!this.isAuthenticated) {
+    async function updatePasskeyName(credentialID: string, newName: string) {
+      if (!isAuthenticated.value) {
         throw new Error('User not authenticated. Cannot update passkey name.');
       }
-      // Consider using a specific loading state for this if needed, e.g., this.passkeyNameUpdateLoading = true;
-      this.error = null;
+      error.value = null;
       try {
         await apiClient.put(`/passkey/${credentialID}/name`, { name: newName });
         log.info(`Passkey ${credentialID} name updated to "${newName}".`);
-        // Refresh the passkey list to show the new name
-        await this.fetchPasskeys();
+        await fetchPasskeys();
         return { success: true };
       } catch (err: unknown) {
         log.error(`Failed to update passkey ${credentialID} name:`, err);
-        this.error = extractErrorMessage(err, '');
-        throw new Error(this.error ?? 'Failed to update passkey name.');
-      } finally {
-        // if using specific loading state: this.passkeyNameUpdateLoading = false;
+        error.value = extractErrorMessage(err, '');
+        throw new Error(error.value ?? 'Failed to update passkey name.');
       }
-    },
+    }
 
-    // Action to check if passkeys are configured (for login page)
-    async checkHasPasskeysConfigured(username?: string) {
-      // This action should not set isLoading to true, as it's a quick check
-      // and primarily used to determine UI elements on the login page.
+    async function checkHasPasskeysConfigured(username?: string) {
       try {
         const params = username ? { username } : {};
         const response = await apiClient.get<{ hasPasskeys: boolean }>(
           '/auth/passkey/has-configured',
           { params }
         );
-        this.hasPasskeysAvailable = response.data.hasPasskeys;
+        hasPasskeysAvailable.value = response.data.hasPasskeys;
         log.info(
-          `[AuthStore] Passkeys available for ${username || 'any user'}: ${this.hasPasskeysAvailable}`
+          `[AuthStore] Passkeys available for ${username || 'any user'}: ${hasPasskeysAvailable.value}`
         );
-        return this.hasPasskeysAvailable;
-      } catch (error: unknown) {
+        return hasPasskeysAvailable.value;
+      } catch (err: unknown) {
         log.error(
           'Failed to check if passkeys are configured:',
-          extractErrorMessage(error, 'Failed to check if passkeys are configured')
+          extractErrorMessage(err, 'Failed to check if passkeys are configured')
         );
-        this.hasPasskeysAvailable = false; // Default to false on error
+        hasPasskeysAvailable.value = false;
         return false;
       }
-    },
+    }
 
-    // 统一初始化数据加载 (优化版:使用后端统一API)
-    async loadInitData() {
-      this.isLoading = true;
+    async function loadInitData() {
+      isLoading.value = true;
       try {
         const response = await apiClient.get<{
           needsSetup: boolean;
@@ -582,60 +479,87 @@ export const useAuthStore = defineStore('auth', {
           };
         }>('/auth/init');
 
-        // 校验 provider 值是否合法
         const provider = response.data.captchaConfig.provider;
         const validProviders = ['none', 'hcaptcha', 'recaptcha'] as const;
         if (!validProviders.includes(provider as (typeof validProviders)[number])) {
           throw new Error(`无效的 CAPTCHA provider: ${provider}`);
         }
 
-        // 更新状态
-        this.needsSetup = response.data.needsSetup;
-        this.isAuthenticated = response.data.isAuthenticated;
-        this.user = response.data.user;
-        // 类型安全：使用类型断言前先校验
-        this.publicCaptchaConfig = {
+        needsSetup.value = response.data.needsSetup;
+        isAuthenticated.value = response.data.isAuthenticated;
+        user.value = response.data.user;
+        publicCaptchaConfig.value = {
           enabled: response.data.captchaConfig.enabled,
           provider: provider as 'none' | 'hcaptcha' | 'recaptcha',
           hcaptchaSiteKey: response.data.captchaConfig.hcaptchaSiteKey ?? undefined,
           recaptchaSiteKey: response.data.captchaConfig.recaptchaSiteKey ?? undefined,
         };
 
-        // 设置语言
-        if (this.user?.language) {
-          setLocale(this.user.language);
+        if (user.value?.language) {
+          setLocale(user.value.language);
         }
 
-        // 标记初始化完成
-        this.isInitCompleted = true;
+        isInitCompleted.value = true;
 
         log.info('[AuthStore] 统一初始化数据加载完成:', {
-          needsSetup: this.needsSetup,
-          isAuthenticated: this.isAuthenticated,
-          user: this.user,
+          needsSetup: needsSetup.value,
+          isAuthenticated: isAuthenticated.value,
+          user: user.value,
         });
-      } catch (error: unknown) {
-        // 类型安全的错误处理
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const axiosError = error as { response?: { data?: { message?: string } } };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const axiosError = err as { response?: { data?: { message?: string } } };
         const serverMessage = axiosError.response?.data?.message;
 
         log.error('[AuthStore] 加载初始化数据失败:', serverMessage || errorMessage);
 
-        // 降级策略：保留 Pinia persist 中的旧状态，不强制重置
-        // 这样可以避免网络抖动导致误判已登录用户
-        // 但仍然标记初始化已完成，避免路由守卫一直等待
-        this.isInitCompleted = true;
+        isInitCompleted.value = true;
 
-        // 如果是完全首次加载（persist 中也没有数据），才设置默认值
-        if (this.user === null && this.needsSetup === false && this.isAuthenticated === false) {
-          // 无法判断，使用保守策略：假设需要设置
-          this.needsSetup = true;
+        if (user.value === null && needsSetup.value === false && isAuthenticated.value === false) {
+          needsSetup.value = true;
         }
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
+    }
+
+    return {
+      isAuthenticated,
+      user,
+      isLoading,
+      error,
+      loginRequires2FA,
+      tempToken,
+      ipBlacklist,
+      needsSetup,
+      publicCaptchaConfig,
+      passkeys,
+      passkeysLoading,
+      hasPasskeysAvailable,
+      isInitCompleted,
+      loggedInUser,
+      clearError,
+      setError,
+      login,
+      verifyLogin2FA,
+      logout,
+      checkAuthStatus,
+      changePassword,
+      fetchIpBlacklist,
+      deleteIpFromBlacklist,
+      checkSetupStatus,
+      fetchCaptchaConfig,
+      loginWithPasskey,
+      getPasskeyRegistrationOptions,
+      registerPasskey,
+      fetchPasskeys,
+      deletePasskey,
+      updatePasskeyName,
+      checkHasPasskeysConfigured,
+      loadInitData,
+    };
   },
-  persist: true, // Revert to simple persistence to fix TS error for now
-});
+  {
+    persist: true,
+  }
+);

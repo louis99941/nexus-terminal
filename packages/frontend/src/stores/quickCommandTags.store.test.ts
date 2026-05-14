@@ -253,7 +253,7 @@ describe('quickCommandTags.store', () => {
       expect(result).toEqual(newTag);
       expect(apiClient.post).toHaveBeenCalledWith('/quick-command-tags', { name: '新标签' });
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('quickCommandTagsCache');
-      expect(mockShowSuccess).toHaveBeenCalledWith('快捷指令标签已添加');
+      expect(mockShowSuccess).toHaveBeenCalledWith('标签已添加');
       expect(store.isLoading).toBe(false);
     });
 
@@ -327,7 +327,7 @@ describe('quickCommandTags.store', () => {
       expect(result).toBe(true);
       expect(apiClient.put).toHaveBeenCalledWith('/quick-command-tags/1', { name: '更新后' });
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('quickCommandTagsCache');
-      expect(mockShowSuccess).toHaveBeenCalledWith('快捷指令标签已更新');
+      expect(mockShowSuccess).toHaveBeenCalledWith('标签已更新');
       expect(store.isLoading).toBe(false);
     });
 
@@ -393,7 +393,7 @@ describe('quickCommandTags.store', () => {
       expect(result).toBe(true);
       expect(apiClient.delete).toHaveBeenCalledWith('/quick-command-tags/1');
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('quickCommandTagsCache');
-      expect(mockShowSuccess).toHaveBeenCalledWith('快捷指令标签已删除');
+      expect(mockShowSuccess).toHaveBeenCalledWith('标签已删除');
       expect(store.isLoading).toBe(false);
     });
 
@@ -617,7 +617,7 @@ describe('quickCommandTags.store', () => {
 
       await store.fetchTags();
 
-      expect(extractErrorMessage).toHaveBeenCalledWith(error, '获取快捷指令标签列表失败');
+      expect(extractErrorMessage).toHaveBeenCalledWith(error, '获取标签列表失败');
     });
 
     it('addTag 失败时应传入正确的 fallback 消息', async () => {
@@ -629,7 +629,7 @@ describe('quickCommandTags.store', () => {
 
       await store.addTag('标签');
 
-      expect(extractErrorMessage).toHaveBeenCalledWith(error, '添加快捷指令标签失败');
+      expect(extractErrorMessage).toHaveBeenCalledWith(error, '添加标签失败');
     });
 
     it('updateTag 失败时应传入正确的 fallback 消息', async () => {
@@ -641,7 +641,7 @@ describe('quickCommandTags.store', () => {
 
       await store.updateTag(1, '名称');
 
-      expect(extractErrorMessage).toHaveBeenCalledWith(error, '更新快捷指令标签失败');
+      expect(extractErrorMessage).toHaveBeenCalledWith(error, '更新标签失败');
     });
 
     it('deleteTag 失败时应传入正确的 fallback 消息', async () => {
@@ -653,7 +653,7 @@ describe('quickCommandTags.store', () => {
 
       await store.deleteTag(1);
 
-      expect(extractErrorMessage).toHaveBeenCalledWith(error, '删除快捷指令标签失败');
+      expect(extractErrorMessage).toHaveBeenCalledWith(error, '删除标签失败');
     });
   });
 });

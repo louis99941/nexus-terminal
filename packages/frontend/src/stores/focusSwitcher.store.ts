@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import apiClient from '@/utils/apiClient';
 import { log } from '@/utils/log';
-// 假设有一个 API 客户端或辅助函数，这里我们直接使用 fetch
-// import apiClient from '@/services/api';
 
 // 基础输入框接口 (移除 focusAction)
 export interface FocusableInput {
@@ -75,20 +74,9 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
   // +++ 修改：从后端加载配置（包括快捷键） +++
   async function loadConfigurationFromBackend() {
-    const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变，但返回结构改变
-    // log.info(`[FocusSwitcherStore] Attempting to load full configuration (sequence & shortcuts) from backend via: ${apiUrl}`);
+    const apiPath = '/settings/focus-switcher-sequence';
     try {
-      const response = await fetch(apiUrl);
-      // log.info(`[FocusSwitcherStore] Received response from ${apiUrl}. Status: ${response.status}`);
-
-      if (!response.ok) {
-        log.error(`[FocusSwitcherStore] HTTP error from ${apiUrl}. Status: ${response.status}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // *** 假设后端返回 FocusSwitcherFullConfig 结构 ***
-      const loadedFullConfig: FocusSwitcherFullConfig = await response.json();
-      // log.info(`[FocusSwitcherStore] Raw JSON received from backend:`, JSON.stringify(loadedFullConfig));
+      const { data: loadedFullConfig } = await apiClient.get<FocusSwitcherFullConfig>(apiPath);
 
       // --- 验证和设置 ---
       const availableIds = new Set(availableInputs.value.map((input) => input.id));
@@ -141,7 +129,7 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
       }
     } catch (error: unknown) {
       log.error(
-        `[FocusSwitcherStore] Failed to load or parse configuration from backend (${apiUrl}):`,
+        `[FocusSwitcherStore] Failed to load or parse configuration from backend (${apiPath}):`,
         error
       );
       sequenceOrder.value = [];
@@ -151,41 +139,18 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   }
 
   async function saveConfigurationToBackend() {
-    const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变，但接受结构改变
-    // log.info(`[FocusSwitcherStore] Attempting to save full configuration (sequence & shortcuts) to backend via PUT: ${apiUrl}`);
+    const apiPath = '/settings/focus-switcher-sequence';
     try {
-      // *** 构造 FocusSwitcherFullConfig 结构发送给后端 ***
       const configToSave: FocusSwitcherFullConfig = {
         sequence: sequenceOrder.value,
         shortcuts: itemConfigs.value,
       };
-      // log.info('[FocusSwitcherStore] Full configuration data to save:', JSON.stringify(configToSave));
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          // Auth headers if needed
-        },
-        body: JSON.stringify(configToSave), // *** 发送包含 sequence 和 shortcuts 的对象 ***
-      });
-      // log.info(`[FocusSwitcherStore] Received response from PUT ${apiUrl}. Status: ${response.status}`);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})); // 响应体解析失败时使用空对象
-        log.error(
-          `[FocusSwitcherStore] Save failed. Status: ${response.status}, Error data:`,
-          errorData
-        );
-        throw new Error(
-          `HTTP error! status: ${response.status}, message: ${errorData.message || 'Unknown error'}`
-        );
-      }
-
-      await response.json();
-      // log.info('[FocusSwitcherStore] Configuration successfully saved to backend. Response message:', result.message);
+      await apiClient.put(apiPath, configToSave);
     } catch (error: unknown) {
-      log.error(`[FocusSwitcherStore] Failed to save configuration to backend (${apiUrl}):`, error);
-      // Notify user of failure
+      log.error(
+        `[FocusSwitcherStore] Failed to save configuration to backend (${apiPath}):`,
+        error
+      );
     }
   }
 

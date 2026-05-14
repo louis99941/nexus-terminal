@@ -302,8 +302,8 @@ describe('tags.store', () => {
       const updatedTags = [createMockTag({ id: 1, name: '标签1' })];
       mockGet.mockResolvedValue({ data: updatedTags });
 
-      const { useTagsStore } = await import('./tags.store');
-      const store = useTagsStore();
+      const { useTagsStoreExtended } = await import('./tags.store');
+      const store = useTagsStoreExtended();
 
       const result = await store.updateTagConnections(1, [10, 20, 30]);
 
@@ -321,8 +321,8 @@ describe('tags.store', () => {
       const updatedTags = [createMockTag({ id: 1, name: '标签1' })];
       mockGet.mockResolvedValue({ data: updatedTags });
 
-      const { useTagsStore } = await import('./tags.store');
-      const store = useTagsStore();
+      const { useTagsStoreExtended } = await import('./tags.store');
+      const store = useTagsStoreExtended();
 
       const result = await store.updateTagConnections(1, []);
 
@@ -333,9 +333,10 @@ describe('tags.store', () => {
     it('更新标签连接失败时应返回 false 并设置错误状态', async () => {
       const error = { response: { data: { error: '连接更新失败' } } };
       mockPut.mockRejectedValue(error);
+      mockGet.mockRejectedValue(new Error('fetch also fails'));
 
-      const { useTagsStore } = await import('./tags.store');
-      const store = useTagsStore();
+      const { useTagsStoreExtended } = await import('./tags.store');
+      const store = useTagsStoreExtended();
 
       const result = await store.updateTagConnections(1, [10]);
 
@@ -397,8 +398,8 @@ describe('tags.store', () => {
     });
 
     it('isLoading 在操作完成后应始终为 false', async () => {
-      const { useTagsStore } = await import('./tags.store');
-      const store = useTagsStore();
+      const { useTagsStoreExtended } = await import('./tags.store');
+      const store = useTagsStoreExtended();
 
       // fetchTags 成功
       mockGet.mockResolvedValue({ data: [] });

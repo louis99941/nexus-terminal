@@ -431,7 +431,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, PropType, nextTick } from 'vue';
-import { useNotificationsStore } from '../stores/notifications.store';
+import { useNotificationsStore } from '../stores/notificationChannels.store';
 import {
   NotificationSetting,
   NotificationEvent,

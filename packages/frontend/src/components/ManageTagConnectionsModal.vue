@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
-import { useTagsStore, type TagInfo } from '../stores/tags.store';
+import { useTagsStoreExtended, type TagInfo } from '../stores/tags.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useConfirmDialog } from '../composables/useConfirmDialog';
 
@@ -18,7 +18,7 @@ const emit = defineEmits(['update:visible', 'saved', 'tag-deleted']);
 
 const { t } = useI18n();
 const connectionsStore = useConnectionsStore();
-const tagsStore = useTagsStore(); // 如果需要更新标签信息或调用标签相关的 actions
+const tagsStore = useTagsStoreExtended();
 const uiNotificationsStore = useUiNotificationsStore();
 const { showConfirmDialog } = useConfirmDialog();
 
