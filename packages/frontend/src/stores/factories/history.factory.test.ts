@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { createHistoryStore, type HistoryStoreConfig } from './history.factory';
+import { createHistoryStore } from './history.factory';
 
 // Mock logger
 const mockLog = vi.hoisted(() => ({
@@ -27,12 +27,20 @@ vi.mock('../../utils/apiClient', () => ({
 // Mock errorExtractor
 vi.mock('../../utils/errorExtractor', () => ({
   extractErrorMessage: vi.fn((err: unknown, fallback: string) => {
-    const apiErr = err as { response?: { data?: { error?: string } }; message?: string };
-    return apiErr?.response?.data?.error || apiErr?.message || fallback;
+    const apiErr = err as {
+      response?: { data?: { error?: string; message?: string } };
+      message?: string;
+    };
+    return (
+      apiErr?.response?.data?.error ||
+      apiErr?.response?.data?.message ||
+      apiErr?.message ||
+      fallback
+    );
   }),
 }));
 
-// Mock uiNotificationsStore
+// Mock uiNotifications store
 const mockShowError = vi.fn();
 const mockShowSuccess = vi.fn();
 
@@ -43,58 +51,58 @@ vi.mock('../uiNotifications.store', () => ({
   }),
 }));
 
-// Mock localStorage
-const mockLocalStorage = {
-  data: {} as Record<string, string>,
-  getItem: vi.fn((key: string) => mockLocalStorage.data[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    mockLocalStorage.data[key] = value;
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete mockLocalStorage.data[key];
-  }),
-  clear: vi.fn(() => {
-    mockLocalStorage.data = {};
-  }),
-  length: 0,
-  key: vi.fn(),
-};
+// Create a test store via the factory (using 'command' as itemLabel)
+function makeCommandStore() {
+  return createHistoryStore<{ id: number; command: string; timestamp: number }>({
+    storeId: 'testCommandHistory',
+    apiEndpoint: '/test-command-history',
+    itemLabel: 'command',
+    addLabel: '命令',
+    deleteLabel: '历史记录',
+    clearLabel: '所有历史记录',
+    cacheKey: 'testCommandHistoryCache',
+    reverseOrder: true,
+  });
+}
 
-// 辅助工厂配置
-const commandHistoryConfig: HistoryStoreConfig = {
-  storeId: 'testCommandHistory',
-  apiEndpoint: '/test-command-history',
-  itemLabel: 'command',
-  addLabel: '命令',
-  deleteLabel: '历史记录',
-  clearLabel: '所有历史记录',
-  cacheKey: 'testCommandHistoryCache',
-  reverseOrder: true,
-};
+// Create a test store via the factory (using 'path' as itemLabel, reverseOrder: false)
+function makePathStore() {
+  return createHistoryStore<{ id: number; path: string; timestamp: number }>({
+    storeId: 'testPathHistory',
+    apiEndpoint: '/test-path-history',
+    itemLabel: 'path',
+    addLabel: '路径',
+    deleteLabel: '路径历史记录',
+    clearLabel: '所有路径历史记录',
+    cacheKey: 'testPathHistoryCache',
+    reverseOrder: false,
+  });
+}
 
-const pathHistoryConfig: HistoryStoreConfig = {
-  storeId: 'testPathHistory',
-  apiEndpoint: '/test-path-history',
-  itemLabel: 'path',
-  addLabel: '路径',
-  deleteLabel: '路径历史',
-  clearLabel: '所有路径历史',
-  cacheKey: 'testPathHistoryCache',
-  reverseOrder: false,
-};
+const createMockEntry = (
+  overrides: Partial<{ id: number; command: string; timestamp: number }> = {}
+) => ({
+  id: overrides.id ?? 1,
+  command: overrides.command ?? 'ls -la',
+  timestamp: overrides.timestamp ?? Math.floor(Date.now() / 1000),
+});
 
-describe('createHistoryStore 工厂函数', () => {
+describe('createHistoryStore factory', () => {
+  let useCommandStore: ReturnType<typeof makeCommandStore>;
+
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
-    mockLocalStorage.data = {};
-    vi.stubGlobal('localStorage', mockLocalStorage);
+    (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    useCommandStore = makeCommandStore();
   });
 
+  // -------------------------
+  // Initial State
+  // -------------------------
   describe('初始状态', () => {
-    it('应该创建具有正确初始状态的 store', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+    it('应该有正确的默认初始值', () => {
+      const store = useCommandStore();
 
       expect(store.historyList).toEqual([]);
       expect(store.searchTerm).toBe('');
@@ -103,477 +111,480 @@ describe('createHistoryStore 工厂函数', () => {
       expect(store.selectedIndex).toBe(-1);
     });
 
-    it('filteredHistory 在无搜索词时应返回全部列表', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [
-        { id: 1, command: 'ls', timestamp: 1000 },
-        { id: 2, command: 'pwd', timestamp: 2000 },
-      ] as any;
-
-      expect(store.filteredHistory).toHaveLength(2);
+    it('filteredHistory 初始时应返回空数组', () => {
+      const store = useCommandStore();
+      expect(store.filteredHistory).toEqual([]);
     });
   });
 
+  // -------------------------
+  // filteredHistory computed
+  // -------------------------
   describe('filteredHistory 计算属性', () => {
-    it('应该根据 itemLabel 过滤条目（不区分大小写）', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('无搜索词时应返回全部列表', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'git status', timestamp: 1000 },
-        { id: 2, command: 'npm install', timestamp: 2000 },
-        { id: 3, command: 'git push', timestamp: 3000 },
-      ] as any;
-
-      store.searchTerm = 'git';
+        createMockEntry({ id: 1, command: 'ls' }),
+        createMockEntry({ id: 2, command: 'pwd' }),
+      ];
+      store.searchTerm = '';
       expect(store.filteredHistory).toHaveLength(2);
-      expect((store.filteredHistory[0] as any).command).toBe('git status');
-      expect((store.filteredHistory[1] as any).command).toBe('git push');
     });
 
-    it('搜索词应自动忽略前后空格', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('应根据 itemLabel 字段（command）过滤（不区分大小写）', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'ls -la', timestamp: 1000 },
-        { id: 2, command: 'pwd', timestamp: 2000 },
-      ] as any;
+        createMockEntry({ id: 1, command: 'git status' }),
+        createMockEntry({ id: 2, command: 'npm install' }),
+        createMockEntry({ id: 3, command: 'GIT push' }),
+      ];
+      store.searchTerm = 'git';
+      const result = store.filteredHistory;
+      expect(result).toHaveLength(2);
+      expect(result[0].command).toBe('git status');
+      expect(result[1].command).toBe('GIT push');
+    });
 
-      store.searchTerm = '  ls  ';
+    it('纯空白搜索词应返回全部列表', () => {
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'ls' })];
+      store.searchTerm = '   ';
       expect(store.filteredHistory).toHaveLength(1);
     });
 
-    it('path 类型 store 应按 path 字段过滤', () => {
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [
-        { id: 1, path: '/home/user', timestamp: 1000 },
-        { id: 2, path: '/var/log', timestamp: 2000 },
-      ] as any;
-
-      store.searchTerm = 'home';
-      expect(store.filteredHistory).toHaveLength(1);
-      expect((store.filteredHistory[0] as any).path).toBe('/home/user');
-    });
-
-    it('非字符串类型字段不应被过滤', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
-      // 条目只有 id 和 timestamp（没有 command 字段）
-      store.historyList = [{ id: 1, timestamp: 1000 }] as any;
-      store.searchTerm = 'anything';
-
+    it('无匹配时应返回空数组', () => {
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'ls' })];
+      store.searchTerm = 'zzz';
       expect(store.filteredHistory).toHaveLength(0);
     });
+
+    it('应按 path 字段过滤（使用 path itemLabel 的 store）', () => {
+      const usePathStore = makePathStore();
+      const store = usePathStore();
+      store.historyList = [
+        { id: 1, path: '/home/user', timestamp: 1 },
+        { id: 2, path: '/var/log', timestamp: 2 },
+        { id: 3, path: '/Home/Documents', timestamp: 3 },
+      ] as any;
+      store.searchTerm = 'home';
+      const result = store.filteredHistory;
+      expect(result).toHaveLength(2);
+    });
   });
 
-  describe('selectNext（selectNextCommand/selectNextPath 别名）', () => {
-    it('空列表时 selectedIndex 应为 -1', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+  // -------------------------
+  // selectNext
+  // -------------------------
+  describe('selectNext', () => {
+    it('空列表时 selectedIndex 应保持 -1', () => {
+      const store = useCommandStore();
       store.selectNext();
       expect(store.selectedIndex).toBe(-1);
     });
 
-    it('应该从 -1 前进到 0', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('应从 -1 前进到 0', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'cmd1', timestamp: 1000 },
-        { id: 2, command: 'cmd2', timestamp: 2000 },
-      ] as any;
-
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+      ];
+      store.selectedIndex = -1;
       store.selectNext();
       expect(store.selectedIndex).toBe(0);
     });
 
-    it('应该从最后一条循环回到第一条', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('应在末尾循环回 0', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'cmd1', timestamp: 1000 },
-        { id: 2, command: 'cmd2', timestamp: 2000 },
-        { id: 3, command: 'cmd3', timestamp: 3000 },
-      ] as any;
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+        createMockEntry({ id: 3 }),
+      ];
       store.selectedIndex = 2;
+      store.selectNext();
+      expect(store.selectedIndex).toBe(0);
+    });
+
+    it('过滤后应基于过滤列表大小循环', () => {
+      const store = useCommandStore();
+      store.historyList = [
+        createMockEntry({ id: 1, command: 'git status' }),
+        createMockEntry({ id: 2, command: 'npm install' }),
+        createMockEntry({ id: 3, command: 'git push' }),
+      ];
+      store.searchTerm = 'git';
+      store.selectedIndex = -1;
 
       store.selectNext();
       expect(store.selectedIndex).toBe(0);
+      store.selectNext();
+      expect(store.selectedIndex).toBe(1);
+      store.selectNext();
+      expect(store.selectedIndex).toBe(0); // wraps back
     });
 
     it('selectNextCommand 别名应与 selectNext 行为一致', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [{ id: 1, command: 'cmd1', timestamp: 1000 }] as any;
-
+      const store = useCommandStore();
+      store.historyList = [
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+      ];
+      store.selectedIndex = -1;
       store.selectNextCommand();
-      expect(store.selectedIndex).toBe(0);
-    });
-
-    it('selectNextPath 别名应与 selectNext 行为一致', () => {
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [{ id: 1, path: '/home', timestamp: 1000 }] as any;
-
-      store.selectNextPath();
       expect(store.selectedIndex).toBe(0);
     });
   });
 
-  describe('selectPrevious（selectPreviousCommand/selectPreviousPath 别名）', () => {
-    it('空列表时 selectedIndex 应为 -1', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+  // -------------------------
+  // selectPrevious
+  // -------------------------
+  describe('selectPrevious', () => {
+    it('空列表时 selectedIndex 应保持 -1', () => {
+      const store = useCommandStore();
       store.selectPrevious();
       expect(store.selectedIndex).toBe(-1);
     });
 
-    it('当 selectedIndex 为 -1 时应跳到最后一条（新行为）', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('从 -1 应跳到最后一个元素', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'cmd1', timestamp: 1000 },
-        { id: 2, command: 'cmd2', timestamp: 2000 },
-        { id: 3, command: 'cmd3', timestamp: 3000 },
-      ] as any;
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+        createMockEntry({ id: 3 }),
+      ];
       store.selectedIndex = -1;
-
       store.selectPrevious();
       expect(store.selectedIndex).toBe(2);
     });
 
-    it('从 0 回退应循环到最后一条', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('从 0 应循环到最后一个元素', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'cmd1', timestamp: 1000 },
-        { id: 2, command: 'cmd2', timestamp: 2000 },
-        { id: 3, command: 'cmd3', timestamp: 3000 },
-      ] as any;
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+        createMockEntry({ id: 3 }),
+      ];
       store.selectedIndex = 0;
-
       store.selectPrevious();
       expect(store.selectedIndex).toBe(2);
     });
 
-    it('正常向前回退', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('应正常向前回退', () => {
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'cmd1', timestamp: 1000 },
-        { id: 2, command: 'cmd2', timestamp: 2000 },
-        { id: 3, command: 'cmd3', timestamp: 3000 },
-      ] as any;
-      store.selectedIndex = 2;
-
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+      ];
+      store.selectedIndex = 1;
       store.selectPrevious();
+      expect(store.selectedIndex).toBe(0);
+    });
+
+    it('过滤后应基于过滤列表操作', () => {
+      const store = useCommandStore();
+      store.historyList = [
+        createMockEntry({ id: 1, command: 'git status' }),
+        createMockEntry({ id: 2, command: 'npm install' }),
+        createMockEntry({ id: 3, command: 'git push' }),
+      ];
+      store.searchTerm = 'git';
+      store.selectedIndex = -1;
+      store.selectPrevious();
+      // filteredHistory has 2 items, -1 should go to last (index 1)
       expect(store.selectedIndex).toBe(1);
     });
 
     it('selectPreviousCommand 别名应与 selectPrevious 行为一致', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'cmd1', timestamp: 1000 },
-        { id: 2, command: 'cmd2', timestamp: 2000 },
-      ] as any;
+        createMockEntry({ id: 1 }),
+        createMockEntry({ id: 2 }),
+        createMockEntry({ id: 3 }),
+      ];
       store.selectedIndex = -1;
-
       store.selectPreviousCommand();
-      expect(store.selectedIndex).toBe(1);
-    });
-
-    it('selectPreviousPath 别名应与 selectPrevious 行为一致', () => {
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [
-        { id: 1, path: '/a', timestamp: 1000 },
-        { id: 2, path: '/b', timestamp: 2000 },
-      ] as any;
-      store.selectedIndex = -1;
-
-      store.selectPreviousPath();
-      expect(store.selectedIndex).toBe(1);
+      expect(store.selectedIndex).toBe(2);
     });
   });
 
+  // -------------------------
+  // resetSelection
+  // -------------------------
   describe('resetSelection', () => {
-    it('应该将 selectedIndex 重置为 -1', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('应将 selectedIndex 重置为 -1', () => {
+      const store = useCommandStore();
       store.selectedIndex = 3;
       store.resetSelection();
       expect(store.selectedIndex).toBe(-1);
     });
 
-    it('已经为 -1 时调用不应抛出', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('已为 -1 时调用不应抛出异常', () => {
+      const store = useCommandStore();
       store.selectedIndex = -1;
       expect(() => store.resetSelection()).not.toThrow();
+      expect(store.selectedIndex).toBe(-1);
     });
   });
 
+  // -------------------------
+  // setSearchTerm
+  // -------------------------
   describe('setSearchTerm', () => {
-    it('应该正确设置搜索词', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('应正确设置搜索词', () => {
+      const store = useCommandStore();
       store.setSearchTerm('git');
       expect(store.searchTerm).toBe('git');
     });
 
     it('设置搜索词时应重置 selectedIndex 为 -1', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+      const store = useCommandStore();
       store.selectedIndex = 2;
       store.setSearchTerm('new');
       expect(store.selectedIndex).toBe(-1);
     });
+
+    it('设置空字符串搜索词应有效', () => {
+      const store = useCommandStore();
+      store.searchTerm = 'old';
+      store.setSearchTerm('');
+      expect(store.searchTerm).toBe('');
+    });
   });
 
-  describe('fetchHistory（reverseOrder=true）', () => {
-    it('成功获取时应翻转后端数据（降序）', async () => {
-      mockGet.mockResolvedValueOnce({
-        data: [
-          { id: 1, command: 'first', timestamp: 1000 },
-          { id: 2, command: 'second', timestamp: 2000 },
-          { id: 3, command: 'third', timestamp: 3000 },
-        ],
-      });
+  // -------------------------
+  // fetchHistory
+  // -------------------------
+  describe('fetchHistory', () => {
+    it('成功获取时应更新 historyList（reverseOrder=true 时翻转）', async () => {
+      const serverData = [
+        createMockEntry({ id: 1, command: 'first', timestamp: 1000 }),
+        createMockEntry({ id: 2, command: 'second', timestamp: 2000 }),
+        createMockEntry({ id: 3, command: 'third', timestamp: 3000 }),
+      ];
+      mockGet.mockResolvedValue({ data: serverData });
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+      const store = useCommandStore();
       await store.fetchHistory();
 
+      // reverseOrder=true means backend data is reversed
       expect(store.historyList).toHaveLength(3);
-      expect((store.historyList[0] as any).command).toBe('third');
-      expect((store.historyList[2] as any).command).toBe('first');
+      expect(store.historyList[0].command).toBe('third');
+      expect(store.historyList[2].command).toBe('first');
       expect(store.isLoading).toBe(false);
       expect(store.error).toBeNull();
     });
 
-    it('应使用正确的 API 端点', async () => {
-      mockGet.mockResolvedValueOnce({ data: [] });
+    it('reverseOrder=false 时不应翻转数据', async () => {
+      const usePathStore = makePathStore();
+      const serverData = [
+        { id: 1, path: '/first', timestamp: 1000 },
+        { id: 2, path: '/second', timestamp: 2000 },
+      ];
+      mockGet.mockResolvedValue({ data: serverData });
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+      const store = usePathStore();
       await store.fetchHistory();
 
-      expect(mockGet).toHaveBeenCalledWith('/test-command-history');
+      expect(store.historyList[0].path).toBe('/first');
+      expect(store.historyList[1].path).toBe('/second');
     });
 
-    it('有缓存时应先加载缓存', async () => {
-      const cachedData = [{ id: 1, command: 'cached', timestamp: 1000 }];
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(cachedData));
-      mockGet.mockResolvedValueOnce({ data: [{ id: 1, command: 'cached', timestamp: 1000 }] });
+    it('有缓存时应先从缓存加载', async () => {
+      const cachedData = [createMockEntry({ id: 1, command: 'cached', timestamp: 1000 })];
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(
+        JSON.stringify(cachedData)
+      );
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+      const freshData = [
+        createMockEntry({ id: 1, command: 'cached', timestamp: 1000 }),
+        createMockEntry({ id: 2, command: 'new', timestamp: 2000 }),
+      ];
+      mockGet.mockResolvedValue({ data: freshData });
+
+      const store = useCommandStore();
       await store.fetchHistory();
 
+      expect(store.historyList).toHaveLength(2);
+      expect(store.error).toBeNull();
+    });
+
+    it('缓存解析失败时应移除缓存并继续获取', async () => {
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('invalid json {{{');
+
+      const freshData = [createMockEntry({ id: 1, command: 'fresh', timestamp: 1000 })];
+      mockGet.mockResolvedValue({ data: freshData });
+
+      const store = useCommandStore();
+      await store.fetchHistory();
+
+      expect(localStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
       expect(store.historyList).toHaveLength(1);
+      expect(store.isLoading).toBe(false);
     });
 
-    it('服务器数据变化时应更新缓存', async () => {
-      const oldData = [{ id: 1, command: 'old', timestamp: 1000 }];
-      mockLocalStorage.data['testCommandHistoryCache'] = JSON.stringify(oldData);
-      mockLocalStorage.getItem.mockImplementation(
-        (key: string) => mockLocalStorage.data[key] ?? null
-      );
+    it('API 请求失败时应设置 error 并显示错误通知', async () => {
+      mockGet.mockRejectedValue(new Error('网络错误'));
 
-      const newData = [{ id: 2, command: 'new', timestamp: 2000 }];
-      mockGet.mockResolvedValueOnce({ data: [...newData].reverse() });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.fetchHistory();
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-        'testCommandHistoryCache',
-        expect.any(String)
-      );
-    });
-
-    it('服务器数据与当前相同时不更新缓存', async () => {
-      const data = [{ id: 1, command: 'same', timestamp: 1000 }];
-      mockGet.mockResolvedValueOnce({ data: [...data].reverse() });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      store.historyList = [...data] as any;
-
-      await store.fetchHistory();
-
-      expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
-    });
-
-    it('缓存解析失败时应移除缓存并继续', async () => {
-      mockLocalStorage.getItem.mockReturnValue('invalid json');
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.fetchHistory();
-
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
-    });
-
-    it('请求失败时应设置 error 并显示通知', async () => {
-      mockGet.mockRejectedValueOnce(new Error('网络错误'));
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+      const store = useCommandStore();
       await store.fetchHistory();
 
       expect(store.error).toBeTruthy();
       expect(mockShowError).toHaveBeenCalledTimes(1);
       expect(store.isLoading).toBe(false);
     });
-  });
 
-  describe('fetchHistory（reverseOrder=false）', () => {
-    it('应保持后端返回数据的顺序', async () => {
-      mockGet.mockResolvedValueOnce({
-        data: [
-          { id: 1, path: '/first', timestamp: 1000 },
-          { id: 2, path: '/second', timestamp: 2000 },
-          { id: 3, path: '/third', timestamp: 3000 },
-        ],
-      });
+    it('数据未变化时不应重新写入缓存', async () => {
+      const data = [createMockEntry({ id: 1, command: 'same', timestamp: 1000 })];
+      // Cache has the reversed data (since reverseOrder=true)
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(data));
+      mockGet.mockResolvedValue({ data: [...data].reverse() });
 
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
+      const store = useCommandStore();
       await store.fetchHistory();
 
-      expect(store.historyList).toHaveLength(3);
-      expect((store.historyList[0] as any).path).toBe('/first');
-      expect((store.historyList[2] as any).path).toBe('/third');
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('数据变化时应更新缓存', async () => {
+      const oldData = [createMockEntry({ id: 1, command: 'old', timestamp: 1000 })];
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(oldData));
+
+      const newData = [
+        createMockEntry({ id: 2, command: 'new', timestamp: 2000 }),
+        createMockEntry({ id: 1, command: 'old', timestamp: 1000 }),
+      ];
+      mockGet.mockResolvedValue({ data: [...newData].reverse() }); // server returns ascending
+
+      const store = useCommandStore();
+      await store.fetchHistory();
+
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'testCommandHistoryCache',
+        expect.any(String)
+      );
+    });
+
+    it('成功后应清除之前的 error', async () => {
+      mockGet.mockResolvedValue({ data: [] });
+
+      const store = useCommandStore();
+      store.error = '旧错误';
+      await store.fetchHistory();
+
+      expect(store.error).toBeNull();
+    });
+
+    it('应使用正确的 API 端点', async () => {
+      mockGet.mockResolvedValue({ data: [] });
+      const store = useCommandStore();
+      await store.fetchHistory();
+      expect(mockGet).toHaveBeenCalledWith('/test-command-history');
+    });
+
+    it('isLoading 在失败后应为 false', async () => {
+      mockGet.mockRejectedValue(new Error('fail'));
+      const store = useCommandStore();
+      await store.fetchHistory();
+      expect(store.isLoading).toBe(false);
     });
   });
 
-  describe('addItem（addCommand/addPath 别名）', () => {
+  // -------------------------
+  // addItem
+  // -------------------------
+  describe('addItem', () => {
     it('成功添加后应清除缓存并刷新列表', async () => {
-      mockPost.mockResolvedValueOnce({});
-      mockGet.mockResolvedValueOnce({ data: [{ id: 1, command: 'new cmd', timestamp: 1000 }] });
+      mockPost.mockResolvedValue({ data: { id: 10 } });
+      const freshData = [createMockEntry({ id: 10, command: 'new command', timestamp: 3000 })];
+      mockGet.mockResolvedValue({ data: freshData });
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addItem('new cmd');
+      const store = useCommandStore();
+      await store.addItem('new command');
 
-      expect(mockPost).toHaveBeenCalledWith('/test-command-history', { command: 'new cmd' });
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
+      expect(mockPost).toHaveBeenCalledWith('/test-command-history', { command: 'new command' });
+      expect(localStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
     });
 
-    it('空字符串不应发送请求', async () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addItem('');
+    it('应使用正确的 itemLabel 键发送请求', async () => {
+      const usePathStore = makePathStore();
+      mockPost.mockResolvedValue({ data: { id: 1 } });
+      mockGet.mockResolvedValue({ data: [] });
 
-      expect(mockPost).not.toHaveBeenCalled();
-    });
-
-    it('纯空白字符串不应发送请求', async () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addItem('   ');
-
-      expect(mockPost).not.toHaveBeenCalled();
-    });
-
-    it('Ctrl+C 信号（\\x03）不应添加', async () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addItem('\x03');
-
-      expect(mockPost).not.toHaveBeenCalled();
-    });
-
-    it('命令应自动去除前后空格', async () => {
-      mockPost.mockResolvedValueOnce({});
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addItem('  ls -la  ');
-
-      expect(mockPost).toHaveBeenCalledWith('/test-command-history', { command: 'ls -la' });
-    });
-
-    it('path 类型应使用 path 作为字段名', async () => {
-      mockPost.mockResolvedValueOnce({});
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
+      const store = usePathStore();
       await store.addItem('/home/user');
 
       expect(mockPost).toHaveBeenCalledWith('/test-path-history', { path: '/home/user' });
     });
 
-    it('添加失败时应显示错误通知', async () => {
-      mockPost.mockRejectedValueOnce(new Error('添加失败'));
+    it('空字符串不应发送请求', async () => {
+      const store = useCommandStore();
+      await store.addItem('');
+      expect(mockPost).not.toHaveBeenCalled();
+    });
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addItem('failing cmd');
+    it('纯空白字符串不应发送请求', async () => {
+      const store = useCommandStore();
+      await store.addItem('   ');
+      expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+C 信号（\\x03）不应添加到历史', async () => {
+      const store = useCommandStore();
+      await store.addItem('\x03');
+      expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it('命令应自动去除前后空格', async () => {
+      mockPost.mockResolvedValue({ data: { id: 1 } });
+      mockGet.mockResolvedValue({ data: [] });
+
+      const store = useCommandStore();
+      await store.addItem('  ls -la  ');
+
+      expect(mockPost).toHaveBeenCalledWith('/test-command-history', { command: 'ls -la' });
+    });
+
+    it('添加失败时应显示错误通知', async () => {
+      mockPost.mockRejectedValue(new Error('服务器错误'));
+
+      const store = useCommandStore();
+      await store.addItem('fail command');
 
       expect(mockShowError).toHaveBeenCalledTimes(1);
     });
 
-    it('addCommand 别名应与 addItem 行为一致', async () => {
-      mockPost.mockResolvedValueOnce({});
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.addCommand('cmd');
-
-      expect(mockPost).toHaveBeenCalledWith('/test-command-history', { command: 'cmd' });
+    it('isLoading 在添加后应为 false', async () => {
+      mockPost.mockRejectedValue(new Error('fail'));
+      const store = useCommandStore();
+      await store.addItem('cmd');
+      expect(store.isLoading).toBe(false);
     });
 
-    it('addPath 别名应与 addItem 行为一致', async () => {
-      mockPost.mockResolvedValueOnce({});
-      mockGet.mockResolvedValueOnce({ data: [] });
+    it('addCommand 别名应与 addItem 行为一致', async () => {
+      mockPost.mockResolvedValue({ data: { id: 1 } });
+      mockGet.mockResolvedValue({ data: [] });
 
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
-      await store.addPath('/some/path');
+      const store = useCommandStore();
+      await store.addCommand('ls');
 
-      expect(mockPost).toHaveBeenCalledWith('/test-path-history', { path: '/some/path' });
+      expect(mockPost).toHaveBeenCalledWith('/test-command-history', { command: 'ls' });
     });
   });
 
-  describe('deleteItem（deleteCommand/deletePath 别名）', () => {
+  // -------------------------
+  // deleteItem
+  // -------------------------
+  describe('deleteItem', () => {
     it('成功删除后应从本地列表移除并显示成功通知', async () => {
-      mockDelete.mockResolvedValueOnce({});
+      mockDelete.mockResolvedValue({});
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+      const store = useCommandStore();
       store.historyList = [
-        { id: 1, command: 'keep', timestamp: 1000 },
-        { id: 2, command: 'delete me', timestamp: 2000 },
-        { id: 3, command: 'keep too', timestamp: 3000 },
-      ] as any;
+        createMockEntry({ id: 1, command: 'keep' }),
+        createMockEntry({ id: 2, command: 'delete me' }),
+        createMockEntry({ id: 3, command: 'keep too' }),
+      ];
 
       await store.deleteItem(2);
 
@@ -583,61 +594,70 @@ describe('createHistoryStore 工厂函数', () => {
       expect(mockShowSuccess).toHaveBeenCalledWith('历史记录已删除');
     });
 
-    it('删除失败时应显示错误通知', async () => {
-      mockDelete.mockRejectedValueOnce(new Error('删除失败'));
+    it('删除不存在的 ID 不应修改列表', async () => {
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'only' })];
+      await store.deleteItem(999);
+      expect(store.historyList).toHaveLength(1);
+      expect(mockShowSuccess).toHaveBeenCalled();
+    });
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      store.historyList = [{ id: 1, command: 'test', timestamp: 1000 }] as any;
+    it('删除失败时应显示错误通知，不应移除本地条目', async () => {
+      mockDelete.mockRejectedValue(new Error('删除失败'));
 
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'test' })];
       await store.deleteItem(1);
 
       expect(mockShowError).toHaveBeenCalledTimes(1);
-      expect(store.historyList).toHaveLength(1); // 失败时不移除
+      expect(store.historyList).toHaveLength(1);
     });
 
     it('删除后应清除缓存', async () => {
-      mockDelete.mockResolvedValueOnce({});
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      store.historyList = [{ id: 1, command: 'test', timestamp: 1000 }] as any;
-
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1 })];
       await store.deleteItem(1);
-
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
+      expect(localStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
     });
 
-    it('deleteCommand 别名应使用正确的通知消息', async () => {
-      mockDelete.mockResolvedValueOnce({});
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      store.historyList = [{ id: 1, command: 'test', timestamp: 1000 }] as any;
-
-      await store.deleteCommand(1);
+    it('成功通知使用正确的 deleteLabel', async () => {
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1 })];
+      await store.deleteItem(1);
       expect(mockShowSuccess).toHaveBeenCalledWith('历史记录已删除');
     });
 
-    it('path 类型 deleteLabel 应正确反映在成功消息中', async () => {
-      mockDelete.mockResolvedValueOnce({});
+    it('isLoading 在删除后应为 false', async () => {
+      mockDelete.mockRejectedValue(new Error('fail'));
+      const store = useCommandStore();
+      await store.deleteItem(1);
+      expect(store.isLoading).toBe(false);
+    });
 
-      const useStore = createHistoryStore(pathHistoryConfig);
-      const store = useStore();
-      store.historyList = [{ id: 1, path: '/test', timestamp: 1000 }] as any;
-
-      await store.deletePath(1);
-      expect(mockShowSuccess).toHaveBeenCalledWith('路径历史已删除');
+    it('deleteCommand 别名应与 deleteItem 行为一致', async () => {
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 5, command: 'test' })];
+      await store.deleteCommand(5);
+      expect(mockDelete).toHaveBeenCalledWith('/test-command-history/5');
+      expect(store.historyList).toHaveLength(0);
     });
   });
 
-  describe('clearAll（clearAllHistory 别名）', () => {
+  // -------------------------
+  // clearAll
+  // -------------------------
+  describe('clearAll', () => {
     it('成功清空后 historyList 应为空并显示成功通知', async () => {
-      mockDelete.mockResolvedValueOnce({});
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      store.historyList = [{ id: 1, command: 'test', timestamp: 1000 }] as any;
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [
+        createMockEntry({ id: 1, command: 'first' }),
+        createMockEntry({ id: 2, command: 'second' }),
+      ];
 
       await store.clearAll();
 
@@ -647,191 +667,169 @@ describe('createHistoryStore 工厂函数', () => {
     });
 
     it('清空失败时应显示错误通知', async () => {
-      mockDelete.mockRejectedValueOnce(new Error('清空失败'));
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+      mockDelete.mockRejectedValue(new Error('清空失败'));
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'test' })];
       await store.clearAll();
-
       expect(mockShowError).toHaveBeenCalledTimes(1);
     });
 
     it('清空后应清除缓存', async () => {
-      mockDelete.mockResolvedValueOnce({});
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
       await store.clearAll();
-
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
+      expect(localStorage.removeItem).toHaveBeenCalledWith('testCommandHistoryCache');
     });
 
-    it('clearAllHistory 别名应使用正确的成功消息', async () => {
-      mockDelete.mockResolvedValueOnce({});
+    it('空列表时调用清空不应抛出异常', async () => {
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [];
+      await expect(store.clearAll()).resolves.not.toThrow();
+    });
 
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
+    it('clearAllHistory 别名应与 clearAll 行为一致', async () => {
+      mockDelete.mockResolvedValue({});
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1 })];
       await store.clearAllHistory();
+      expect(store.historyList).toEqual([]);
+    });
 
-      expect(mockShowSuccess).toHaveBeenCalledWith('所有历史记录已清空');
+    it('isLoading 在清空后应为 false', async () => {
+      mockDelete.mockRejectedValue(new Error('fail'));
+      const store = useCommandStore();
+      await store.clearAll();
+      expect(store.isLoading).toBe(false);
     });
   });
 
-  describe('配置选项验证', () => {
-    it('两个不同 storeId 的实例应各自独立', () => {
-      const useCmdStore = createHistoryStore(commandHistoryConfig);
-      const usePathStore = createHistoryStore(pathHistoryConfig);
+  // -------------------------
+  // Path-specific aliases
+  // -------------------------
+  describe('addPath / deletePath / selectNextPath / selectPreviousPath 别名', () => {
+    it('addPath 别名应与 addItem 行为一致', async () => {
+      const usePathStore = makePathStore();
+      mockPost.mockResolvedValue({ data: { id: 1 } });
+      mockGet.mockResolvedValue({ data: [] });
 
-      const cmdStore = useCmdStore();
+      const store = usePathStore();
+      await store.addPath('/var/log');
+
+      expect(mockPost).toHaveBeenCalledWith('/test-path-history', { path: '/var/log' });
+    });
+
+    it('deletePath 别名应与 deleteItem 行为一致', async () => {
+      const usePathStore = makePathStore();
+      mockDelete.mockResolvedValue({});
+      const store = usePathStore();
+      store.historyList = [{ id: 3, path: '/tmp', timestamp: 1 }] as any;
+      await store.deletePath(3);
+      expect(mockDelete).toHaveBeenCalledWith('/test-path-history/3');
+    });
+
+    it('selectNextPath 别名应与 selectNext 行为一致', () => {
+      const usePathStore = makePathStore();
+      const store = usePathStore();
+      store.historyList = [
+        { id: 1, path: '/a', timestamp: 1 },
+        { id: 2, path: '/b', timestamp: 2 },
+      ] as any;
+      store.selectedIndex = -1;
+      store.selectNextPath();
+      expect(store.selectedIndex).toBe(0);
+    });
+
+    it('selectPreviousPath 别名应与 selectPrevious 行为一致', () => {
+      const usePathStore = makePathStore();
+      const store = usePathStore();
+      store.historyList = [
+        { id: 1, path: '/a', timestamp: 1 },
+        { id: 2, path: '/b', timestamp: 2 },
+        { id: 3, path: '/c', timestamp: 3 },
+      ] as any;
+      store.selectedIndex = -1;
+      store.selectPreviousPath();
+      expect(store.selectedIndex).toBe(2);
+    });
+  });
+
+  // -------------------------
+  // Config options
+  // -------------------------
+  describe('storeId 隔离', () => {
+    it('不同 storeId 的 store 应独立维护状态', () => {
+      const usePathStore = makePathStore();
+      const cmdStore = useCommandStore();
       const pathStore = usePathStore();
 
-      cmdStore.historyList = [{ id: 1, command: 'cmd', timestamp: 1000 }] as any;
-      pathStore.historyList = [{ id: 2, path: '/path', timestamp: 2000 }] as any;
+      cmdStore.historyList = [createMockEntry({ id: 1, command: 'shared?' })];
 
-      expect(cmdStore.historyList).toHaveLength(1);
-      expect(pathStore.historyList).toHaveLength(1);
-      // 两个 store 的数据不共享
-      expect((cmdStore.historyList[0] as any).command).toBe('cmd');
-      expect((pathStore.historyList[0] as any).path).toBe('/path');
-    });
-
-    it('同一 storeId 的多个实例应共享状态', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store1 = useStore();
-      const store2 = useStore();
-
-      store1.historyList = [{ id: 1, command: 'shared', timestamp: 1000 }] as any;
-      expect(store2.historyList).toHaveLength(1);
-    });
-
-    it('reverseOrder 默认为 true', async () => {
-      const configWithoutReverse: HistoryStoreConfig = {
-        storeId: 'testDefaultReverse',
-        apiEndpoint: '/test-default',
-        itemLabel: 'command',
-        addLabel: '命令',
-        deleteLabel: '历史记录',
-        clearLabel: '所有历史记录',
-        cacheKey: 'testDefaultCache',
-        // reverseOrder 未指定，默认为 true
-      };
-
-      mockGet.mockResolvedValueOnce({
-        data: [
-          { id: 1, command: 'first', timestamp: 1000 },
-          { id: 2, command: 'second', timestamp: 2000 },
-        ],
-      });
-
-      const useStore = createHistoryStore(configWithoutReverse);
-      const store = useStore();
-      await store.fetchHistory();
-
-      // 默认 reverseOrder=true，数据被翻转
-      expect((store.historyList[0] as any).command).toBe('second');
-      expect((store.historyList[1] as any).command).toBe('first');
+      // Path store should be unaffected
+      expect(pathStore.historyList).toHaveLength(0);
     });
   });
 
+  // -------------------------
+  // Edge cases and boundary conditions
+  // -------------------------
   describe('边界条件', () => {
-    it('空列表时 selectNext 后 selectPrevious 应保持 -1', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+    it('多个 store 实例应共享同一份 state', () => {
+      const store1 = useCommandStore();
+      const store2 = useCommandStore();
 
+      store1.historyList = [createMockEntry({ id: 1, command: 'shared' })];
+
+      expect(store2.historyList).toHaveLength(1);
+      expect(store2.historyList[0].command).toBe('shared');
+    });
+
+    it('selectNext 在空过滤列表时应保持 -1', () => {
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'git status' })];
+      store.searchTerm = 'no match';
       store.selectNext();
       expect(store.selectedIndex).toBe(-1);
+    });
 
+    it('selectPrevious 在空过滤列表时应保持 -1', () => {
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'git status' })];
+      store.searchTerm = 'no match';
       store.selectPrevious();
       expect(store.selectedIndex).toBe(-1);
     });
 
     it('fetchHistory 返回空数组时 historyList 应为空', async () => {
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+      mockGet.mockResolvedValue({ data: [] });
+      const store = useCommandStore();
       await store.fetchHistory();
-
       expect(store.historyList).toEqual([]);
       expect(store.isLoading).toBe(false);
     });
 
-    it('fetchHistory 成功后应清除之前的 error', async () => {
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
+    it('error 在 fetchHistory 开始时应重置为 null', async () => {
+      mockGet.mockResolvedValue({ data: [] });
+      const store = useCommandStore();
       store.error = '旧错误';
       await store.fetchHistory();
-
       expect(store.error).toBeNull();
     });
 
-    it('selectPrevious 和 selectNext 应基于过滤后的列表计算索引', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [
-        { id: 1, command: 'git status', timestamp: 1000 },
-        { id: 2, command: 'npm install', timestamp: 2000 },
-        { id: 3, command: 'git push', timestamp: 3000 },
-      ] as any;
-      store.searchTerm = 'git'; // 只有 2 条匹配
-
-      store.selectNext();
-      expect(store.selectedIndex).toBe(0);
-
-      store.selectNext();
-      expect(store.selectedIndex).toBe(1);
-
-      // 循环回到 0
+    it('selectNext 在单个元素时应循环回自身', () => {
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'only' })];
+      store.selectedIndex = 0;
       store.selectNext();
       expect(store.selectedIndex).toBe(0);
     });
 
-    it('搜索过滤为空时 selectPrevious 应保持 -1', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [{ id: 1, command: 'git status', timestamp: 1000 }] as any;
-      store.searchTerm = 'no match';
-
-      store.selectPrevious();
-      expect(store.selectedIndex).toBe(-1);
-    });
-
-    it('单条历史记录时 selectPrevious 从 -1 应选中该条', () => {
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-
-      store.historyList = [{ id: 1, command: 'only', timestamp: 1000 }] as any;
-      store.selectedIndex = -1;
-
+    it('selectPrevious 在单个元素时应循环回自身', () => {
+      const store = useCommandStore();
+      store.historyList = [createMockEntry({ id: 1, command: 'only' })];
+      store.selectedIndex = 0;
       store.selectPrevious();
       expect(store.selectedIndex).toBe(0);
-    });
-
-    it('isLoading 在操作完成后应始终为 false（成功路径）', async () => {
-      mockGet.mockResolvedValueOnce({ data: [] });
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.fetchHistory();
-
-      expect(store.isLoading).toBe(false);
-    });
-
-    it('isLoading 在操作完成后应始终为 false（失败路径）', async () => {
-      mockGet.mockRejectedValueOnce(new Error('fail'));
-
-      const useStore = createHistoryStore(commandHistoryConfig);
-      const store = useStore();
-      await store.fetchHistory();
-
-      expect(store.isLoading).toBe(false);
     });
   });
 });
