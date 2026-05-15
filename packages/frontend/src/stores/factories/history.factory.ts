@@ -23,6 +23,22 @@ export interface HistoryEntryBE {
 
 export type HistoryEntryFE = HistoryEntryBE;
 
+/**
+ * Creates a Pinia store that manages a typed history list with search, selection navigation, local caching, and CRUD operations against a backend.
+ *
+ * @param config - Configuration for the history store:
+ *   - `storeId`: unique Pinia store id.
+ *   - `apiEndpoint`: backend endpoint for fetching/adding/deleting history entries.
+ *   - `itemLabel`: object key used as the display label on each entry.
+ *   - `addLabel`, `deleteLabel`, `clearLabel`: human-readable labels used in UI notifications.
+ *   - `cacheKey`: localStorage key for caching the history list.
+ *   - `reverseOrder` (optional): whether to reverse server-provided list before storing (defaults to `true`).
+ * @returns A Pinia store exposing:
+ *   - state refs: `historyList`, `searchTerm`, `isLoading`, `error`, `selectedIndex`
+ *   - derived: `filteredHistory`
+ *   - actions: `fetchHistory`, `addItem`, `deleteItem`, `clearAll`, `setSearchTerm`, `selectNext`, `selectPrevious`, `resetSelection`
+ *   - backward-compatible aliases: `addCommand`, `deleteCommand`, `clearAllHistory`, `selectNextCommand`, `selectPreviousCommand`, `addPath`, `deletePath`, `selectNextPath`, `selectPreviousPath`
+ */
 export function createHistoryStore<T extends HistoryEntryFE = HistoryEntryFE>(
   config: HistoryStoreConfig
 ) {

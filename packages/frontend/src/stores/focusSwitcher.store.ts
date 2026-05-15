@@ -72,7 +72,17 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
   // --- Actions ---
 
-  // +++ 修改：从后端加载配置（包括快捷键） +++
+  /**
+   * Load focus-switcher configuration from the backend and apply validated sequence and shortcut settings to the store.
+   *
+   * Loads the full configuration from the API path "/settings/focus-switcher-sequence", validates it, and updates
+   * the store's `sequenceOrder` and `itemConfigs`. Validation rules:
+   * - `sequence` must be an array of known input IDs; otherwise `sequenceOrder` is reset to an empty array.
+   * - `shortcuts` must be an object mapping known input IDs to configs where `shortcut` is either undefined or a
+   *   string starting with "Alt+"; unknown IDs are ignored and invalid shortcut values are stored as empty configs.
+   *
+   * On network or parse errors the function resets `sequenceOrder` to `[]` and `itemConfigs` to `{}` and logs an error.
+   */
   async function loadConfigurationFromBackend() {
     const apiPath = '/settings/focus-switcher-sequence';
     try {
@@ -138,6 +148,11 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     }
   }
 
+  /**
+   * Persist the store's current focus sequence and shortcut configurations to the backend.
+   *
+   * Saves the current `sequenceOrder` and `itemConfigs` under the backend path `/settings/focus-switcher-sequence`.
+   */
   async function saveConfigurationToBackend() {
     const apiPath = '/settings/focus-switcher-sequence';
     try {

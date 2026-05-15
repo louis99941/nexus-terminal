@@ -19,6 +19,20 @@ export interface TagInfo {
   updated_at: number;
 }
 
+/**
+ * Creates a Pinia store for managing tag records (CRUD) with localStorage caching and optional UI notifications.
+ *
+ * @param config - Configuration for the generated tag store. Fields:
+ *   - `storeId`: Pinia store identifier used with `defineStore`.
+ *   - `apiEndpoint`: Base API endpoint for tag CRUD requests.
+ *   - `cacheKey`: `localStorage` key used to cache the tag list.
+ *   - `useNotifications` (optional, default `true`): Whether to show success/error notifications via the UI notifications store.
+ * @returns A Pinia store exposing:
+ *   - `tags`: reactive array of `TagInfo`
+ *   - `isLoading`: reactive loading flag
+ *   - `error`: reactive last error message or `null`
+ *   - `fetchTags()`, `addTag(name)`, `updateTag(id, name)`, `deleteTag(id)`: async actions for tag operations
+ */
 export function createTagStore(config: TagStoreConfig) {
   const { storeId, apiEndpoint, cacheKey, useNotifications = true } = config;
 
