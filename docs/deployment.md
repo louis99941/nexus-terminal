@@ -122,89 +122,15 @@ ENABLE_METRICS=true
 
 ## Nginx 反向代理配置
 
-### 安装 Nginx
+生产环境部署建议使用 Nginx 反向代理，提供 SSL 终止、静态资源缓存和 WebSocket 代理。
 
-```bash
-# Debian/Ubuntu
-sudo apt update && sudo apt install nginx
+详细配置请参考 [Nginx 反向代理配置指南](./deployment/nginx)，包含：
 
-# CentOS/RHEL
-sudo yum install nginx
-```
-
-### 配置反向代理
-
-创建配置文件 `/etc/nginx/sites-available/nexus-terminal`：
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
-
-    # SSL 证书（Let's Encrypt）
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
-
-    # 前端
-    location / {
-        proxy_pass http://127.0.0.1:18111;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # WebSocket（SSH / Guacamole）
-    location ~ ^/(ws|guacamole)/ {
-        proxy_pass http://127.0.0.1:18111;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-    }
-
-    # API
-    location /api/ {
-        proxy_pass http://127.0.0.1:18111;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### 启用站点
-
-```bash
-sudo ln -s /etc/nginx/sites-available/nexus-terminal /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 配置 SSL 证书（推荐）
-
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-
-# 自动续期
-sudo crontab -e
-# 添加：0 12 * * * /usr/bin/certbot renew --quiet
-```
+- 基础 HTTP 配置与 Docker Compose 部署配置
+- HTTPS/SSL 证书配置（Let's Encrypt 与自签名）
+- WebSocket 代理详解（SSH 终端 + 远程桌面）
+- 负载均衡、安全加固与性能优化
+- 常见问题排查
 
 ## 更新与维护
 
