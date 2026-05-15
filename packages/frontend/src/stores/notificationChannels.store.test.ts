@@ -22,7 +22,7 @@ vi.mock('../utils/errorExtractor', () => ({
 
 import apiClient from '../utils/apiClient';
 import { extractErrorMessage } from '../utils/errorExtractor';
-import { useNotificationsStore } from './notifications.store';
+import { useNotificationsStore } from './notificationChannels.store';
 import type {
   NotificationSetting,
   NotificationSettingData,
@@ -51,7 +51,7 @@ const createMockSettingData = (
   enabled_events: overrides.enabled_events ?? ['LOGIN_FAILURE'],
 });
 
-describe('notifications.store', () => {
+describe('notificationChannels.store', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();

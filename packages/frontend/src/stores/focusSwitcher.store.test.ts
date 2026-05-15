@@ -21,22 +21,29 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
-// Mock fetch
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+// Mock apiClient — vi.hoisted 确保在 vi.mock hoist 前可用
+const { mockGet, mockPut } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPut: vi.fn(),
+}));
+vi.mock('../utils/apiClient', () => ({
+  default: {
+    get: mockGet,
+    put: mockPut,
+  },
+}));
 
 /**
- * 创建 store 并等待 nextTick 自动初始化完成，然后清除 fetch 调用历史。
- * 返回已初始化完毕的 store 实例。
+ * 创建 store 并等待 nextTick 自动初始化完成，然后清除 apiClient 调用历史。
  */
 async function createStoreAndFlushInit() {
   const store = useFocusSwitcherStore();
   await nextTick();
-  // 等待 loadConfigurationFromBackend 的 async fetch 完成
   await vi.waitFor(() => {
-    expect(mockFetch).toHaveBeenCalled();
+    expect(mockGet).toHaveBeenCalled();
   });
-  mockFetch.mockClear();
+  mockGet.mockClear();
+  mockPut.mockClear();
   return store;
 }
 
@@ -45,10 +52,7 @@ describe('focusSwitcher.store', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     // 默认让 nextTick 内的 loadConfigurationFromBackend 成功返回空配置
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ sequence: [], shortcuts: {} }),
-    });
+    mockGet.mockResolvedValue({ data: { sequence: [], shortcuts: {} } });
   });
 
   afterEach(() => {
@@ -158,10 +162,7 @@ describe('focusSwitcher.store', () => {
         },
       };
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
@@ -174,10 +175,7 @@ describe('focusSwitcher.store', () => {
 
     it('HTTP 错误时应重置配置为空', async () => {
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      });
+      mockGet.mockRejectedValueOnce(new Error('HTTP error! status: 500'));
 
       await store.loadConfigurationFromBackend();
 
@@ -185,9 +183,9 @@ describe('focusSwitcher.store', () => {
       expect(store.itemConfigs).toEqual({});
     });
 
-    it('fetch 抛出异常时应重置配置为空', async () => {
+    it('apiClient 抛出异常时应重置配置为空', async () => {
       const store = await createStoreAndFlushInit();
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockGet.mockRejectedValueOnce(new Error('Network error'));
 
       await store.loadConfigurationFromBackend();
 
@@ -201,24 +199,17 @@ describe('focusSwitcher.store', () => {
         shortcuts: {},
       };
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
-      // store 使用 every() 校验，包含无效 ID 时整个序列被拒绝
       expect(store.sequenceOrder).toEqual([]);
     });
 
     it('sequence 不是数组时应重置为空数组', async () => {
       const config = { sequence: 'not-an-array', shortcuts: {} } as any;
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
@@ -234,10 +225,7 @@ describe('focusSwitcher.store', () => {
         },
       };
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
@@ -248,10 +236,7 @@ describe('focusSwitcher.store', () => {
     it('shortcuts 不是对象时应重置为空对象', async () => {
       const config = { sequence: [], shortcuts: 'not-an-object' } as any;
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
@@ -261,10 +246,7 @@ describe('focusSwitcher.store', () => {
     it('shortcuts 为 null 时应重置为空对象', async () => {
       const config = { sequence: [], shortcuts: null } as any;
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
@@ -279,14 +261,10 @@ describe('focusSwitcher.store', () => {
         },
       };
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
-      // 快捷键无效，但 ID 仍保留（shortcut 为空）
       expect(store.itemConfigs).toHaveProperty('commandInput');
       expect(store.itemConfigs['commandInput'].shortcut).toBeUndefined();
     });
@@ -299,10 +277,7 @@ describe('focusSwitcher.store', () => {
         },
       };
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
@@ -318,24 +293,17 @@ describe('focusSwitcher.store', () => {
         },
       } as any;
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(config),
-      });
+      mockGet.mockResolvedValueOnce({ data: config });
 
       await store.loadConfigurationFromBackend();
 
-      // store 保留 ID 但清空无效的快捷键配置
       expect(store.itemConfigs).toHaveProperty('commandInput');
       expect(store.itemConfigs['commandInput'].shortcut).toBeUndefined();
     });
 
     it('loadedFullConfig 为 null 时应重置配置', async () => {
       const store = await createStoreAndFlushInit();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(null),
-      });
+      mockGet.mockResolvedValueOnce({ data: null });
 
       await store.loadConfigurationFromBackend();
 
@@ -347,53 +315,29 @@ describe('focusSwitcher.store', () => {
   describe('saveConfigurationToBackend', () => {
     it('应正确发送 PUT 请求保存配置', async () => {
       const store = useFocusSwitcherStore();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ message: 'saved' }),
-      });
+      mockPut.mockResolvedValueOnce({});
       store.sequenceOrder = ['commandInput', 'terminalSearch'];
       store.itemConfigs = { commandInput: { shortcut: 'Alt+K' } };
 
       await store.saveConfigurationToBackend();
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/v1/settings/focus-switcher-sequence', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sequence: ['commandInput', 'terminalSearch'],
-          shortcuts: { commandInput: { shortcut: 'Alt+K' } },
-        }),
+      expect(mockPut).toHaveBeenCalledWith('/settings/focus-switcher-sequence', {
+        sequence: ['commandInput', 'terminalSearch'],
+        shortcuts: { commandInput: { shortcut: 'Alt+K' } },
       });
     });
 
     it('保存失败时应记录错误', async () => {
       const store = useFocusSwitcherStore();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({ message: 'Bad request' }),
-      });
+      mockPut.mockRejectedValueOnce(new Error('Bad request'));
       await store.saveConfigurationToBackend();
 
       expect(mockLog.error).toHaveBeenCalled();
     });
 
-    it('fetch 抛出异常时应记录错误', async () => {
+    it('apiClient 抛出异常时应记录错误', async () => {
       const store = useFocusSwitcherStore();
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
-
-      await store.saveConfigurationToBackend();
-
-      expect(mockLog.error).toHaveBeenCalled();
-    });
-
-    it('保存失败且响应体解析失败时应使用空对象', async () => {
-      const store = useFocusSwitcherStore();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.reject(new Error('Invalid JSON')),
-      });
+      mockPut.mockRejectedValueOnce(new Error('Network error'));
 
       await store.saveConfigurationToBackend();
 
@@ -403,10 +347,7 @@ describe('focusSwitcher.store', () => {
 
   describe('updateConfiguration', () => {
     it('应更新 sequenceOrder 和 itemConfigs 并保存到后端', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       const newConfig: FocusSwitcherFullConfig = {
@@ -427,10 +368,7 @@ describe('focusSwitcher.store', () => {
     });
 
     it('应过滤 sequenceOrder 中的无效 ID', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       const newConfig: FocusSwitcherFullConfig = {
@@ -444,10 +382,7 @@ describe('focusSwitcher.store', () => {
     });
 
     it('sequence 不是数组时应保持现有顺序', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       store.sequenceOrder = ['commandInput'];
@@ -458,10 +393,7 @@ describe('focusSwitcher.store', () => {
     });
 
     it('shortcuts 中的无效快捷键应被过滤', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       const newConfig: FocusSwitcherFullConfig = {
@@ -476,16 +408,12 @@ describe('focusSwitcher.store', () => {
 
       expect(store.itemConfigs).toHaveProperty('terminalSearch');
       expect(store.itemConfigs['terminalSearch'].shortcut).toBe('Alt+F');
-      // Ctrl+K 不以 Alt+ 开头，应被清空
       expect(store.itemConfigs).toHaveProperty('commandInput');
       expect(store.itemConfigs['commandInput'].shortcut).toBeUndefined();
     });
 
     it('shortcuts 不是对象时应保持现有配置', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       store.itemConfigs = { commandInput: { shortcut: 'Alt+K' } };
@@ -496,10 +424,7 @@ describe('focusSwitcher.store', () => {
     });
 
     it('shortcuts 为 null 时应保持现有配置', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       store.itemConfigs = { commandInput: { shortcut: 'Alt+K' } };
@@ -510,16 +435,12 @@ describe('focusSwitcher.store', () => {
     });
 
     it('更新后应调用 saveConfigurationToBackend', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      });
+      mockPut.mockResolvedValue({});
 
       const store = useFocusSwitcherStore();
       store.updateConfiguration({ sequence: [], shortcuts: {} });
 
-      // 至少调用了两次 fetch（一次 loadConfigurationFromBackend，一次 saveConfigurationToBackend）
-      expect(mockFetch).toHaveBeenCalled();
+      expect(mockPut).toHaveBeenCalled();
     });
   });
 
@@ -657,7 +578,6 @@ describe('focusSwitcher.store', () => {
 
       expect(typeof unregister).toBe('function');
       unregister();
-      // 不应抛出错误
     });
 
     it('调用注销函数后应移除该动作', () => {
@@ -667,7 +587,6 @@ describe('focusSwitcher.store', () => {
       const unregister = store.registerFocusAction('commandInput', action);
       unregister();
 
-      // 注销后，focusTarget 应返回 false（无动作）
       const result = store.focusTarget('commandInput');
       expect(result).resolves.toBe(false);
     });
@@ -711,7 +630,6 @@ describe('focusSwitcher.store', () => {
       const unregister = store.registerFocusAction('commandInput', action);
       unregister();
 
-      // 重新注册并验证状态干净
       const action2 = vi.fn().mockReturnValue(true);
       store.registerFocusAction('commandInput', action2);
 
@@ -723,12 +641,8 @@ describe('focusSwitcher.store', () => {
       const action1 = vi.fn().mockReturnValue(true);
 
       const unregister = store.registerFocusAction('commandInput', action1);
-      // 先注销已注册的动作
       unregister();
-
-      // 尝试注销同一个动作（已被移除），不会抛错
       unregister();
-      // 测试不抛出即为通过
     });
   });
 
@@ -859,10 +773,8 @@ describe('focusSwitcher.store', () => {
 
     it('为 fileManagerSearch 执行失败时不应触发激活', async () => {
       const store = useFocusSwitcherStore();
-      // 不注册任何动作，直接调用 focusTarget
       const result = await store.focusTarget('fileManagerSearch');
       expect(result).toBe(false);
-      // activateFileManagerSearchTrigger 不应被自动递增
       expect(store.activateFileManagerSearchTrigger).toBe(0);
     });
 
@@ -876,10 +788,7 @@ describe('focusSwitcher.store', () => {
 
   describe('nextTick 初始化', () => {
     it('创建 store 时应自动调用 loadConfigurationFromBackend', async () => {
-      // createStoreAndFlushInit 已验证 nextTick 触发 fetch 调用
       await createStoreAndFlushInit();
-      // 由于 mockClear 后不再有 fetch 调用，但 createStoreAndFlushInit 内部已 assert
-      // 这里验证初始化后的默认状态
       const store = useFocusSwitcherStore();
       expect(store.sequenceOrder).toEqual([]);
       expect(store.itemConfigs).toEqual({});

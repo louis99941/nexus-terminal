@@ -115,7 +115,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useNotificationsStore } from '../stores/notifications.store';
+import { useNotificationsStore } from '../stores/notificationChannels.store';
 import {
   NotificationSetting,
   NotificationChannelType,
