@@ -58,11 +58,6 @@ export type NotificationEvent =
   | 'SSH_SHELL_FAILURE'
   | 'SSH_DISCONNECT'
   | 'SSH_SESSION_SUSPENDED'
-  // 文件传输与命令安全事件
-  | 'FILE_UPLOAD'
-  | 'FILE_DOWNLOAD'
-  | 'COMMAND_BLOCKED'
-  | 'BATCH_COMMAND_EXECUTED'
   // 批量任务事件
   | 'BATCH_TASK_CREATED'
   | 'BATCH_TASK_COMPLETED'

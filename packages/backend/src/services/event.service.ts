@@ -35,12 +35,6 @@ export enum AppEventType {
   PasskeyAuthSuccess = 'PASSKEY_AUTH_SUCCESS',
   PasskeyAuthFailure = 'PASSKEY_AUTH_FAILURE',
   PasskeyDeleted = 'PASSKEY_DELETED',
-  // 文件传输事件
-  FileUpload = 'FILE_UPLOAD',
-  FileDownload = 'FILE_DOWNLOAD',
-  // 命令安全事件
-  CommandBlocked = 'COMMAND_BLOCKED',
-  BatchCommandExecuted = 'BATCH_COMMAND_EXECUTED',
   // 批量任务事件
   BatchTaskCreated = 'BATCH_TASK_CREATED',
   BatchTaskCompleted = 'BATCH_TASK_COMPLETED',

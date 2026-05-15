@@ -145,39 +145,47 @@ const IMPORT_TABLES: Record<
 
 /** 导出所有核心业务数据 */
 export async function exportData(): Promise<BackupPayload> {
-  const db = await getDbInstance();
-  const result: BackupPayload = {
-    metadata: {
-      version: BACKUP_FORMAT_VERSION,
-      exportedAt: Date.now(),
-      recordCounts: {},
-    },
-    connections: [],
-    sshKeys: [],
-    proxies: [],
-    tags: [],
-    connectionTags: [],
-    quickCommands: [],
-    quickCommandTags: [],
-    quickCommandTagAssociations: [],
-    terminalThemes: [],
-    notificationSettings: [],
-    settings: [],
-    appearanceSettings: [],
-    favoritePaths: [],
-  };
+  try {
+    const db = await getDbInstance();
+    const result: BackupPayload = {
+      metadata: {
+        version: BACKUP_FORMAT_VERSION,
+        exportedAt: Date.now(),
+        recordCounts: {},
+      },
+      connections: [],
+      sshKeys: [],
+      proxies: [],
+      tags: [],
+      connectionTags: [],
+      quickCommands: [],
+      quickCommandTags: [],
+      quickCommandTagAssociations: [],
+      terminalThemes: [],
+      notificationSettings: [],
+      settings: [],
+      appearanceSettings: [],
+      favoritePaths: [],
+    };
 
-  for (const [key, sql] of Object.entries(EXPORT_TABLES)) {
-    const rows = await allDb<Record<string, unknown>>(db, sql);
-    (result as unknown as Record<string, unknown>)[key] = rows;
-    result.metadata.recordCounts[key] = rows.length;
+    for (const [key, sql] of Object.entries(EXPORT_TABLES)) {
+      const rows = await allDb<Record<string, unknown>>(db, sql);
+      (result as unknown as Record<string, unknown>)[key] = rows;
+      result.metadata.recordCounts[key] = rows.length;
+    }
+
+    eventService.emitEvent(AppEventType.BackupExportCompleted, {
+      details: { timestamp: new Date().toISOString() },
+    });
+
+    return result;
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    eventService.emitEvent(AppEventType.BackupExportFailed, {
+      details: { reason: msg },
+    });
+    throw error;
   }
-
-  eventService.emitEvent(AppEventType.BackupExportCompleted, {
-    details: { timestamp: new Date().toISOString() },
-  });
-
-  return result;
 }
 
 /** 从备份数据导入到数据库（事务性：失败时回滚） */
