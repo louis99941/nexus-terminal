@@ -12,6 +12,7 @@ export interface AuthenticatedWebSocket extends WebSocket {
   userId?: number;
   username?: string;
   sessionId?: string;
+  isMultiplex?: boolean; // 是否为多路复用连接
 }
 
 // 中心化的客户端状态接口 (统一版本)
@@ -31,7 +32,7 @@ export interface ClientState {
   isSuspendedByService?: boolean; // 标记此会话是否已被 SshSuspendService 接管
   isMarkedForSuspend?: boolean; // 标记此会话是否已被用户请求挂起（等待断开连接）
   suspendLogPath?: string; // 如果标记挂起，则存储日志路径 (基于原始 sessionId)
-  // suspendLogWritableStream?: NodeJS.WritableStream; // 移除，将直接使用 temporaryLogStorageService.writeToLog
+  transportWs?: AuthenticatedWebSocket; // 多路复用模式下指向共享的物理连接
 }
 
 export interface PortInfo {
@@ -402,6 +403,11 @@ export interface SftpUploadCancelRequest {
   payload: {
     uploadId: string;
   };
+}
+
+// --- 带 sid 的消息类型（多路复用） ---
+export interface MultiplexMessage {
+  sid?: string; // 多路复用会话 ID（可选，缺失时使用传统模式）
 }
 
 // --- 统一的客户端到服务器消息类型联合 ---

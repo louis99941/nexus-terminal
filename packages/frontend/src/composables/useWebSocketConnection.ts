@@ -36,7 +36,17 @@ export function createWebSocketConnectionManager(
   sessionId: string,
   dbConnectionId: string,
   t: ReturnType<typeof useI18n>['t'],
-  options?: { isResumeFlow?: boolean; getIsMarkedForSuspend?: () => boolean }
+  options?: {
+    isResumeFlow?: boolean;
+    getIsMarkedForSuspend?: () => boolean;
+    transport?: {
+      sid: string;
+      sendMessage: (message: WebSocketMessage) => void;
+      onMessage: (type: string, handler: MessageHandler) => () => void;
+      connect: () => void;
+      disconnect: () => void;
+    };
+  }
 ) {
   // --- 实例状态 ---
   const ws = shallowRef<WebSocket | null>(null);
@@ -48,6 +58,7 @@ export function createWebSocketConnectionManager(
   const instanceSessionId = sessionId;
   const instanceDbConnectionId = dbConnectionId;
   const getIsMarkedForSuspend = options?.getIsMarkedForSuspend;
+  const transport = options?.transport;
 
   // --- 重连管理器（从 reconnect.ts 提取） ---
   const reconnectManager = createReconnectManager({ maxAttempts: 5 });
@@ -111,6 +122,15 @@ export function createWebSocketConnectionManager(
     reconnectManager.state.lastUrl = url;
     reconnectManager.state.intentionalDisconnect = false;
     reconnectManager.clearTimer();
+
+    // 多路复用模式：委托给 transport
+    if (transport) {
+      statusMessage.value = getStatusText('connectingWs', { url });
+      connectionStatus.value = 'connecting';
+      isSftpReady.value = false;
+      transport.connect();
+      return;
+    }
 
     // 阻止重复连接
     if (
@@ -265,6 +285,18 @@ export function createWebSocketConnectionManager(
   const disconnect = () => {
     reconnectManager.state.intentionalDisconnect = true;
     reconnectManager.clearTimer();
+
+    // 多路复用模式：委托给 transport
+    if (transport) {
+      if (connectionStatus.value !== 'disconnected') {
+        connectionStatus.value = 'disconnected';
+        statusMessage.value = getStatusText('disconnected', { reason: '手动断开' });
+      }
+      transport.disconnect();
+      isSftpReady.value = false;
+      return;
+    }
+
     if (ws.value) {
       if (connectionStatus.value !== 'disconnected') {
         connectionStatus.value = 'disconnected';
@@ -280,6 +312,16 @@ export function createWebSocketConnectionManager(
    * 发送 WebSocket 消息
    */
   const sendMessage = (message: WebSocketMessage) => {
+    // 多路复用模式：委托给 transport
+    if (transport) {
+      try {
+        transport.sendMessage(message);
+      } catch (error: unknown) {
+        log.error(`[WebSocket ${instanceSessionId}] 多路复用发送消息失败:`, error, message);
+      }
+      return;
+    }
+
     if (ws.value && ws.value.readyState === WebSocket.OPEN) {
       try {
         const messageString = JSON.stringify(message);
@@ -299,6 +341,11 @@ export function createWebSocketConnectionManager(
    * @returns 用于注销此处理器的函数
    */
   const onMessage = (type: string, handler: MessageHandler): (() => void) => {
+    // 多路复用模式：委托给 transport
+    if (transport) {
+      return transport.onMessage(type, handler);
+    }
+
     if (!messageHandlers.has(type)) {
       messageHandlers.set(type, new Set());
     }

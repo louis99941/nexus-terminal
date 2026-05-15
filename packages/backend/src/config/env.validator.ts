@@ -50,6 +50,9 @@ export interface EnvironmentConfig {
   // AI/NL2CMD 调试配置
   NL2CMD_TIMING_LOG?: '0' | '1';
   NL2CMD_SLOW_THRESHOLD_MS?: number;
+
+  // WebSocket 多路复用
+  ENABLE_MULTIPLEX?: boolean;
 }
 
 interface EnvVarSchema {
@@ -308,6 +311,13 @@ const ENV_SCHEMA: Record<keyof EnvironmentConfig, EnvVarSchema> = {
       return ms >= 0 && ms <= 300000;
     },
     errorMessage: 'NL2CMD_SLOW_THRESHOLD_MS 必须在 0-300000 毫秒之间',
+  },
+
+  // WebSocket 多路复用
+  ENABLE_MULTIPLEX: {
+    required: false,
+    type: 'boolean',
+    default: false,
   },
 };
 

@@ -70,6 +70,7 @@
 | `IPINFO_TOKEN`               | -        | ipinfo.io API Token（可选，提升请求配额至 50k/月）。                        |
 | `HEARTBEAT_INTERVAL_DESKTOP` | `30000`  | 桌面端心跳间隔（毫秒）                                                      |
 | `HEARTBEAT_INTERVAL_MOBILE`  | `12000`  | 移动端心跳间隔（毫秒）                                                      |
+| `ENABLE_MULTIPLEX`           | `false`  | WebSocket 多路复用开关。设为 `true` 启用单连接多会话模式                    |
 | `TRUST_PROXY`                | -        | 是否信任代理 (`true`/`false`)                                               |
 | `TRUST_PROXY_HOPS`           | -        | 信任的代理跳数                                                              |
 | `LOG_LEVEL`                  | `info`   | 后端日志等级（`debug/info/warn/error/silent`）                              |

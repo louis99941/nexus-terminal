@@ -89,6 +89,16 @@ MAX_MISSED_PONGS_DESKTOP=3         # 桌面端最大丢包次数
 MAX_MISSED_PONGS_MOBILE=5          # 移动端最大丢包次数
 ```
 
+### 多路复用
+
+启用 WebSocket 多路复用，单个物理连接可承载多个 SSH 会话，减少浏览器连接数和服务器资源消耗。
+
+```env
+ENABLE_MULTIPLEX=false             # 默认关闭，设为 true 启用
+```
+
+> 注意：多路复用模式下，多个终端标签共享同一个 WebSocket 连接。关闭时回退到传统的每会话一个连接模式。
+
 ### Nginx 超时
 
 ```nginx

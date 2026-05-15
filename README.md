@@ -40,6 +40,9 @@
 | **进程内缓存层**         | settings 表 5 分钟 TTL、connections 表 2 分钟 TTL，减少高频 SQL 查询              |
 | **SSH 连接池**           | 批量任务支持连接复用，每目标最多 3 个空闲连接，60 秒自动回收                      |
 | **批量任务优先级**       | 支持 low/normal/high/urgent 四个优先级，紧急任务优先执行                          |
+| **WebSocket 多路复用**   | 单连接承载多会话，减少浏览器连接数，降低服务器资源消耗                            |
+| **终端数据压缩**         | permessage-deflate 协议压缩 + 16ms 微批处理，降低带宽占用                         |
+| **CDN 边缘部署**         | 支持 Cloudflare/CloudFront 等 CDN 加速静态资源分发                                |
 
 ### 🛠️ 新增功能
 
