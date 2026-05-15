@@ -33,11 +33,6 @@ export type NotificationEvent =
   | 'SSH_SHELL_FAILURE'
   | 'SSH_DISCONNECT'
   | 'SSH_SESSION_SUSPENDED'
-  // Passkey 事件
-  | 'PASSKEY_REGISTERED'
-  | 'PASSKEY_AUTH_SUCCESS'
-  | 'PASSKEY_AUTH_FAILURE'
-  | 'PASSKEY_DELETED'
   // 文件传输事件
   | 'FILE_UPLOAD'
   | 'FILE_DOWNLOAD'

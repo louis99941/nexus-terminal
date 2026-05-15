@@ -598,10 +598,12 @@ export const logout = (req: Request, res: Response): void => {
           auditLogService.logAction('LOGOUT', logoutPayload);
           notificationService.sendNotification('LOGOUT', logoutPayload);
         });
-      eventService.emitEvent(AppEventType.Logout, {
-        userId: userId as number,
-        details: { username: username as string },
-      });
+      if (userId != null) {
+        eventService.emitEvent(AppEventType.Logout, {
+          userId: userId as number,
+          details: { username: username as string },
+        });
+      }
     },
   });
 };

@@ -330,7 +330,7 @@ export const createConnection = async (
 
   // 7. 发布连接创建事件
   eventService.emitEvent(AppEventType.ConnectionCreated, {
-    details: { connectionId: newConnectionId, name: input.name, type: input.type },
+    details: { connectionId: newConnection.id, name: newConnection.name, type: newConnection.type },
   });
 
   // 8. 返回新创建的带标签的连接
@@ -618,7 +618,7 @@ export const updateConnection = async (
 
     // 发布连接更新事件
     eventService.emitEvent(AppEventType.ConnectionUpdated, {
-      details: { connectionId: id, name: input.name },
+      details: { connectionId: id, name: input.name ?? undefined },
     });
   }
 

@@ -687,7 +687,7 @@ export async function handleSshConnect(
             eventService.emitEvent(AppEventType.SshShellFailure, {
               userId: ws.userId,
               details: {
-                connectionId: payload.connectionId,
+                connectionId: dbConnectionIdAsNumber,
                 connectionName: newState.connectionName || '',
                 sessionId: newSessionId,
                 ip: clientIp,
@@ -828,7 +828,7 @@ export async function handleSshConnect(
           eventService.emitEvent(AppEventType.SshConnectSuccess, {
             userId: ws.userId,
             details: {
-              connectionId: payload.connectionId,
+              connectionId: dbConnectionIdAsNumber,
               connectionName: newState.connectionName || '',
               sessionId: newSessionId,
               ip: clientIp,

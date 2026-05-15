@@ -161,7 +161,7 @@ export const updateProxy = async (
 
     // 发布代理更新事件
     eventService.emitEvent(AppEventType.ProxyUpdated, {
-      details: { proxyId: id, name: input.name },
+      details: { proxyId: id, name: input.name ?? undefined },
     });
   }
 

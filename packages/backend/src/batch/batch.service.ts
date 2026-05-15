@@ -150,14 +150,17 @@ export async function execCommandBatch(
 
   // 持久化到数据库
   await BatchRepository.createTask(task);
-  eventService.emitEvent(AppEventType.BatchTaskCreated, {
-    userId: typeof userId === 'string' ? parseInt(userId, 10) : userId,
-    details: {
-      taskId: task.taskId,
-      command: payload.command,
-      targetCount: payload.connectionIds.length,
-    },
-  });
+  const numericUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+  if (!Number.isNaN(numericUserId)) {
+    eventService.emitEvent(AppEventType.BatchTaskCreated, {
+      userId: numericUserId,
+      details: {
+        taskId: task.taskId,
+        command: payload.command,
+        targetCount: payload.connectionIds.length,
+      },
+    });
+  }
   logger.info(`[BatchService] 批量任务已创建: ${taskId}，包含 ${subTasks.length} 个子任务。`);
 
   // 创建 AbortController
@@ -806,7 +809,9 @@ async function finalizeTask(
 
   // 触发事件总线通知
   const numericUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
-  if (failed === 0 && !taskCancelled && cancelled === 0) {
+  if (Number.isNaN(numericUserId)) {
+    logger.warn(`[BatchService] 无效的 userId '${userId}'，跳过事件发射`);
+  } else if (failed === 0 && !taskCancelled && cancelled === 0) {
     eventService.emitEvent(AppEventType.BatchTaskCompleted, {
       userId: numericUserId,
       details: { taskId, completed, failed, cancelled, total },
