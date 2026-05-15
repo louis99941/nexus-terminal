@@ -36,6 +36,10 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 | **Frontend Lazy Loading**           | RDP/VNC components loaded on-demand, guacamole dependency (~200KB) no longer blocks initial render                          |
 | **SQLite WAL Mode**                 | Enabled WAL mode for optimized concurrent read/write, reduced lock contention                                               |
 | **Audit Log Probabilistic Cleanup** | Triggered every 100 writes instead of every write, eliminating unnecessary cleanup overhead                                 |
+| **Database Index Optimization**     | Added missing indexes for proxies/notification_settings/favorite_paths/quick_commands tables                                |
+| **In-Process Cache Layer**          | Settings table 5min TTL, connections table 2min TTL, reducing high-frequency SQL queries                                    |
+| **SSH Connection Pool**             | Batch task connection reuse, max 3 idle connections per target, 60s auto-reclaim                                            |
+| **Batch Task Priority**             | Supports low/normal/high/urgent priorities, urgent tasks execute first                                                      |
 
 ### 🛠️ New Features
 

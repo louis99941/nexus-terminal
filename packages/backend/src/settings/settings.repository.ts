@@ -3,12 +3,17 @@ import { ErrorFactory, getErrorMessage } from '../utils/AppError';
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { SidebarConfig, LayoutNode, CaptchaSettings } from '../types/settings.types';
 import { logger } from '../utils/logger';
+import { cacheService } from '../services/cache.service';
 
 // 登录封禁默认时长（秒），对应 5 分钟
 const DEFAULT_LOGIN_BAN_DURATION_SECONDS = 300;
 
 const SIDEBAR_CONFIG_KEY = 'sidebarConfig';
 const CAPTCHA_CONFIG_KEY = 'captchaConfig';
+
+// 缓存配置
+const SETTINGS_CACHE_TTL = 5 * 60 * 1000; // 5 分钟
+const SETTINGS_CACHE_PREFIX = 'setting:';
 
 export interface Setting {
   key: string;
@@ -30,7 +35,13 @@ export const settingsRepository = {
   },
 
   async getSetting(key: string): Promise<string | null> {
-    // logger.info(`[仓库] 尝试获取键为 ${key} 的设置`);
+    // 1. 先查缓存
+    const cached = cacheService.get<string>(`${SETTINGS_CACHE_PREFIX}${key}`);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // 2. 查数据库
     try {
       const db = await getDbInstance();
       const row = await getDbRow<{ value: string }>(
@@ -39,7 +50,12 @@ export const settingsRepository = {
         [key]
       );
       const value = row ? row.value : null;
-      // logger.info(`[仓库] 找到键 ${key} 的值:`, value);
+
+      // 3. 写入缓存（仅缓存非空值）
+      if (value !== null) {
+        cacheService.set(`${SETTINGS_CACHE_PREFIX}${key}`, value, SETTINGS_CACHE_TTL);
+      }
+
       return value;
     } catch (err: unknown) {
       logger.error(`[Repository] 获取设置项 ${key} 时出错:`, getErrorMessage(err));
@@ -62,6 +78,8 @@ export const settingsRepository = {
     try {
       const db = await getDbInstance();
       await runDb(db, sql, params);
+      // 写入成功后失效缓存
+      cacheService.delete(`${SETTINGS_CACHE_PREFIX}${key}`);
     } catch (err: unknown) {
       logger.error(`[Repository] 设置设置项 ${key} 时出错:`, getErrorMessage(err));
       throw ErrorFactory.databaseError(
@@ -72,12 +90,14 @@ export const settingsRepository = {
   },
 
   async deleteSetting(key: string): Promise<boolean> {
-    // logger.info(`[仓库] 尝试删除键为 ${key} 的设置`);
     const sql = 'DELETE FROM settings WHERE key = ?';
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, [key]);
-      // logger.info(`[仓库] 成功删除键为 ${key} 的设置。影响行数: ${result.changes}`);
+      // 删除成功后失效缓存
+      if (result.changes > 0) {
+        cacheService.delete(`${SETTINGS_CACHE_PREFIX}${key}`);
+      }
       return result.changes > 0;
     } catch (err: unknown) {
       logger.error(`[Repository] 删除设置项 ${key} 时出错:`, getErrorMessage(err));

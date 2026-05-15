@@ -36,6 +36,10 @@
 | **前端懒加载优化**       | RDP/VNC 组件按需加载，guacamole 依赖 (~200KB) 不再阻塞首屏                        |
 | **SQLite WAL 模式**      | 启用 WAL 模式优化数据库并发读写，减少锁竞争                                       |
 | **审计日志概率清理**     | 改为概率触发（每 100 次写入清理一次），避免每次写入都执行清理检查                 |
+| **数据库索引优化**       | 为 proxies/notification_settings/favorite_paths/quick_commands 添加缺失索引       |
+| **进程内缓存层**         | settings 表 5 分钟 TTL、connections 表 2 分钟 TTL，减少高频 SQL 查询              |
+| **SSH 连接池**           | 批量任务支持连接复用，每目标最多 3 个空闲连接，60 秒自动回收                      |
+| **批量任务优先级**       | 支持 low/normal/high/urgent 四个优先级，紧急任务优先执行                          |
 
 ### 🛠️ 新增功能
 

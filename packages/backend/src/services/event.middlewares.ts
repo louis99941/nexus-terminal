@@ -3,13 +3,36 @@
  * 提供日志记录和事件持久化功能
  */
 import { logger } from '../utils/logger';
-import { getDbInstance } from '../database/connection';
+import { getDbInstance, runDb } from '../database/connection';
 import {
   type AppEventPayload,
   type AppEventType,
   type EventMiddleware,
   PERSISTENT_EVENTS,
 } from '../types/event.types';
+
+// event_logs 清理配置
+const CLEANUP_THRESHOLD = 200; // 每 200 次写入触发清理
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 分钟间隔触发清理
+const RETENTION_DAYS = 30; // 保留 30 天日志
+
+let writeCount = 0;
+let lastCleanupTime = Date.now();
+
+/**
+ * 清理过期的 event_logs 记录
+ * 保留最近 RETENTION_DAYS 天的日志
+ */
+async function cleanupOldEventLogs(): Promise<void> {
+  try {
+    const db = await getDbInstance();
+    const cutoffTime = Math.floor(Date.now() / 1000) - RETENTION_DAYS * 24 * 60 * 60;
+    await runDb(db, 'DELETE FROM event_logs WHERE created_at < ?', [cutoffTime]);
+    logger.debug('[EventPersistence] event_logs 清理完成');
+  } catch (error) {
+    logger.error('[EventPersistence] event_logs 清理失败:', error);
+  }
+}
 
 /**
  * 日志中间件
@@ -91,4 +114,12 @@ async function persistEvent(eventType: AppEventType, payload: AppEventPayload): 
       }
     );
   });
+
+  // 概率清理：每 200 次写入或 5 分钟间隔触发清理
+  writeCount++;
+  if (writeCount >= CLEANUP_THRESHOLD || Date.now() - lastCleanupTime > CLEANUP_INTERVAL_MS) {
+    writeCount = 0;
+    lastCleanupTime = Date.now();
+    cleanupOldEventLogs();
+  }
 }
