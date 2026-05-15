@@ -324,8 +324,8 @@ describe('tags.store', () => {
       expect(store.isLoading).toBe(false);
       expect(store.error).toBeNull();
       expect(mockPut).toHaveBeenCalledWith('/tags/1/connections', { connection_ids: [10, 20, 30] });
-      expect(mockCacheManagerRemove).toHaveBeenCalledWith('nexus_tags');
-      expect(mockCacheManagerRemove).toHaveBeenCalledWith('nexus_connections');
+      expect(localStorage.removeItem).toHaveBeenCalledWith('tagsCache');
+      expect(localStorage.removeItem).toHaveBeenCalledWith('connections');
     });
 
     it('空连接 ID 列表时应正确发送请求', async () => {

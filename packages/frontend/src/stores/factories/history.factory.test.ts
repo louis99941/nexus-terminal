@@ -11,10 +11,12 @@ const mockLog = vi.hoisted(() => ({
 }));
 vi.mock('@/utils/log', () => ({ log: mockLog }));
 
-// Mock apiClient
-const mockGet = vi.fn();
-const mockPost = vi.fn();
-const mockDelete = vi.fn();
+// Mock apiClient - 使用 vi.hoisted 确保在 mock 声明前初始化
+const { mockGet, mockPost, mockDelete } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+  mockDelete: vi.fn(),
+}));
 
 vi.mock('../../utils/apiClient', () => ({
   default: {
@@ -185,10 +187,7 @@ describe('createHistoryStore factory', () => {
 
     it('应从 -1 前进到 0', () => {
       const store = useCommandStore();
-      store.historyList = [
-        createMockEntry({ id: 1 }),
-        createMockEntry({ id: 2 }),
-      ];
+      store.historyList = [createMockEntry({ id: 1 }), createMockEntry({ id: 2 })];
       store.selectedIndex = -1;
       store.selectNext();
       expect(store.selectedIndex).toBe(0);
@@ -226,10 +225,7 @@ describe('createHistoryStore factory', () => {
 
     it('selectNextCommand 别名应与 selectNext 行为一致', () => {
       const store = useCommandStore();
-      store.historyList = [
-        createMockEntry({ id: 1 }),
-        createMockEntry({ id: 2 }),
-      ];
+      store.historyList = [createMockEntry({ id: 1 }), createMockEntry({ id: 2 })];
       store.selectedIndex = -1;
       store.selectNextCommand();
       expect(store.selectedIndex).toBe(0);
@@ -272,10 +268,7 @@ describe('createHistoryStore factory', () => {
 
     it('应正常向前回退', () => {
       const store = useCommandStore();
-      store.historyList = [
-        createMockEntry({ id: 1 }),
-        createMockEntry({ id: 2 }),
-      ];
+      store.historyList = [createMockEntry({ id: 1 }), createMockEntry({ id: 2 })];
       store.selectedIndex = 1;
       store.selectPrevious();
       expect(store.selectedIndex).toBe(0);

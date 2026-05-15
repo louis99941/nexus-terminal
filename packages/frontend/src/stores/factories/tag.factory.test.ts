@@ -11,11 +11,13 @@ const mockLog = vi.hoisted(() => ({
 }));
 vi.mock('@/utils/log', () => ({ log: mockLog }));
 
-// Mock apiClient
-const mockGet = vi.fn();
-const mockPost = vi.fn();
-const mockPut = vi.fn();
-const mockDelete = vi.fn();
+// Mock apiClient - 使用 vi.hoisted 确保在 mock 声明前初始化
+const { mockGet, mockPost, mockPut, mockDelete } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+  mockPut: vi.fn(),
+  mockDelete: vi.fn(),
+}));
 
 vi.mock('../../utils/apiClient', () => ({
   default: {
@@ -153,9 +155,7 @@ describe('createTagStore factory', () => {
 
     it('API 数据与缓存相同时不应重复写入缓存', async () => {
       const sameTags = [createMockTag({ id: 1, name: '相同标签' })];
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(
-        JSON.stringify(sameTags)
-      );
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(sameTags));
       mockGet.mockResolvedValue({ data: sameTags });
 
       const store = useTagStore();
@@ -179,10 +179,7 @@ describe('createTagStore factory', () => {
       const store = useTagStore();
       await store.fetchTags();
 
-      expect(localStorage.setItem).toHaveBeenCalledWith(
-        'testTagsCache',
-        JSON.stringify(freshTags)
-      );
+      expect(localStorage.setItem).toHaveBeenCalledWith('testTagsCache', JSON.stringify(freshTags));
     });
 
     it('缓存 JSON 解析失败时应清除缓存并从 API 加载', async () => {

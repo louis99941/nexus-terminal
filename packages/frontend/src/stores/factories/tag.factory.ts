@@ -68,7 +68,11 @@ export function createTagStore(config: TagStoreConfig) {
         isLoading.value = true;
       }
 
-      isLoading.value = true;
+      // 只在无缓存时设置 isLoading 为 true
+      if (!localStorage.getItem(cacheKey)) {
+        isLoading.value = true;
+      }
+
       try {
         const response = await apiClient.get<TagInfo[]>(apiEndpoint);
         const freshData = response.data;
