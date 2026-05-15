@@ -119,10 +119,10 @@ export function createWorkerPool(
   }
 
   /**
-   * Reserves an idle worker and prepares the oldest pending request for dispatch.
+   * Reserve an idle worker and prepare the oldest pending request for dispatch.
    *
-   * If the pool is destroyed or no idle worker exists, the function returns without action.
-   * Otherwise it marks the chosen worker as busy and constructs the WorkerRequest for the earliest entry in the pending map; it does not actually post the message to the worker.
+   * If the pool is destroyed or no idle worker is available, the function returns without action.
+   * Otherwise it marks the selected worker as busy and constructs a `WorkerRequest` for the earliest entry in the pending queue; it does not post the message to the worker.
    */
   function processQueue() {
     if (destroyed) return;
@@ -149,15 +149,14 @@ export function createWorkerPool(
   }
 
   /**
-   * Dispatches a task to the worker pool identified by `taskType` using the provided `payload`.
+   * Execute a task in the worker pool identified by `taskType`, using `payload` as the task data.
    *
-   * If an idle worker is available the task is sent immediately; if all workers are busy the task is queued
-   * until a worker becomes available. If workers are unavailable and a `fallback` is configured, the fallback
-   * is invoked instead.
+   * If a worker is idle the task is dispatched immediately; otherwise it is queued until a worker becomes available.
+   * When workers are unavailable and a `fallback` was provided to the pool, the fallback is invoked instead.
    *
    * @param taskType - Identifier of the task to run inside the worker
    * @param payload - Data to pass to the worker for this task
-   * @returns The value produced by the worker or by the configured `fallback`, typed as `T`
+   * @returns The value produced by the worker or by the configured `fallback`
    * @throws Error when workers are unavailable and no `fallback` is configured
    * @throws Error when the worker pool has been destroyed
    */

@@ -177,10 +177,10 @@ function processOutput(output: string): ProcessedOutput {
 }
 
 /**
- * Determine the semantic type of a text blob (JSON, YAML, TABLE, LOG, or TEXT).
+ * Detects the semantic format of a text blob for display and highlighting purposes.
  *
- * @param output - Raw text to analyze for format detection
- * @returns The detected OutputType value: `JSON`, `YAML`, `TABLE`, `LOG`, or `TEXT`
+ * @param output - Raw text to analyze.
+ * @returns The detected OutputType: `JSON`, `YAML`, `TABLE`, `LOG`, or `TEXT`.
  */
 function detectType(output: string): OutputType {
   const trimmed = output.trim();
@@ -226,10 +226,10 @@ function detectType(output: string): OutputType {
 }
 
 /**
- * Apply ANSI color styling to JSON for terminal syntax highlighting.
+ * Applies ANSI color styling to JSON for terminal syntax highlighting.
  *
  * @param jsonText - The JSON text to highlight.
- * @returns The formatted JSON string with ANSI color codes applied to keys, string values, numeric values, booleans, null, and punctuation; if `jsonText` is not valid JSON the original `jsonText` is returned unchanged.
+ * @returns The JSON text reserialized with ANSI color codes applied to keys, string values, numeric values, booleans, `null`, and punctuation; returns `jsonText` unchanged if it is not valid JSON.
  */
 function highlightJSON(jsonText: string): string {
   try {
@@ -248,10 +248,12 @@ function highlightJSON(jsonText: string): string {
 }
 
 /**
- * Highlight YAML content using ANSI color codes for keys, values, comments, and list markers.
+ * Apply ANSI color styling to log text for visual emphasis of timestamps, levels, addresses, and status codes.
  *
- * @param yamlText - The YAML content to highlight; may be multiline.
- * @returns The input text with keys wrapped in cyan+bold, quoted strings in green, numbers in yellow, booleans (`true`, `false`, `yes`, `no`) in magenta, `null`/`~` in bright black, full-line comments in bright black, and list markers (`- `) in white.
+ * Highlights ISO-like timestamps in bright black; log level tokens (`ERROR`, `WARN`, `INFO`, `DEBUG`, `SUCCESS`, `OK`) with level-appropriate bright colors and bold; IPv4 addresses in yellow; and three-digit HTTP-like status codes colored by range (200–299 green, 300–399 cyan, 400–499 yellow, 500+ red).
+ *
+ * @param logText - The log content to transform; may contain multiple lines.
+ * @returns The input text with ANSI styling applied to recognized log constructs.
  */
 function highlightLog(logText: string): string {
   return logText
@@ -398,10 +400,10 @@ function normalizeNewlines(value: string): string {
 }
 
 /**
- * Remove ANSI escape sequences from the provided string.
+ * Strip ANSI SGR (Select Graphic Rendition) escape sequences from the provided string.
  *
- * @param value - Input string that may contain ANSI escape codes (e.g., color or style sequences)
- * @returns The input string with all ANSI escape sequences removed
+ * @param value - Input string that may contain ANSI SGR escape sequences (e.g., color or style codes like `\x1b[31m`)
+ * @returns The input string with all ANSI SGR escape sequences removed
  */
 function stripAnsiCodes(value: string): string {
   return value.replace(ANSI_ESCAPE_REGEX, '');
