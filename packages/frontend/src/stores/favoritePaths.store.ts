@@ -54,10 +54,10 @@ export const useFavoritePathsStore = defineStore('favoritePaths', () => {
   }
 
   /**
-   * Sorts `favoritePaths` in place according to `currentSortBy`.
+   * Sorts the store's `favoritePaths` array in place according to `currentSortBy`.
    *
-   * When `currentSortBy` is `'name'`, orders items alphabetically by `name` (falling back to `path`).
-   * When `currentSortBy` is `'last_used_at'`, orders items by most recently used first.
+   * When `currentSortBy` is `'name'`, items are ordered alphabetically by `name` with `path` as a fallback.
+   * When `currentSortBy` is `'last_used_at'`, items are ordered by `last_used_at` with the most recent first; missing timestamps are treated as `0`.
    */
   function _sortFavoritePaths() {
     favoritePaths.value.sort((a, b) => {
@@ -100,11 +100,11 @@ export const useFavoritePathsStore = defineStore('favoritePaths', () => {
   }
 
   /**
-   * Fetches favorite paths from the API and updates the store state.
+   * Fetches favorite paths from the API and updates the store with the results.
    *
-   * On success replaces `favoritePaths` with the received data and sorts them.
-   * On failure sets `error`, logs the error, and resets `isInitialized` to `false`.
-   * The function toggles `isLoading` for the duration of the request.
+   * On success replaces `favoritePaths` with the response data and re-sorts them.
+   * On failure sets `error` to the extracted message and resets `isInitialized` to `false`.
+   * Toggles `isLoading` for the duration of the request.
    */
   async function fetchFavoritePaths(_t: (key: string, defaultMessage: string) => string) {
     isLoading.value = true;
@@ -123,9 +123,9 @@ export const useFavoritePathsStore = defineStore('favoritePaths', () => {
   }
 
   /**
-   * Set the active sort key for favorite paths and persist the selection to localStorage.
+   * Update the store's active sort key for favorite paths and persist it to localStorage.
    *
-   * @param sortBy - The sort key to apply; allowed values are `'name'` (sort by display name with fallback to path) or `'last_used_at'` (sort by most recently used). This updates the store's current sort and re-sorts the favorite paths.
+   * @param sortBy - The sort key to apply: `'name'` (sort by display name with fallback to `path`) or `'last_used_at'` (sort by most recently used)
    */
   function setSortBy(sortBy: FavoritePathSortType) {
     currentSortBy.value = sortBy;
@@ -218,9 +218,9 @@ export const useFavoritePathsStore = defineStore('favoritePaths', () => {
    * Update an existing favorite path on the server and synchronize the local store.
    *
    * @param id - The ID of the favorite path to update.
-   * @param updatedPathData - Partial favorite path fields to change; must not include `id`, `created_at`, or `last_used_at`.
-   * @param t - Translation function that takes a translation key and a default message and returns a localized string.
-   * @throws The original error thrown when the API request fails.
+   * @param updatedPathData - Partial fields to update; must not include `id`, `created_at`, or `last_used_at`.
+   * @param t - Translation function that accepts a translation key and a default message and returns a localized string.
+   * @throws The original error thrown by the API request when the update fails.
    */
   async function updateFavoritePath(
     id: number,

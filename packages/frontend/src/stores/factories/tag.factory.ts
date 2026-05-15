@@ -42,6 +42,15 @@ export function createTagStore(config: TagStoreConfig) {
     const error = ref<string | null>(null);
     const uiNotificationsStore = useUiNotificationsStore();
 
+    /**
+     * Loads the tag list into the store, using localStorage cache when available and then refreshing from the API.
+     *
+     * Attempts to populate the store's `tags` from the configured cache key, fetches the latest tags from the API,
+     * updates the cache if the fetched list differs from the current list, sets `error` on failure, and updates `isLoading`
+     * for the duration of the operation. If notifications are enabled, shows an error message when the API request fails.
+     *
+     * @returns `true` if the tags were fetched and the store state updated successfully, `false` otherwise.
+     */
     async function fetchTags() {
       error.value = null;
 
@@ -84,6 +93,15 @@ export function createTagStore(config: TagStoreConfig) {
       }
     }
 
+    /**
+     * Creates a new tag with the given name and refreshes the stored tag list.
+     *
+     * If the store is configured to use UI notifications, a success or error message
+     * may be shown after the operation completes.
+     *
+     * @param name - The display name for the new tag
+     * @returns The created `TagInfo` on success, `null` on failure
+     */
     async function addTag(name: string): Promise<TagInfo | null> {
       isLoading.value = true;
       error.value = null;
@@ -110,6 +128,13 @@ export function createTagStore(config: TagStoreConfig) {
       }
     }
 
+    /**
+     * Update an existing tag's name and refresh the store's cached tag list.
+     *
+     * @param id - The identifier of the tag to update
+     * @param name - The new name for the tag
+     * @returns `true` if the tag was updated and the store was refreshed, `false` otherwise.
+     */
     async function updateTag(id: number, name: string): Promise<boolean> {
       isLoading.value = true;
       error.value = null;
@@ -133,6 +158,15 @@ export function createTagStore(config: TagStoreConfig) {
       }
     }
 
+    /**
+     * Delete a tag by its id and refresh the cached tag list.
+     *
+     * If configured to use notifications, shows a success message when the deletion
+     * and subsequent refresh succeed, or an error message when the operation fails.
+     *
+     * @param id - The identifier of the tag to delete
+     * @returns `true` if the tag was deleted and the tag list was refreshed successfully, `false` otherwise
+     */
     async function deleteTag(id: number): Promise<boolean> {
       isLoading.value = true;
       error.value = null;

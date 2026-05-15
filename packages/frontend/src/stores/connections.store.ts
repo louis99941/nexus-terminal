@@ -38,9 +38,9 @@ export const useConnectionsStore = defineStore('connections', () => {
   const error = ref<string | null>(null);
 
   /**
-   * Load the connections list into the store, preferring cached data and updating the cache when the server returns different data.
+   * Loads the connections list, using cached data when available and refreshing from the server; updates the connections cache if the server returns different data.
    *
-   * Sets the `connections`, `isLoading`, and `error` refs to reflect the operation state; on failure it sets `error` with a user-facing message and logs the error, and logs a warning when the failure is due to an unauthorized (401) response.
+   * Updates the store's `connections`, `isLoading`, and `error` refs to reflect progress and outcome. On failure sets a user-facing error message and logs the error; logs a warning when the failure is an HTTP 401 unauthorized.
    */
   async function fetchConnections() {
     const cacheOptions = CACHE_CONFIG[CACHE_KEYS.CONNECTIONS];
@@ -215,11 +215,11 @@ export const useConnectionsStore = defineStore('connections', () => {
   }
 
   /**
-   * Delete multiple connections identified by their IDs.
+   * Delete multiple connections by their IDs.
    *
-   * This operation attempts to delete each provided connection sequentially. If `connectionIds` is empty or missing the function is a no-op and returns `true`. The store's loading and error state are updated to reflect progress and any partial failures.
+   * Attempts to delete each ID sequentially; updates the store's `isLoading` and `error` state to reflect progress and any partial failures.
    *
-   * @param connectionIds - Array of connection IDs to delete
+   * @param connectionIds - Array of connection IDs to delete; if empty or missing the function is a no-op and returns `true`
    * @returns `true` if all specified connections were deleted successfully, `false` if one or more deletions failed
    */
   async function deleteBatchConnections(connectionIds: number[]): Promise<boolean> {
@@ -370,13 +370,13 @@ export const useConnectionsStore = defineStore('connections', () => {
   }
 
   /**
-   * Obtain a VNC session token for a connection, optionally constrained to the given width and height.
+   * Request a VNC session token for the specified connection, optionally constrained to a viewport width and/or height.
    *
-   * @param connectionId - The ID of the connection to request a VNC session for
-   * @param width - Optional viewport width in pixels to request for the VNC session
-   * @param height - Optional viewport height in pixels to request for the VNC session
-   * @returns The VNC session token as a string, or `null` if a token is not available
-   * @throws Rethrows the underlying error when the request fails (network, authorization, or server errors)
+   * @param connectionId - The ID of the connection to request the VNC session for
+   * @param width - Optional viewport width in pixels to request for the session
+   * @param height - Optional viewport height in pixels to request for the session
+   * @returns The VNC session token string
+   * @throws Propagates the original error when the network request fails or the server returns an error
    */
   async function getVncSessionToken(
     connectionId: number,

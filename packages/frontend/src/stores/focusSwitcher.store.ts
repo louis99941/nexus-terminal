@@ -149,9 +149,10 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   }
 
   /**
-   * Persist the store's current focus sequence and shortcut configurations to the backend.
+   * Persist the current focus sequence and per-item shortcut configuration to the backend.
    *
-   * Saves the current `sequenceOrder` and `itemConfigs` under the backend path `/settings/focus-switcher-sequence`.
+   * Sends the store's `sequenceOrder` and `itemConfigs` to the `/settings/focus-switcher-sequence` endpoint.
+   * On failure, logs an error and does not modify local store state.
    */
   async function saveConfigurationToBackend() {
     const apiPath = '/settings/focus-switcher-sequence';

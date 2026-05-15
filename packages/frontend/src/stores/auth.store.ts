@@ -146,11 +146,11 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Complete the login process by validating a two-factor authentication (2FA) token.
+     * Finalize a login by validating the two-factor authentication token.
      *
-     * @param token - The 2FA token provided by the user to finalize authentication
+     * @param token - The 2FA token submitted by the user to complete authentication
      * @returns `{ success: true }` if verification succeeds, `{ success: false, error: string }` if verification fails
-     * @throws Error when the current login flow does not require 2FA verification
+     * @throws Error when the current login flow does not require two-factor verification
      */
     async function verifyLogin2FA(token: string) {
       if (!loginRequires2FA.value) {
@@ -205,11 +205,11 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Checks the current authentication status with the backend and updates the store state.
+     * Reconciles authentication state with the backend and updates the store accordingly.
      *
-     * Updates `isLoading`, `isAuthenticated`, `user`, and `loginRequires2FA` based on the server response.
-     * If a logged-in user is returned and has a `language`, calls `setLocale` with that language.
-     * On failure, clears authentication state and logs a warning.
+     * Queries `/auth/status` and sets `isAuthenticated`, `user`, and `loginRequires2FA` based on the response.
+     * If a user is returned and includes a `language`, calls `setLocale` with that language.
+     * On failure, clears authentication state (`isAuthenticated` false, `user` null, `loginRequires2FA` false).
      */
     async function checkAuthStatus() {
       isLoading.value = true;
@@ -271,12 +271,12 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Fetches a page of IP blacklist entries from the backend.
+     * Retrieve a paginated list of IP blacklist entries from the backend.
      *
-     * @param limit - Maximum number of entries to return (pagination page size)
+     * @param limit - Maximum number of entries to return (page size)
      * @param offset - Number of entries to skip (pagination offset)
-     * @returns The response data containing `entries` (array of IP blacklist entries) and `total` (total entry count)
-     * @throws Error when the request fails; message is derived from the server response or a fallback message
+     * @returns The response data containing `entries` (array of IP blacklist entries) and `total` (total number of entries)
+     * @throws Error with the server-derived message or a fallback when the request fails
      */
     async function fetchIpBlacklist(limit: number = 50, offset: number = 0) {
       isLoading.value = true;
@@ -344,11 +344,10 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Fetches CAPTCHA settings from the backend and updates the store's publicCaptchaConfig.
+     * Loads server CAPTCHA settings and updates the store's publicCaptchaConfig.
      *
-     * Queries GET /settings/captcha, derives a public-facing config (enabled, provider,
-     * and public site keys) and writes it to `publicCaptchaConfig`. If the request fails,
-     * sets `publicCaptchaConfig` to `{ enabled: false, provider: 'none' }`.
+     * Derives a public-facing config (enabled, provider, and public site keys) from GET /settings/captcha
+     * and assigns it to `publicCaptchaConfig`. On failure, sets `publicCaptchaConfig` to `{ enabled: false, provider: 'none' }`.
      */
     async function fetchCaptchaConfig() {
       log.info('[AuthStore] fetchCaptchaConfig called. Forcing refetch.');
@@ -435,12 +434,12 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Register a new passkey for the specified username.
+     * Register a WebAuthn passkey for the given username.
      *
-     * @param username - The account username to associate the new passkey with.
+     * @param username - Account username to associate with the new passkey.
      * @param registrationResponse - The browser's WebAuthn registration response (credential data) to send to the server.
      * @returns An object with `success: true` when registration succeeds.
-     * @throws Error with the server-provided message or `'Passkey 注册失败。'` when registration fails.
+     * @throws Error with the server-provided message or 'Passkey registration failed.' when registration fails.
      */
     async function registerPasskey(username: string, registrationResponse: unknown) {
       isLoading.value = true;
@@ -508,12 +507,12 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Delete a registered passkey by credential ID and refresh the local passkey list.
+     * Deletes a registered passkey by credential ID and refreshes the local passkey list.
      *
-     * @param credentialID - The credential ID of the passkey to remove
+     * @param credentialID - The passkey credential ID to remove
      * @returns An object with `success: true` when the passkey was deleted
      * @throws If the current user is not authenticated
-     * @throws If the deletion request fails; the store's `error` will be set to the backend message (if available) and an `Error` is thrown
+     * @throws If the deletion request fails; the store's `error` will be set to the backend message when available and an `Error` is thrown
      */
     async function deletePasskey(credentialID: string) {
       if (!isAuthenticated.value) {
@@ -589,11 +588,13 @@ export const useAuthStore = defineStore(
     }
 
     /**
-     * Load initial authentication and CAPTCHA configuration into the store.
+     * Initialize authentication state and public CAPTCHA configuration from the backend.
      *
-     * Fetches initialization data from the backend and updates store state including `needsSetup`, `isAuthenticated`, `user`, and `publicCaptchaConfig`; sets the app locale when the returned user specifies a language and marks initialization as completed.
+     * Fetches initialization data and updates the store's `needsSetup`, `isAuthenticated`, `user`, and `publicCaptchaConfig` values; applies the user's language to the app locale when provided and marks initialization as completed.
      *
-     * On invalid CAPTCHA provider in the response, throws an Error. On failure, still marks initialization completed and, when no user is present and the response implies not needing setup and not authenticated, forces `needsSetup` to `true`. Toggles `isLoading` for the duration of the operation.
+     * @throws Error if the backend returns an invalid CAPTCHA provider.
+     *
+     * On failure the function still sets `isInitCompleted` to `true` and, if no user is present while `needsSetup` is false and `isAuthenticated` is false, forces `needsSetup` to `true`.
      */
     async function loadInitData() {
       isLoading.value = true;
