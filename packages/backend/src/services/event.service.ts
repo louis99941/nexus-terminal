@@ -17,8 +17,8 @@ import {
 export { AppEventType, type AppEventPayload } from '../types/event.types';
 
 class EventService extends EventEmitter {
-  private middlewares: EventMiddleware[] = [];
-  private domainListeners: Map<
+  private readonly middlewares: EventMiddleware[] = [];
+  private readonly domainListeners: Map<
     EventDomain,
     Array<{ eventType: AppEventType; listener: (payload: AppEventPayload) => void }>
   > = new Map();
