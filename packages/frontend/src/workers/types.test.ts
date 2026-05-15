@@ -1,123 +1,212 @@
-import { describe, it, expect } from 'vitest';
-import type { WorkerRequest, WorkerResponse } from './types';
 
-/**
- * Tests for the Worker message protocol type definitions.
- * These verify that the type shapes can be constructed correctly at runtime
- * (TypeScript interface compliance is enforced at compile time, but we can
- * validate the runtime shape expectations here).
- */
-describe('Worker 消息协议类型', () => {
-  describe('WorkerRequest 结构', () => {
-    it('应该能够构造包含所有必要字段的 WorkerRequest', () => {
-      const request: WorkerRequest = {
-        id: 'test-id-001',
-        type: 'process',
-        payload: { text: 'hello world' },
-      };
 
-      expect(request.id).toBe('test-id-001');
-      expect(request.type).toBe('process');
-      expect(request.payload).toEqual({ text: 'hello world' });
-    });
 
-    it('WorkerRequest payload 应接受任意类型', () => {
-      const requestWithNull: WorkerRequest = { id: '1', type: 'ping', payload: null };
-      const requestWithString: WorkerRequest = { id: '2', type: 'echo', payload: 'hello' };
-      const requestWithNumber: WorkerRequest = { id: '3', type: 'compute', payload: 42 };
-      const requestWithArray: WorkerRequest = { id: '4', type: 'batch', payload: [1, 2, 3] };
 
-      expect(requestWithNull.payload).toBeNull();
-      expect(requestWithString.payload).toBe('hello');
-      expect(requestWithNumber.payload).toBe(42);
-      expect(requestWithArray.payload).toEqual([1, 2, 3]);
-    });
 
-    it('WorkerRequest id 应为字符串类型', () => {
-      const request: WorkerRequest = { id: 'uuid-1234-5678', type: 'op', payload: {} };
-      expect(typeof request.id).toBe('string');
-    });
 
-    it('WorkerRequest type 应为字符串类型', () => {
-      const request: WorkerRequest = { id: '1', type: 'my-task-type', payload: {} };
-      expect(typeof request.type).toBe('string');
-    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    expect(response.type).toBe(request.type);
+  });
+});
+
+// ==================== 边界情况与健壮性测试 ====================
+
+describe('WorkerRequest 边界情况', () => {
+  it('id 应支持 UUID 格式', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const request: WorkerRequest = { id: uuid, type: 'process', payload: {} };
+    expect(request.id).toBe(uuid);
+    expect(request.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    );
   });
 
-  describe('WorkerResponse 结构', () => {
-    it('应该能够构造包含必要字段的成功响应', () => {
-      const response: WorkerResponse = {
-        id: 'req-123',
-        type: 'process',
-        payload: { result: 'done' },
-      };
-
-      expect(response.id).toBe('req-123');
-      expect(response.type).toBe('process');
-      expect(response.payload).toEqual({ result: 'done' });
-      expect(response.error).toBeUndefined();
-    });
-
-    it('应该能够构造包含 error 字段的失败响应', () => {
-      const response: WorkerResponse = {
-        id: 'req-456',
-        type: 'process',
-        payload: null,
-        error: '处理失败：超时',
-      };
-
-      expect(response.id).toBe('req-456');
-      expect(response.error).toBe('处理失败：超时');
-      expect(response.payload).toBeNull();
-    });
-
-    it('error 字段应为可选的', () => {
-      const successResponse: WorkerResponse = {
-        id: '1',
-        type: 'op',
-        payload: 'result',
-      };
-
-      expect(successResponse.error).toBeUndefined();
-    });
-
-    it('WorkerResponse payload 应接受任意类型', () => {
-      const withNull: WorkerResponse = { id: '1', type: 'a', payload: null };
-      const withObject: WorkerResponse = { id: '2', type: 'b', payload: { key: 'val' } };
-      const withBoolean: WorkerResponse = { id: '3', type: 'c', payload: true };
-
-      expect(withNull.payload).toBeNull();
-      expect(withObject.payload).toEqual({ key: 'val' });
-      expect(withBoolean.payload).toBe(true);
-    });
+  it('id 应支持空字符串（接口不强制非空）', () => {
+    const request: WorkerRequest = { id: '', type: 'process', payload: {} };
+    expect(request.id).toBe('');
   });
 
-  describe('请求/响应 ID 关联', () => {
-    it('响应的 id 应与请求的 id 匹配（按惯例）', () => {
-      const request: WorkerRequest = {
-        id: 'correlation-id-xyz',
-        type: 'task',
-        payload: {},
-      };
+  it('type 应支持所有任务类型名称', () => {
+    const taskTypes = ['process', 'configure', 'execute', 'terminate'];
+    for (const taskType of taskTypes) {
+      const request: WorkerRequest = { id: '1', type: taskType, payload: {} };
+      expect(request.type).toBe(taskType);
+    }
+  });
 
-      const response: WorkerResponse = {
-        id: request.id,
-        type: request.type,
-        payload: { result: 'success' },
-      };
+  it('payload 应支持嵌套对象', () => {
+    const nested = { level1: { level2: { data: [1, 2, 3] } } };
+    const request: WorkerRequest = { id: '1', type: 'process', payload: nested };
+    expect(request.payload).toEqual(nested);
+  });
 
-      expect(response.id).toBe(request.id);
-      expect(response.type).toBe(request.type);
-    });
+  it('payload 应支持 undefined', () => {
+    const request: WorkerRequest = { id: '1', type: 'process', payload: undefined };
+    expect(request.payload).toBeUndefined();
+  });
 
-    it('响应的 type 通常与请求的 type 匹配', () => {
-      const types = ['process', 'configure', 'compute', 'validate'];
+  it('payload 应支持 boolean', () => {
+    const request: WorkerRequest = { id: '1', type: 'configure', payload: true };
+    expect(request.payload).toBe(true);
+  });
+});
 
-      types.forEach((type) => {
-        const req: WorkerRequest = { id: '1', type, payload: {} };
-        const res: WorkerResponse = { id: '1', type, payload: null };
-        expect(res.type).toBe(req.type);
-      });
-    });
+describe('WorkerResponse 边界情况', () => {
+  it('error 字段应支持空字符串', () => {
+    const response: WorkerResponse = {
+      id: '1',
+      type: 'process',
+      payload: null,
+      error: '',
+    };
+    expect(response.error).toBe('');
+  });
+
+  it('error 字段应支持多行错误消息', () => {
+    const multilineError = 'Line 1: TypeError\nLine 2: at function foo\nLine 3: at bar';
+    const response: WorkerResponse = {
+      id: '1',
+      type: 'process',
+      payload: null,
+      error: multilineError,
+    };
+    expect(response.error).toBe(multilineError);
+    expect(response.error!.split('\n')).toHaveLength(3);
+  });
+
+  it('payload 应支持数组结果', () => {
+    const results = [{ type: 'json', content: '{}' }, { type: 'text', content: 'hello' }];
+    const response: WorkerResponse = { id: '1', type: 'process', payload: results };
+    expect(Array.isArray(response.payload)).toBe(true);
+    expect((response.payload as typeof results).length).toBe(2);
+  });
+
+  it('payload 应支持数字结果', () => {
+    const response: WorkerResponse = { id: '1', type: 'count', payload: 42 };
+    expect(response.payload).toBe(42);
+  });
+
+  it('payload 应支持 boolean 结果', () => {
+    const response: WorkerResponse = { id: '1', type: 'configure', payload: { ok: true } };
+    expect((response.payload as { ok: boolean }).ok).toBe(true);
+  });
+
+  it('同一请求多次响应应通过 id 区分', () => {
+    const id1 = 'request-001';
+    const id2 = 'request-002';
+    const resp1: WorkerResponse = { id: id1, type: 'process', payload: 'result-1' };
+    const resp2: WorkerResponse = { id: id2, type: 'process', payload: 'result-2' };
+
+    expect(resp1.id).not.toBe(resp2.id);
+    expect(resp1.payload).not.toBe(resp2.payload);
   });
 });
