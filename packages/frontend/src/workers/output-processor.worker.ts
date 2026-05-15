@@ -248,12 +248,10 @@ function highlightJSON(jsonText: string): string {
 }
 
 /**
- * Apply ANSI color styling to log text for visual emphasis of timestamps, levels, addresses, and status codes.
+ * Apply ANSI styling to log text to emphasize timestamps, level tokens, IPv4 addresses, and HTTP-like status codes.
  *
- * Highlights ISO-like timestamps in bright black; log level tokens (`ERROR`, `WARN`, `INFO`, `DEBUG`, `SUCCESS`, `OK`) with level-appropriate bright colors and bold; IPv4 addresses in yellow; and three-digit HTTP-like status codes colored by range (200–299 green, 300–399 cyan, 400–499 yellow, 500+ red).
- *
- * @param logText - The log content to transform; may contain multiple lines.
- * @returns The input text with ANSI styling applied to recognized log constructs.
+ * @param logText - Log content to transform; may contain multiple lines.
+ * @returns The input text with ANSI escape sequences applied to recognized timestamps, level tokens, IPv4 addresses, and three-digit status codes.
  */
 function highlightLog(logText: string): string {
   return logText

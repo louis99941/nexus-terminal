@@ -110,20 +110,19 @@ export function createWorkerPool(
   }
 
   /**
-   * Log a worker runtime error to the console with a WorkerPool prefix.
+   * Log a worker runtime error with a WorkerPool prefix to the console.
    *
-   * @param event - The ErrorEvent emitted by the Worker containing the error message
+   * @param event - The `ErrorEvent` emitted by the Worker containing the error message
    */
   function handleWorkerError(event: ErrorEvent) {
     console.error('[WorkerPool] Worker 错误:', event.message);
   }
 
   /**
-   * Selects an idle worker and reserves it for the oldest pending request.
+   * Selects an idle worker and prepares the oldest pending request for dispatch.
    *
-   * If the pool is destroyed or no idle worker is available, this function does nothing.
-   * Otherwise it marks the chosen worker as busy and prepares a `WorkerRequest` object
-   * for the earliest pending entry without posting the message; actual sending is handled elsewhere.
+   * If the pool is destroyed or no idle worker is available, the function does nothing.
+   * Otherwise it marks the chosen worker as busy and constructs the `WorkerRequest` for the earliest pending entry without posting the message to the worker.
    */
   function processQueue() {
     if (destroyed) return;

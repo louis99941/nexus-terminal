@@ -456,6 +456,9 @@ export async function processInWorker(
 
 /**
  * Destroy the internal worker pool and release its resources.
+ *
+ * If no worker pool exists, this function is a no-op. After calling, the module-level
+ * worker pool reference is cleared. 
  */
 export function destroyWorkerPool(): void {
   if (workerPool) {

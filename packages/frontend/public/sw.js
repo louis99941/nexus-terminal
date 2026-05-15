@@ -137,9 +137,9 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
- * Fetch the request from the network, falling back to a cached match or an offline 503 response.
+ * Fetches the given request from the network and falls back to a cached response if the network fails.
  * @param {Request} request - The request to retrieve.
- * @returns {Response} The network response if available; otherwise a cached response matching the request, or a 503 `Response` with body `'Offline'`.
+ * @returns {Response} The network `Response` when the fetch succeeds; if the fetch fails, a cached `Response` matching the request if available, otherwise a 503 `Response` with body `'Offline'`.
  */
 async function networkFirst(request) {
   try {
@@ -179,14 +179,14 @@ async function networkFirstWithFallback(request, cacheName) {
 }
 
 /**
- * Fetch a resource preferring the network but falling back to cache on timeout or failure.
+ * Try to fetch a request from network first, falling back to cache on timeout or failure.
  *
- * If the network response arrives before the timeout and is successful, the response is stored in the specified cache. If the network request times out or fails, a matching cached response is returned when available; otherwise a 503 JSON response indicating offline is returned.
+ * If the network response arrives before the timeout and has a successful status, the response is stored in the given cache. If the fetch times out or fails, a matching cached response is returned when available; otherwise a 503 JSON response indicating offline is returned.
  *
- * @param {Request|string} request - Request or URL to fetch.
- * @param {string} cacheName - Cache name to store successful network responses.
- * @param {number} timeoutMs - Timeout in milliseconds after which the network request is aborted.
- * @returns {Response} Network response if available; otherwise a cached Response if present; if neither is available, a 503 Response with body `{"error":"Offline"}`.
+ * @param {Request|string} request - Request object or URL to fetch.
+ * @param {string} cacheName - Cache to store successful network responses.
+ * @param {number} timeoutMs - Milliseconds to wait before aborting the network request.
+ * @returns {Response} Network Response when available; otherwise a cached Response if present; if neither is available, a 503 Response with body `{"error":"Offline"}`.
  */
 async function networkFirstWithTimeout(request, cacheName, timeoutMs) {
   const controller = new AbortController();
