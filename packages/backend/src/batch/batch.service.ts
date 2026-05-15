@@ -20,6 +20,7 @@ import { broadcastToUser } from '../websocket/state';
 import * as ConnectionRepository from '../connections/connection.repository';
 import { logger } from '../utils/logger';
 import eventService, { AppEventType } from '../services/event.service';
+import { sshPoolService, type PoolKey } from '../services/ssh-pool.service';
 
 // 默认配置
 const DEFAULT_CONCURRENCY = 5;
@@ -144,6 +145,7 @@ export async function execCommandBatch(
     cancelledSubTasks: 0,
     payload,
     subTasks,
+    priority: payload.priority ?? 'normal',
     createdAt: now,
     updatedAt: now,
   };
@@ -407,6 +409,8 @@ async function runSubTask(
 ): Promise<SubTaskResult> {
   const { subTaskId, connectionId, command, connectionName } = subTask;
   let sshClient: Client | null = null;
+  let pooled = false;
+  let poolKey: PoolKey | null = null;
 
   try {
     // 检查取消
@@ -430,17 +434,36 @@ async function runSubTask(
     // 获取连接详情
     const connDetails = await SshService.getConnectionDetails(connectionId);
 
+    // 构建连接池键
+    poolKey = {
+      host: connDetails.host,
+      port: connDetails.port,
+      username: connDetails.username,
+      authMethod: connDetails.auth_method,
+      proxyId: connDetails.proxy?.id ?? null,
+    };
+
     if (signal.aborted) {
       await updateSubTask(taskId, subTaskId, 'cancelled', 0, { message: '已取消' });
       sendSubTaskUpdate(userId, taskId, subTaskId, 'cancelled', 0, '已取消');
       return 'cancelled';
     }
 
-    // 建立 SSH 连接
-    sshClient = await SshService.establishSshConnection(connDetails, CONNECT_TIMEOUT_MS);
+    // 尝试从池中获取连接
+    sshClient = sshPoolService.acquire(poolKey);
+
+    if (sshClient) {
+      // 从池中获取到连接
+      pooled = true;
+      logger.debug(`[BatchService] 复用 SSH 连接: ${connectionName || connectionId}`);
+    } else {
+      // 创建新连接并添加到池中
+      sshClient = await SshService.establishSshConnection(connDetails, CONNECT_TIMEOUT_MS);
+      sshPoolService.add(poolKey, sshClient);
+      pooled = true; // 新连接已添加到池中，标记为 pooled
+    }
 
     if (signal.aborted) {
-      sshClient.end();
       await updateSubTask(taskId, subTaskId, 'cancelled', 0, { message: '已取消' });
       sendSubTaskUpdate(userId, taskId, subTaskId, 'cancelled', 0, '已取消');
       return 'cancelled';
@@ -523,6 +546,12 @@ async function runSubTask(
     const errorMsg = getErrorMessage(error);
     logger.error(`[BatchService] 子任务 ${subTaskId} 执行失败:`, errorMsg);
 
+    // 异常时丢弃池化连接
+    if (pooled && poolKey && sshClient) {
+      sshPoolService.discard(poolKey, sshClient);
+      sshClient = null;
+    }
+
     await updateSubTask(taskId, subTaskId, 'failed', 0, {
       message: errorMsg,
       endedAt: new Date(),
@@ -531,11 +560,17 @@ async function runSubTask(
     return 'failed';
   } finally {
     if (sshClient) {
-      try {
-        sshClient.end();
-      } catch (error: unknown) {
-        // SSH 客户端关闭错误，不影响主流程
-        logger.debug('[批量服务] SSH 客户端关闭失败:', error);
+      if (pooled && poolKey) {
+        // 归还池化连接
+        sshPoolService.release(poolKey, sshClient);
+      } else {
+        // 关闭非池化连接
+        try {
+          sshClient.end();
+        } catch (error: unknown) {
+          // SSH 客户端关闭错误，不影响主流程
+          logger.debug('[批量服务] SSH 客户端关闭失败:', error);
+        }
       }
     }
   }

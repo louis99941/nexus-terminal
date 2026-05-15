@@ -2,6 +2,11 @@ import { Database } from 'sqlite3';
 import { ErrorFactory, getErrorMessage } from '../utils/AppError';
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { logger } from '../utils/logger';
+import { cacheService } from '../services/cache.service';
+
+// 缓存配置
+const CONNECTIONS_CACHE_TTL = 2 * 60 * 1000; // 2 分钟
+const CONNECTIONS_CACHE_KEY = 'connections:allWithTags';
 
 // Define Connection 类型 (可以从 controller 或 types 文件导入，暂时在此定义)
 // 注意：这里不包含加密字段，因为 Repository 不应处理解密
@@ -88,6 +93,13 @@ type SqlParamValue = string | number | boolean | null;
  * 获取所有连接及其标签
  */
 export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]> => {
+  // 1. 先查缓存
+  const cached = cacheService.get<ConnectionWithTags[]>(CONNECTIONS_CACHE_KEY);
+  if (cached) {
+    return cached;
+  }
+
+  // 2. 查数据库
   const sql = `
         SELECT
             c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.proxy_type, c.ssh_key_id, c.notes, c.jump_chain, c.force_keyboard_interactive, -- +++ Select force_keyboard_interactive +++
@@ -100,7 +112,7 @@ export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]
   try {
     const db = await getDbInstance();
     const rows = await allDb<ConnectionWithTagsRow>(db, sql);
-    return rows.map((row) => {
+    const result = rows.map((row) => {
       const { jump_chain: jumpChainStr, force_keyboard_interactive, ...restOfRow } = row;
       return {
         ...restOfRow,
@@ -114,6 +126,11 @@ export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]
         force_keyboard_interactive: Boolean(force_keyboard_interactive),
       } as ConnectionWithTags;
     });
+
+    // 3. 写入缓存
+    cacheService.set(CONNECTIONS_CACHE_KEY, result, CONNECTIONS_CACHE_TTL);
+
+    return result;
   } catch (err: unknown) {
     logger.error('Repository: 查询连接列表时出错:', getErrorMessage(err));
     throw ErrorFactory.databaseError('获取连接列表失败', '获取连接列表失败');
@@ -263,6 +280,8 @@ export const createConnection = async (
     if (typeof result.lastID !== 'number' || result.lastID <= 0) {
       throw ErrorFactory.databaseError('创建连接失败', '创建连接后未能获取有效的 lastID');
     }
+    // 写入成功后失效缓存
+    cacheService.delete(CONNECTIONS_CACHE_KEY);
     return result.lastID;
   } catch (err: unknown) {
     logger.error('Repository: 插入连接时出错:', getErrorMessage(err));
@@ -341,6 +360,10 @@ export const updateConnection = async (
   try {
     const db = await getDbInstance();
     const result = await runDb(db, sql, params);
+    // 写入成功后失效缓存
+    if (result.changes > 0) {
+      cacheService.delete(CONNECTIONS_CACHE_KEY);
+    }
     return result.changes > 0;
   } catch (err: unknown) {
     logger.error(`Repository: 更新连接 ${id} 时出错:`, getErrorMessage(err));
@@ -356,6 +379,10 @@ export const deleteConnection = async (id: number): Promise<boolean> => {
   try {
     const db = await getDbInstance();
     const result = await runDb(db, sql, [id]);
+    // 删除成功后失效缓存
+    if (result.changes > 0) {
+      cacheService.delete(CONNECTIONS_CACHE_KEY);
+    }
     return result.changes > 0;
   } catch (err: unknown) {
     logger.error(`Repository: 删除连接 ${id} 时出错:`, getErrorMessage(err));
@@ -435,6 +462,8 @@ export const updateConnectionTags = async (
     }
 
     await runDb(db, 'COMMIT');
+    // 写入成功后失效缓存
+    cacheService.delete(CONNECTIONS_CACHE_KEY);
     return true; // 事务成功提交，返回 true
   } catch (err: unknown) {
     logger.error(`Repository: 更新连接 ${connectionId} 的标签关联事务出错:`, getErrorMessage(err));

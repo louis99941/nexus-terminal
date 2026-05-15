@@ -33,6 +33,7 @@ import eventService from './services/event.service';
 import { loggingMiddleware, persistenceMiddleware } from './services/event.middlewares';
 import './notifications/notification.processor.service';
 import './notifications/notification.dispatcher.service';
+import { sshPoolService } from './services/ssh-pool.service';
 
 // 注册内置事件中间件
 eventService.useEventMiddleware(loggingMiddleware);
@@ -90,6 +91,19 @@ process.on('uncaughtException', (error: Error) => {
   logger.error('---未捕获的异常---');
   logger.error(error, '错误:');
 });
+
+// 进程退出时清理资源
+const gracefulShutdown = (signal: string) => {
+  logger.info(`收到 ${signal} 信号，正在优雅关闭...`);
+  sshPoolService.shutdown();
+  // 给其他清理逻辑一些时间
+  setTimeout(() => {
+    process.exit(0);
+  }, 100);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 const initializeEnvironment = async () => {
   const dataEnvPath = dataEnvPathGlobal;

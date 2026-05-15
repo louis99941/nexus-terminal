@@ -12,6 +12,9 @@ export type BatchTaskStatus =
   | 'failed' // 失败
   | 'cancelled'; // 已取消
 
+// 批量任务优先级
+export type BatchTaskPriority = 'low' | 'normal' | 'high' | 'urgent';
+
 // 子任务状态
 export type BatchSubTaskStatus =
   | 'queued' // 排队中
@@ -30,6 +33,7 @@ export interface BatchExecPayload {
   env?: Record<string, string>; // 可选环境变量
   workdir?: string; // 远端工作目录
   sudo?: boolean; // 是否 sudo 执行
+  priority?: BatchTaskPriority; // 任务优先级（默认 normal）
 }
 
 // 子任务
@@ -62,6 +66,7 @@ export interface BatchTask {
   message?: string;
   payload: BatchExecPayload;
   subTasks: BatchSubTask[];
+  priority: BatchTaskPriority; // 任务优先级
   createdAt: Date;
   updatedAt: Date;
   startedAt?: Date;
@@ -133,6 +138,7 @@ export interface BatchTaskRow {
   cancelled_subtasks: number;
   message: string | null;
   payload_json: string;
+  priority: BatchTaskPriority;
   created_at: number;
   updated_at: number;
   started_at: number | null;

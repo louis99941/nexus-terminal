@@ -448,6 +448,52 @@ const definedMigrations: Migration[] = [
             CREATE INDEX IF NOT EXISTS idx_event_logs_user_id ON event_logs(user_id);
         `,
   },
+  {
+    id: 16,
+    name: 'Add performance indexes for missing tables',
+    check: async (db: Database): Promise<boolean> => {
+      const indexExists = (name: string): Promise<boolean> =>
+        new Promise((resolve, reject) => {
+          db.get(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name=?",
+            [name],
+            (err, row) => (err ? reject(err) : resolve(!!row))
+          );
+        });
+      const [idx1, idx2, idx3, idx4] = await Promise.all([
+        indexExists('idx_proxies_name'),
+        indexExists('idx_notification_settings_channel_type'),
+        indexExists('idx_favorite_paths_last_used'),
+        indexExists('idx_quick_commands_usage_count'),
+      ]);
+      return !idx1 || !idx2 || !idx3 || !idx4;
+    },
+    sql: `
+            -- proxies 表：按名称查询代理
+            CREATE INDEX IF NOT EXISTS idx_proxies_name ON proxies(name);
+
+            -- notification_settings 表：按渠道类型查询
+            CREATE INDEX IF NOT EXISTS idx_notification_settings_channel_type ON notification_settings(channel_type);
+
+            -- favorite_paths 表：按最后使用时间排序
+            CREATE INDEX IF NOT EXISTS idx_favorite_paths_last_used ON favorite_paths(last_used_at DESC);
+
+            -- quick_commands 表：按使用频率排序
+            CREATE INDEX IF NOT EXISTS idx_quick_commands_usage_count ON quick_commands(usage_count DESC);
+        `,
+  },
+  {
+    id: 17,
+    name: 'Add priority column to batch_tasks',
+    check: async (db: Database): Promise<boolean> => {
+      return !(await columnExists(db, 'batch_tasks', 'priority'));
+    },
+    sql: `
+            ALTER TABLE batch_tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'
+              CHECK(priority IN ('low', 'normal', 'high', 'urgent'));
+            CREATE INDEX IF NOT EXISTS idx_batch_tasks_priority ON batch_tasks(priority);
+        `,
+  },
 ];
 
 /**

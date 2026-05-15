@@ -104,6 +104,7 @@ const rowToTask = (row: BatchTaskRow, subTasks: BatchSubTask[] = []): BatchTask 
     message: row.message || undefined,
     payload,
     subTasks,
+    priority: row.priority ?? 'normal',
     createdAt: new Date(row.created_at * 1000),
     updatedAt: new Date(row.updated_at * 1000),
     startedAt: row.started_at ? new Date(row.started_at * 1000) : undefined,
@@ -142,8 +143,8 @@ export const createTask = async (task: BatchTask): Promise<void> => {
             INSERT INTO batch_tasks (
                 id, user_id, status, concurrency_limit, overall_progress,
                 total_subtasks, completed_subtasks, failed_subtasks, cancelled_subtasks,
-                message, payload_json, created_at, updated_at, started_at, ended_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                message, payload_json, priority, created_at, updated_at, started_at, ended_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           task.taskId,
@@ -157,6 +158,7 @@ export const createTask = async (task: BatchTask): Promise<void> => {
           task.cancelledSubTasks,
           task.message || null,
           JSON.stringify(task.payload),
+          task.priority ?? 'normal',
           now,
           now,
           task.startedAt ? Math.floor(task.startedAt.getTime() / 1000) : null,
