@@ -10,6 +10,8 @@ on:
         description: '发布版本号（留空则使用 VERSION 文件中的版本）'
         required: false
         type: string
+  repository_dispatch:
+    types: [release-triggered]
 
 permissions:
   contents: write
@@ -33,15 +35,26 @@ jobs:
           TAG=""
           VERSION=""
 
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          # 优先从 repository_dispatch payload 获取版本号
+          PAYLOAD_VERSION=$(jq -r '.client_payload.version // ""' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+          PAYLOAD_TAG=$(jq -r '.client_payload.tag // ""' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+
+          if [[ -n "$PAYLOAD_VERSION" ]]; then
+            VERSION="$PAYLOAD_VERSION"
+            TAG="${PAYLOAD_TAG:-v${VERSION}}"
+            echo "✅ 从 repository_dispatch 获取版本号：$VERSION"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
             VERSION="${TAG#v}"
+            echo "✅ 从标签获取版本号：$VERSION"
           elif [[ -n "${{ github.event.inputs.version }}" ]]; then
             VERSION="${{ github.event.inputs.version }}"
             TAG="v${VERSION}"
+            echo "✅ 从 workflow_dispatch inputs 获取版本号：$VERSION"
           else
             VERSION=$(cat VERSION | tr -d '[:space:]')
             TAG="v${VERSION}"
+            echo "✅ 从 VERSION 文件获取版本号：$VERSION"
           fi
 
           if [[ -z "$TAG" ]]; then
@@ -190,6 +203,54 @@ jobs:
             CHANGELOG_URL="https://github.com/${OWNER}/${REPO}/commits/${CURRENT_TAG}"
           fi
           echo "CHANGELOG_URL=$CHANGELOG_URL" >> $GITHUB_OUTPUT
+
+      - name: 同步更新日志到 docs/changelog.md
+        if: steps.kittylog_notes.outputs.found == 'true'
+        env:
+          VERSION: ${{ steps.release_meta.outputs.VERSION }}
+          KITTYLOG_BODY: ${{ steps.kittylog_notes.outputs.body }}
+        run: |
+          set -euo pipefail
+
+          echo "📝 将 kittylog.app 更新日志同步到 docs/changelog.md..."
+
+          # 检查 docs/changelog.md 是否已包含该版本
+          if grep -q "## v${VERSION}" docs/changelog.md 2>/dev/null; then
+            echo "ℹ️ docs/changelog.md 已包含 v${VERSION}，跳过同步"
+            exit 0
+          fi
+
+          # 创建临时文件，将新版本日志插入到文件开头（标题之后）
+          TEMP_FILE=$(mktemp)
+          trap "rm -f $TEMP_FILE" EXIT
+
+          # 读取现有内容，跳过第一行标题
+          tail -n +2 docs/changelog.md > "$TEMP_FILE"
+
+          # 写入新版本日志到文件开头
+          {
+            echo ""
+            echo "$KITTYLOG_BODY"
+            echo ""
+            cat "$TEMP_FILE"
+          } > docs/changelog.md
+
+          echo "✅ 已将 v${VERSION} 更新日志写入 docs/changelog.md"
+
+      - name: 提交更新日志变更
+        if: steps.kittylog_notes.outputs.found == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/changelog.md
+          if git diff --cached --quiet; then
+            echo "ℹ️ 无变更需要提交"
+          else
+            git commit -m "📝 docs: 同步 kittylog 更新日志至 v${{ steps.release_meta.outputs.VERSION }}"
+            git push origin main
+            echo "✅ 已提交并推送 docs/changelog.md 变更"
+          fi
 
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2

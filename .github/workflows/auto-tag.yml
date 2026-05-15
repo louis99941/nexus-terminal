@@ -79,5 +79,10 @@ jobs:
           git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
           git push origin "v${{ steps.version.outputs.version }}"
 
-      # Release 由 release.yml 监听 tag push 自动触发
-      # 流程：tag push → release.yml 等待 kittylog 更新 → 创建 Release
+      - name: 触发 release.yml 工作流
+        if: steps.version.outputs.changed == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: release-triggered
+          client-payload: '{"version": "${{ steps.version.outputs.version }}", "tag": "v${{ steps.version.outputs.version }}"}'

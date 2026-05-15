@@ -2,47 +2,6 @@
 
 本页面记录 Nexus Terminal 的重要版本更新和变更。
 
-## v1.5.0（2026-05-15）
-
-### 新增
-
-- **后端性能优化**：数据库索引优化、进程内缓存层、SSH 连接池、批量任务优先级
-- 数据库索引优化：为 `proxies`、`notification_settings`、`favorite_paths`、`quick_commands` 表添加缺失索引（迁移 #16）
-- `event_logs` 表自动清理机制：每 200 次写入或 5 分钟间隔触发，保留 30 天日志
-- 进程内缓存服务：支持 TTL 自动过期，为 `settings` 和 `connections` 表添加缓存（5 分钟/2 分钟 TTL）
-- SSH 连接池：批量任务支持连接复用，减少重复建立连接的开销（每目标最多 3 个空闲连接，60 秒超时）
-- 批量任务优先级：支持 `low`/`normal`/`high`/`urgent` 四个优先级，紧急任务优先执行（迁移 #17）
-- 优先级调度器：基于最小堆实现，同优先级按创建时间排序
-
-- 增强事件驱动架构，支持跨模块松耦合通信
-- 事件系统类型安全：`EventPayloadMap` 为每个事件类型定义具体的 payload 结构
-- 错误隔离：监听器异常不会冒泡到发布者，确保系统稳定性
-- 中间件链：支持注册自定义中间件，内置日志记录和事件持久化
-- 领域命名空间：`EventDomain` 枚举按业务域分组事件，支持批量订阅
-- 生命周期管理：`onEventWithCleanup` 返回清理函数，简化订阅管理
-- 事件持久化：关键事件（认证、SSH、Docker 删除、备份、系统）自动写入 `event_logs` 表
-- **虚拟滚动统一架构**：抽取 `useVirtualListSetup` composable，4 个组件统一使用，支持自动 overscan 缩放
-- **WebWorker 输出处理**：终端语法高亮移至 Worker 线程，避免大量输出阻塞主线程
-- **通用 Worker 池管理器**：`createWorkerPool` 支持多 Worker 并行任务、Promise API、主线程降级兜底
-- **路由资源预加载**：认证后使用 `requestIdleCallback` 自动预加载核心路由 chunk
-- **Service Worker 增强**：结构化缓存策略（静态资源/API/图标/页面四个缓存桶），支持离线访问
-- **Service Worker 更新提示**：从 `window.confirm()` 弹窗改为通知 toast
-- **WebSocket 多路复用**：单连接承载多会话，减少浏览器连接数，通过 `ENABLE_MULTIPLEX` 环境变量控制
-- **终端数据压缩**：启用 permessage-deflate 协议压缩 + 16ms 微批处理，降低带宽占用
-- **CDN 边缘部署**：新增 Cloudflare/CloudFront 配置指南（`docs/deployment/cdn.md`）
-
-### 改进
-
-- 简化 `NotificationProcessorService`，移除手动 `setImmediate` 包装
-- 事件服务向后兼容，现有 17+ 个发布点无需修改
-- **审计日志行高修复**：`itemHeight` 从 100px 调整为 180px，解决大 JSON 详情块内容裁剪
-- **overscan 标准化**：所有虚拟列表组件统一 overscan 值（文件列表 15，其他 10）
-- **PWA manifest 增强**：添加 `categories` 和 `description` 字段
-
-### 数据库
-
-- 新增 `event_logs` 表用于事件持久化（迁移 #15）
-
 ## v1.4.4（2026-05-09）
 
 ### 新增
