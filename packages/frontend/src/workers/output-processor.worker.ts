@@ -116,7 +116,19 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   }
 };
 
-// ==================== 处理逻辑（从 OutputProcessor 迁移）====================
+/**
+ * Process raw terminal output into a typed, possibly highlighted and formatted representation.
+ *
+ * Processes and sanitizes `output`, detects its type (JSON, YAML, LOG, TABLE, or TEXT), applies
+ * highlighting/formatting according to current configuration, and detects links when enabled.
+ * For very large inputs, highlighting/formatting is skipped and only sanitized text is returned.
+ *
+ * @param output - The raw text from the terminal to process
+ * @returns A ProcessedOutput containing:
+ *  - `type`: the detected `OutputType`
+ *  - `content`: the processed (highlighted/formatted or sanitized) text
+ *  - `metadata`: an object with `lineCount`, `isLong`, `shouldFold`, and `foldThreshold`
+ */
 
 function processOutput(output: string): ProcessedOutput {
   const normalized = normalizeNewlines(output);
@@ -171,6 +183,12 @@ function processOutput(output: string): ProcessedOutput {
   };
 }
 
+/**
+ * Determine the semantic type of a text blob (JSON, YAML, TABLE, LOG, or TEXT).
+ *
+ * @param output - Raw text to analyze for format detection
+ * @returns The detected OutputType value: `JSON`, `YAML`, `TABLE`, `LOG`, or `TEXT`
+ */
 function detectType(output: string): OutputType {
   const trimmed = output.trim();
   if (!trimmed) return OutputType.TEXT;
@@ -214,6 +232,12 @@ function detectType(output: string): OutputType {
   return OutputType.TEXT;
 }
 
+/**
+ * Apply ANSI color styling to a JSON string for terminal syntax highlighting.
+ *
+ * @param jsonText - The JSON text to highlight; expected to be valid JSON.
+ * @returns The input JSON formatted with ANSI color codes applied to keys, strings, numbers, booleans, null, and punctuation. If `jsonText` cannot be parsed as JSON, the original `jsonText` is returned unchanged.
+ */
 function highlightJSON(jsonText: string): string {
   try {
     const parsed = JSON.parse(jsonText);
@@ -230,6 +254,13 @@ function highlightJSON(jsonText: string): string {
   }
 }
 
+/**
+ * Apply ANSI color highlighting to YAML-formatted text.
+ *
+ * Highlights YAML keys, scalar values, comments, and list markers using ANSI escape codes.
+ *
+ * @param yamlText - The YAML content to highlight; may be multiline.
+ * @returns The input text with keys wrapped in cyan+bold, quoted strings in green, numbers in yellow, booleans (`true|false|yes|no`) in magenta, `null`/`~` in bright black, full-line comments in bright black, and list markers (`- `) in white.
 function highlightYAML(yamlText: string): string {
   return yamlText
     .split('\n')
@@ -264,6 +295,12 @@ function highlightYAML(yamlText: string): string {
     .join('\n');
 }
 
+/**
+ * Apply ANSI color highlighting to log text, emphasizing timestamps, level keywords, IPs, and status codes.
+ *
+ * @param logText - The raw log text to highlight
+ * @returns The input text with ANSI color codes applied: timestamps in bright black; `ERROR/ERR` in bright red bold; `WARN/WARNING` in bright yellow bold; `INFO` in bright cyan bold; `DEBUG` in bright black bold; `SUCCESS/OK` in bright green bold; IPv4 addresses in yellow; HTTP status codes colored by range — 2xx green, 3xx cyan, 4xx yellow, 5xx red
+ */
 function highlightLog(logText: string): string {
   return logText
     .split('\n')
@@ -295,6 +332,12 @@ function highlightLog(logText: string): string {
     .join('\n');
 }
 
+/**
+ * Format raw table-like text into an aligned, ANSI-colored table.
+ *
+ * @param tableText - The raw table text to format; rows may use `|` separators or two-or-more spaces between columns.
+ * @returns The formatted multi-line table with columns aligned and ANSI color codes applied. If the input contains no parsable table rows, the original `tableText` is returned unchanged.
+ */
 function formatTable(tableText: string): string {
   const lines = tableText.split('\n').filter((line) => line.trim().length);
   if (!lines.length) return tableText;
@@ -346,6 +389,16 @@ function formatTable(tableText: string): string {
   return formatted.join('\n');
 }
 
+/**
+ * Highlights URLs and path-like segments in the provided text using ANSI escape sequences.
+ *
+ * The function colors full `http://` and `https://` URLs and also colors leading path-like fragments
+ * (e.g., `/path/to/resource`) when they appear with a preceding whitespace or certain punctuation.
+ * It avoids coloring when the prefix ends with `:` or when the path starts with `//`.
+ *
+ * @param text - The input text to scan for links and path-like segments
+ * @returns The input string with matched URLs and eligible paths wrapped in ANSI color codes
+ */
 function highlightLinks(text: string): string {
   let result = text.replace(/(https?:\/\/[^\s]+)/g, `${ANSI.BLUE}${ANSI.BOLD}$1${ANSI.RESET}`);
   result = result.replace(
@@ -360,6 +413,14 @@ function highlightLinks(text: string): string {
   return result;
 }
 
+/**
+ * Parse a single table row into an array of cell strings.
+ *
+ * Handles two formats: pipe-separated cells (using `|`) and whitespace-separated cells (columns separated by two or more spaces).
+ *
+ * @param line - The raw table row text to parse.
+ * @returns An array of trimmed cell strings. For pipe-separated rows, leading/trailing empty columns produced by leading/trailing `|` are removed. For whitespace-separated rows, empty cells are omitted unless the original line contained two consecutive spaces, in which case empty segments are preserved.
+ */
 function parseTableCells(line: string): string[] {
   if (line.includes('|')) {
     const raw = line.split('|').map((cell) => cell.trim());
@@ -374,10 +435,22 @@ function parseTableCells(line: string): string[] {
     .filter((cell) => cell.length || line.includes('  '));
 }
 
+/**
+ * Normalize newline sequences to LF (`\n`).
+ *
+ * @param value - The input text whose line endings should be normalized
+ * @returns The input string with all CRLF (`\r\n`) and CR (`\r`) sequences replaced by LF (`\n`)
+ */
 function normalizeNewlines(value: string): string {
   return value.replace(/\r\n?/g, '\n');
 }
 
+/**
+ * Remove ANSI escape sequences from the provided string.
+ *
+ * @param value - Input string that may contain ANSI escape codes (e.g., color or style sequences)
+ * @returns The input string with all ANSI escape sequences removed
+ */
 function stripAnsiCodes(value: string): string {
   return value.replace(ANSI_ESCAPE_REGEX, '');
 }

@@ -24,11 +24,18 @@ interface PendingRequest {
 }
 
 /**
- * 创建一个 Worker 池
+ * Create a pool of Web Workers that executes tasks via promise-based requests.
  *
- * @param workerUrl - Worker 脚本的 URL（使用 Vite 的 `new URL(..., import.meta.url)` 模式）
- * @param options - 池配置
- * @returns 池控制对象
+ * The returned control object provides `execute` to run tasks, `destroy` to
+ * terminate the pool and reject pending tasks, and read-only `size` and
+ * `hasIdle` getters to inspect pool state.
+ *
+ * @param workerUrl - URL of the worker script (e.g. created with Vite's `new URL(..., import.meta.url)`)
+ * @param options - Pool configuration
+ * @param options.size - Number of workers to create (default: 2)
+ * @param options.timeout - Per-task timeout in milliseconds (default: 30000)
+ * @param options.fallback - Optional fallback handler invoked as `fallback(type, payload)` when workers are unavailable
+ * @returns An object with methods `{ execute, destroy }` and getters `{ size, hasIdle }`
  */
 export function createWorkerPool(
   workerUrl: URL,
@@ -50,7 +57,11 @@ export function createWorkerPool(
   /** 检测 Worker 是否可用 */
   const isWorkerAvailable = typeof Worker !== 'undefined';
 
-  /** 初始化 Worker 池 */
+  /**
+   * Initialize the worker pool by creating the configured number of Worker instances and wiring their handlers.
+   *
+   * If the environment does not support Worker, this function returns without creating workers. It attempts to create up to the configured `size` workers, attaches `onmessage` and `onerror` handlers for each successfully created worker, and records them as idle. Worker construction failures are ignored so initialization continues for remaining workers.
+   */
   function init() {
     if (!isWorkerAvailable) return;
 
@@ -66,7 +77,16 @@ export function createWorkerPool(
     }
   }
 
-  /** 处理 Worker 响应 */
+  /**
+   * Handle an inbound worker message and settle the matching pending request.
+   *
+   * Finds a pending request by `event.data.id`; if a matching request exists, clears its timeout,
+   * removes it from the pending map, marks the originating worker as idle, resolves with the
+   * payload or rejects with an Error when `event.data.error` is present, and then triggers queue processing.
+   * If no matching pending request is found, the message is ignored.
+   *
+   * @param event - The MessageEvent from a worker containing `{ id, error?, payload? }`
+   */
   function handleMessage(event: MessageEvent<WorkerResponse>) {
     const { id, error } = event.data;
     const request = pending.get(id);
@@ -89,12 +109,21 @@ export function createWorkerPool(
     processQueue();
   }
 
-  /** 处理 Worker 错误 */
+  /**
+   * Log a worker runtime error to the console with a WorkerPool prefix.
+   *
+   * @param event - The ErrorEvent emitted by the Worker containing the error message
+   */
   function handleWorkerError(event: ErrorEvent) {
     console.error('[WorkerPool] Worker 错误:', event.message);
   }
 
-  /** 处理等待队列 */
+  /**
+   * Reserves an idle worker and prepares the oldest pending request for dispatch.
+   *
+   * If the pool is destroyed or no idle worker exists, the function returns without action.
+   * Otherwise it marks the chosen worker as busy and constructs the WorkerRequest for the earliest entry in the pending map; it does not actually post the message to the worker.
+   */
   function processQueue() {
     if (destroyed) return;
 
@@ -120,11 +149,15 @@ export function createWorkerPool(
   }
 
   /**
-   * 执行 Worker 任务
+   * Execute a task on the worker pool using the provided task type and payload.
    *
-   * @param taskType - 任务类型标识
-   * @param payload - 任务载荷
-   * @returns Promise<unknown> - 处理结果
+   * If workers are unavailable and a `fallback` is configured, the fallback is invoked and its result is returned.
+   *
+   * @param taskType - Identifier for the task to run inside the worker
+   * @param payload - Data to pass to the worker for this task
+   * @returns The value produced by the worker (or by the configured `fallback`) cast to `T`
+   * @throws Error when workers are unavailable and no `fallback` is configured
+   * @throws Error when the worker pool has been destroyed
    */
   async function execute<T>(taskType: string, payload: unknown): Promise<T> {
     // Worker 不可用时降级到主线程
@@ -188,7 +221,11 @@ export function createWorkerPool(
     });
   }
 
-  /** 销毁 Worker 池，释放所有资源 */
+  /**
+   * Destroy the worker pool and release all associated resources.
+   *
+   * Marks the pool as destroyed, rejects every pending request with an Error('Worker pool 已销毁') while clearing its timeout, terminates all workers, and clears the internal worker list and pending map.
+   */
   function destroy() {
     destroyed = true;
 
