@@ -13,9 +13,9 @@ Important paths:
 - `packages/backend` — backend APIs, auth, connections, audit, data and business logic
 - `packages/frontend` — web UI, terminal workspace, file manager, settings, remote desktop UI
 - `packages/remote-gateway` — gateway / remote protocol related logic
-- `doc/DOCKER_ENV.md` — deployment environment variables and Docker-related setup
-- `doc/NGINX_PROXY.md` — reverse proxy setup and websocket-related deployment notes
-- `doc/CORS_CONFIG.md` — CORS behavior and multi-origin configuration guidance
+- `docs/configuration/docker.md` — deployment environment variables and Docker-related setup
+- `docs/deployment/nginx.md` — reverse proxy setup and websocket-related deployment notes
+- `docs/configuration/cors.md` — CORS behavior and multi-origin configuration guidance
 - `README.md` — product overview, feature list, quick start, supported deployment notes
 
 ---
@@ -137,10 +137,10 @@ When searching for an answer or implementation path, prioritize sources in this 
 
 1. `AGENTS.md`
 2. `README.md`
-3. `doc/NGINX_PROXY.md`
-4. `doc/DOCKER_ENV.md`
-5. `doc/CORS_CONFIG.md`
-6. Other files under `doc/**`
+3. `docs/deployment/nginx.md`
+4. `docs/configuration/docker.md`
+5. `docs/configuration/cors.md`
+6. Other files under `docs/**`
 7. `packages/backend/**`
 8. `packages/remote-gateway/**`
 9. `packages/frontend/**`

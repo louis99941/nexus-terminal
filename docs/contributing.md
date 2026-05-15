@@ -142,8 +142,12 @@ nexus-terminal/
 │   ├── backend/          # Express + SQLite + SSH2
 │   ├── frontend/         # Vue 3 + Vite + Pinia
 │   └── remote-gateway/   # Guacamole Lite
-├── docs/                 # VitePress 文档站
-└── doc/                  # 技术文档
+└── docs/                 # VitePress 文档站 + 技术文档
+    ├── configuration/    # 配置文档（CORS、Docker、环境变量）
+    ├── deployment/       # 部署文档（Nginx、CDN）
+    ├── contributing/     # 贡献指南
+    ├── technical/        # 技术文档（技术债务报告）
+    └── guide/            # 用户指南
 ```
 
 ## 获取帮助

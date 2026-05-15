@@ -286,11 +286,7 @@ docker compose start backend
 Apache Guacamole 未提供 guacd 的 ARMv7 镜像，RDP 功能将被禁用。
 :::
 
-使用专用配置文件：
-
-```bash
-wget https://raw.githubusercontent.com/Silentely/nexus-terminal/refs/heads/main/doc/arm/docker-compose.yml -O docker-compose.yml
-```
+参考 [ARM 部署文档](./deployment/docker.md) 中的详细说明。
 
 ## 健康检查
 

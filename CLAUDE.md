@@ -80,11 +80,11 @@ sequenceDiagram
 
 ### 规划文档
 
-| 文档                                                       | 描述         |
-| ---------------------------------------------------------- | ------------ |
-| [DESIGN.md](./DESIGN.md)                                   | 项目设计文档 |
-| [TECHNICAL_DEBT_REPORT.md](./doc/TECHNICAL_DEBT_REPORT.md) | 技术债务报告 |
-| [更新日志](./docs/changelog.md)                            | 变更记录     |
+| 文档                                     | 描述         |
+| ---------------------------------------- | ------------ |
+| [DESIGN.md](./DESIGN.md)                 | 项目设计文档 |
+| [技术债务报告](./docs/technical/debt.md) | 技术债务报告 |
+| [更新日志](./docs/changelog.md)          | 变更记录     |
 
 ---
 

@@ -4,7 +4,7 @@
 
 [![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)][docker-url] [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-4CAF50?style=flat-square)](https://github.com/Silentely/nexus-terminal/blob/main/LICENSE) [![Changelog](https://img.shields.io/badge/changelog-kittylog-10b981)](https://kittylog.app/c/Silentely/nexus-terminal)
 <br>
-[中文](./README.md) | [English](./doc/README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
+[中文](./README.md) | [English](./docs/guide/README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
 
 [docker-url]: https://ghcr.io/silentely/nexus-terminal-frontend
 
@@ -301,7 +301,7 @@ docker compose up -d
 
 ### CORS 跨域配置
 
-如果你需要配置额外的允许域名访问远程桌面网关（Remote Gateway），请参考 [CORS 配置文档](./doc/CORS_CONFIG.md)。
+如果你需要配置额外的允许域名访问远程桌面网关（Remote Gateway），请参考 [CORS 配置文档](./docs/configuration/cors.md)。
 
 **常见场景**：
 
@@ -320,13 +320,13 @@ remote-gateway:
     CORS_ALLOWED_ORIGINS: https://yourdomain.com,https://www.yourdomain.com
 ```
 
-详细说明请查看 [**CORS 配置完整文档**](./doc/CORS_CONFIG.md)。
+详细说明请查看 [**CORS 配置完整文档**](./docs/configuration/cors.md)。
 
 ## ⚠️ 注意事项
 
 1.  **双文件管理器**：可以在布局中添加两个文件管理器组件（实验性功能，可能存在不稳定情况）。
 2.  **多文本编辑器**：在同一布局中添加多个文本编辑器的功能尚未实现。
-3.  ARMv7 用户请使用此处的 [docker-compose.yml](https://github.com/Silentely/nexus-terminal/blob/main/doc/arm/docker-compose.yml)。由于 Apache Guacamole 未提供 guacd 的 ARMv7 架构镜像，所以禁用 RDP 功能，相关镜像暂时不再拉取。
+3.  ARMv7 用户请参考 [部署文档](./docs/deployment/docker.md)。由于 Apache Guacamole 未提供 guacd 的 ARMv7 架构镜像，所以禁用 RDP 功能，相关镜像暂时不再拉取。
 4.  数据备份可通过内置 API（`/api/v1/backup`）导出/导入，也可自行备份 `data` 目录。
 5.  由于浏览器限制，非https或者localhost无法复制终端内容，请使用https访问
 

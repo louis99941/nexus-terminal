@@ -878,7 +878,7 @@ export function initializeConnectionHandler(
 
       ws.on('close', (code, reason) => {
         logger.debug(
-          `WebSocket：客户端 ${ws.username} (会话: ${ws.sessionId}) 已断开连接。代码: ${code}, 原因: ${reason.toString()}`
+          `WebSocket：客户端 ${ws.username} (会话: ${ws.sessionId || '未建立'}) 已断开连接。代码: ${code}, 原因: ${reason.toString()}`
         );
 
         // 注销 userId 到 WebSocket 的映射
@@ -909,7 +909,10 @@ export function initializeConnectionHandler(
       });
 
       ws.on('error', (error) => {
-        logger.error(`WebSocket：客户端 ${ws.username} (会话: ${ws.sessionId}) 发生错误:`, error);
+        logger.error(
+          `WebSocket：客户端 ${ws.username} (会话: ${ws.sessionId || '未建立'}) 发生错误:`,
+          error
+        );
 
         // 注销 userId 到 WebSocket 的映射
         if (ws.userId) {

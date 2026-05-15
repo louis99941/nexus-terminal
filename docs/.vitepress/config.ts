@@ -109,13 +109,30 @@ export default defineConfig({
       },
       {
         text: '配置',
-        items: [{ text: '高级配置', link: '/configuration' }],
+        items: [
+          { text: '环境变量配置', link: '/configuration/docker' },
+          { text: 'CORS 跨域配置', link: '/configuration/cors' },
+          { text: '变量说明', link: '/configuration/variables' },
+        ],
+      },
+      {
+        text: '部署',
+        items: [
+          { text: 'Nginx 反向代理', link: '/deployment/nginx' },
+          { text: 'CDN 边缘部署', link: '/deployment/cdn' },
+        ],
+      },
+      {
+        text: '技术文档',
+        items: [{ text: '技术债务报告', link: '/technical/debt' }],
       },
       {
         text: '帮助',
         items: [
           { text: '常见问题', link: '/faq' },
           { text: '贡献指南', link: '/contributing' },
+          { text: '提交规范', link: '/contributing/commit' },
+          { text: '问题分类策略', link: '/contributing/triage' },
           { text: '更新日志', link: '/changelog' },
         ],
       },

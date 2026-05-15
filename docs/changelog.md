@@ -29,7 +29,7 @@
 - **Service Worker 更新提示**：从 `window.confirm()` 弹窗改为通知 toast
 - **WebSocket 多路复用**：单连接承载多会话，减少浏览器连接数，通过 `ENABLE_MULTIPLEX` 环境变量控制
 - **终端数据压缩**：启用 permessage-deflate 协议压缩 + 16ms 微批处理，降低带宽占用
-- **CDN 边缘部署**：新增 Cloudflare/CloudFront 配置指南（`doc/CDN_DEPLOYMENT.md`）
+- **CDN 边缘部署**：新增 Cloudflare/CloudFront 配置指南（`docs/deployment/cdn.md`）
 
 ### 改进
 
