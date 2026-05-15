@@ -1,74 +1,119 @@
 /**
  * Worker 消息协议类型定义单元测试
- * 测试 WorkerRequest 和 WorkerResponse 接口的类型结构与约束
  */
 import { describe, it, expect } from 'vitest';
 import type { WorkerRequest, WorkerResponse } from './types';
 
 // ==================== WorkerRequest ====================
 
-describe('WorkerRequest', () => {
-  it('应该包含 id、type 和 payload 字段', () => {
-    const request: WorkerRequest = { id: '1', type: 'process', payload: {} };
-    expect(request.id).toBe('1');
+describe('WorkerRequest 基本结构', () => {
+  it('应包含必要字段：id、type 和 payload', () => {
+    const request: WorkerRequest = {
+      id: 'req-001',
+      type: 'process',
+      payload: { text: 'hello' },
+    };
+
+    expect(request.id).toBe('req-001');
     expect(request.type).toBe('process');
-    expect(request.payload).toEqual({});
+    expect(request.payload).toEqual({ text: 'hello' });
   });
 
-  it('id 应支持任意字符串格式', () => {
-    const request: WorkerRequest = { id: 'abc-123', type: 'task', payload: null };
-    expect(request.id).toBe('abc-123');
+  it('id 应存储字符串类型', () => {
+    const request: WorkerRequest = { id: 'some-id', type: 'task', payload: null };
+    expect(typeof request.id).toBe('string');
   });
 
-  it('type 应支持任意字符串', () => {
-    const request: WorkerRequest = { id: '1', type: 'customTaskType', payload: {} };
-    expect(request.type).toBe('customTaskType');
+  it('type 应存储字符串类型', () => {
+    const request: WorkerRequest = { id: '1', type: 'configure', payload: {} };
+    expect(typeof request.type).toBe('string');
   });
 
-  it('payload 应支持 null', () => {
+  it('payload 应接受对象', () => {
+    const request: WorkerRequest = { id: '1', type: 'process', payload: { key: 'value' } };
+    expect(request.payload).toEqual({ key: 'value' });
+  });
+
+  it('payload 应接受 null', () => {
     const request: WorkerRequest = { id: '1', type: 'process', payload: null };
     expect(request.payload).toBeNull();
   });
 
-  it('payload 应支持字符串', () => {
-    const request: WorkerRequest = { id: '1', type: 'process', payload: 'hello' };
-    expect(request.payload).toBe('hello');
-  });
-
-  it('payload 应支持数组', () => {
+  it('payload 应接受数组', () => {
     const request: WorkerRequest = { id: '1', type: 'process', payload: [1, 2, 3] };
     expect(request.payload).toEqual([1, 2, 3]);
+  });
+
+  it('payload 应接受字符串', () => {
+    const request: WorkerRequest = { id: '1', type: 'process', payload: 'raw text' };
+    expect(request.payload).toBe('raw text');
+  });
+
+  it('payload 应接受数字', () => {
+    const request: WorkerRequest = { id: '1', type: 'count', payload: 42 };
+    expect(request.payload).toBe(42);
   });
 });
 
 // ==================== WorkerResponse ====================
 
-describe('WorkerResponse', () => {
-  it('应该包含 id、type 和 payload 字段', () => {
-    const response: WorkerResponse = { id: '1', type: 'process', payload: 'result' };
-    expect(response.id).toBe('1');
+describe('WorkerResponse 基本结构', () => {
+  it('应包含必要字段：id、type 和 payload', () => {
+    const response: WorkerResponse = {
+      id: 'resp-001',
+      type: 'process',
+      payload: { result: 'ok' },
+    };
+
+    expect(response.id).toBe('resp-001');
     expect(response.type).toBe('process');
-    expect(response.payload).toBe('result');
+    expect(response.payload).toEqual({ result: 'ok' });
   });
 
-  it('error 字段应为可选', () => {
-    const successResponse: WorkerResponse = { id: '1', type: 'process', payload: 'ok' };
-    expect(successResponse.error).toBeUndefined();
+  it('error 字段是可选的', () => {
+    const responseWithoutError: WorkerResponse = {
+      id: '1',
+      type: 'process',
+      payload: 'result',
+    };
+    expect(responseWithoutError.error).toBeUndefined();
+
+    const responseWithError: WorkerResponse = {
+      id: '2',
+      type: 'process',
+      payload: null,
+      error: 'something went wrong',
+    };
+    expect(responseWithError.error).toBe('something went wrong');
   });
 
-  it('错误响应应包含 error 字段', () => {
-    const errorResponse: WorkerResponse = {
+  it('成功响应的 error 字段应为 undefined', () => {
+    const response: WorkerResponse = {
+      id: '1',
+      type: 'process',
+      payload: { data: 'result' },
+    };
+    expect(response.error).toBeUndefined();
+  });
+
+  it('失败响应的 payload 可以为 null', () => {
+    const response: WorkerResponse = {
       id: '1',
       type: 'process',
       payload: null,
-      error: '处理失败',
+      error: 'Processing failed',
     };
-    expect(errorResponse.error).toBe('处理失败');
+    expect(response.payload).toBeNull();
+    expect(response.error).toBeDefined();
   });
 
-  it('id 与请求的 id 应匹配', () => {
-    const request: WorkerRequest = { id: 'req-001', type: 'process', payload: {} };
-    const response: WorkerResponse = { id: 'req-001', type: 'process', payload: 'done' };
+  it('响应的 type 应与请求的 type 一致', () => {
+    const request: WorkerRequest = { id: '42', type: 'process', payload: {} };
+    const response: WorkerResponse = {
+      id: request.id,
+      type: request.type,
+      payload: 'result',
+    };
     expect(response.id).toBe(request.id);
     expect(response.type).toBe(request.type);
   });
@@ -164,5 +209,65 @@ describe('WorkerResponse 边界情况', () => {
 
     expect(resp1.id).not.toBe(resp2.id);
     expect(resp1.payload).not.toBe(resp2.payload);
+  });
+});
+
+// ==================== 请求/响应协议完整性 ====================
+
+describe('Worker 消息协议完整性', () => {
+  it('请求 ID 在响应中应保持一致', () => {
+    const requestId = 'unique-req-id-xyz';
+    const request: WorkerRequest = { id: requestId, type: 'process', payload: 'text' };
+
+    // 模拟 Worker 处理并返回响应
+    const response: WorkerResponse = {
+      id: request.id,
+      type: request.type,
+      payload: 'processed result',
+    };
+
+    expect(response.id).toBe(request.id);
+    expect(response.id).toBe(requestId);
+  });
+
+  it('请求的 type 在响应中应匹配', () => {
+    const taskType = 'configure';
+    const request: WorkerRequest = { id: '1', type: taskType, payload: {} };
+    const response: WorkerResponse = { id: '1', type: taskType, payload: { ok: true } };
+
+    expect(response.type).toBe(request.type);
+  });
+
+  it('错误响应应包含 error 字段且 payload 可为 null', () => {
+    const response: WorkerResponse = {
+      id: 'failed-req',
+      type: 'process',
+      payload: null,
+      error: 'Unknown task type: invalid',
+    };
+
+    expect(response.error).toContain('Unknown task type');
+    expect(response.payload).toBeNull();
+  });
+
+  it('成功响应不应包含 error 字段', () => {
+    const response: WorkerResponse = {
+      id: 'success-req',
+      type: 'process',
+      payload: { type: 'json', content: '{}' },
+    };
+
+    expect('error' in response ? response.error : undefined).toBeUndefined();
+  });
+
+  it('WorkerRequest 和 WorkerResponse 共享相同的 id 格式', () => {
+    const sharedId = crypto.randomUUID();
+    const request: WorkerRequest = { id: sharedId, type: 'process', payload: {} };
+    const response: WorkerResponse = { id: sharedId, type: 'process', payload: 'done' };
+
+    expect(request.id).toBe(response.id);
+    expect(sharedId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    );
   });
 });
