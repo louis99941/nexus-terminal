@@ -17,6 +17,7 @@ import { getErrorMessage } from '../../utils/AppError';
 import { lookupGeoInfo } from '../../auth/ip-geo.service';
 import { logger } from '../../utils/logger';
 import eventService, { AppEventType } from '../../services/event.service';
+import { getOrCreateBatcher, destroyBatcher } from '../output-batcher';
 
 type SilentExecShellFlavor = 'posix' | 'powershell' | 'cmd' | 'fish';
 type SilentExecSuccessCriteria = 'any' | 'non_empty' | 'absolute_path';
@@ -714,19 +715,24 @@ export async function handleSshConnect(
           newState.sshShellStream = stream;
           newState.isShellReady = true;
 
+          // 创建输出批处理器，将 16ms 窗口内的多个 SSH 输出块合并为单帧
+          const outputBatcher = getOrCreateBatcher(ws, newSessionId, (encoded: string) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: 'ssh:output',
+                  payload: encoded,
+                  encoding: 'base64',
+                })
+              );
+            }
+          });
+
           stream.on('data', (data: Buffer) => {
             const processedOutput = processSshStreamOutput(newSessionId, data.toString('utf8'));
-            if (ws.readyState === WebSocket.OPEN) {
-              if (processedOutput) {
-                // 确保数据以 UTF-8 编码转换为 Base64
-                ws.send(
-                  JSON.stringify({
-                    type: 'ssh:output',
-                    payload: Buffer.from(processedOutput, 'utf8').toString('base64'),
-                    encoding: 'base64',
-                  })
-                );
-              }
+            if (processedOutput) {
+              // 使用批处理器合并小数据块，降低帧数和带宽占用
+              outputBatcher.write(processedOutput);
             }
             // 如果会话被标记为待挂起，则将输出写入日志
             const currentState = clientStates.get(newSessionId); // 获取最新的状态
@@ -751,18 +757,8 @@ export async function handleSshConnect(
               logger.error(
                 `SSH Stderr (会话: ${newSessionId})，数据长度: ${processedOutput.length}`
               );
-            }
-            if (ws.readyState === WebSocket.OPEN) {
-              if (processedOutput) {
-                // 确保数据以 UTF-8 编码转换为 Base64
-                ws.send(
-                  JSON.stringify({
-                    type: 'ssh:output',
-                    payload: Buffer.from(processedOutput, 'utf8').toString('base64'),
-                    encoding: 'base64',
-                  })
-                );
-              }
+              // stderr 也通过批处理器发送，保持一致性
+              outputBatcher.write(processedOutput);
             }
             // 同样，如果会话被标记为待挂起，则将 stderr 输出写入日志
             const currentState = clientStates.get(newSessionId);
@@ -782,6 +778,8 @@ export async function handleSshConnect(
             }
           });
           stream.on('close', () => {
+            // 销毁批处理器，刷新剩余数据并释放资源
+            destroyBatcher(newSessionId);
             finalizeSilentExecWithError(
               newSessionId,
               'Shell channel closed before silent command completed.'

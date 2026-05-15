@@ -234,7 +234,7 @@ describe('数据库迁移', () => {
   it('check 函数返回 false 时应跳过 SQL 执行', async () => {
     const { runMigrations } = await import('./migrations');
 
-    // 当数据库版本为 14（所有迁移已应用），check 函数不会被调用
+    // 当数据库版本为 17（所有迁移已应用），check 函数不会被调用
     const mockDb: Record<string, ReturnType<typeof vi.fn>> = {
       serialize: vi.fn((cb: (...args: unknown[]) => void) => cb()),
       run: vi.fn((_sql: string, _paramsOrCb?: unknown, _cb?: (...args: unknown[]) => void) => {
@@ -243,7 +243,10 @@ describe('数据库迁移', () => {
       }),
       get: vi.fn((_sql: string, _paramsOrCb?: unknown, _cb?: (...args: unknown[]) => void) => {
         const cb = typeof _paramsOrCb === 'function' ? _paramsOrCb : _cb;
-        if (cb) cb(null, { currentVersion: 14 });
+        if (cb) cb(null, { currentVersion: 17 });
+      }),
+      all: vi.fn((_sql: string, _cb: (...args: unknown[]) => void) => {
+        if (_cb) _cb(null, []);
       }),
       exec: vi.fn((_sql: string, cb: (...args: unknown[]) => void) => cb(null)),
     };

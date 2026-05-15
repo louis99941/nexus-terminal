@@ -84,7 +84,16 @@
 | `MAX_MISSED_PONGS_DESKTOP`   | `number` | 否   | `1`     | 桌面端最大容忍丢包次数 |
 | `MAX_MISSED_PONGS_MOBILE`    | `number` | 否   | `3`     | 移动端最大容忍丢包次数 |
 
-### 1.8 AI/NL2CMD 调试
+### 1.8 WebSocket 多路复用
+
+> 定义位置：`packages/backend/src/config/env.validator.ts`（校验）
+> 使用位置：`packages/backend/src/websocket/multiplex.ts`（运行时检查）
+
+| 变量名             | 类型      | 必填 | 默认值  | 描述                                                          |
+| ------------------ | --------- | ---- | ------- | ------------------------------------------------------------- |
+| `ENABLE_MULTIPLEX` | `boolean` | 否   | `false` | WebSocket 多路复用开关。启用后单个物理连接可承载多个 SSH 会话 |
+
+### 1.9 AI/NL2CMD 调试
 
 > 定义位置：`packages/backend/src/config/env.validator.ts`（校验）  
 > 使用位置：`packages/backend/src/ai-ops/nl2cmd.service.ts`、`packages/backend/src/ai-ops/nl2cmd.controller.ts`

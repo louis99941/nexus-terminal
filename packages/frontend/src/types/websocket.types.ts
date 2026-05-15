@@ -201,6 +201,7 @@ export interface WebSocketMessage {
   payload?: MessagePayload; // 消息负载
   requestId?: string; // 请求关联 ID
   sessionId?: string; // 会话 ID
+  sid?: string; // 多路复用会话 ID（可选）
   encoding?: string; // 数据编码方式（如 base64）
   path?: string; // 文件路径（SFTP 操作）
   uploadId?: string; // 上传任务 ID

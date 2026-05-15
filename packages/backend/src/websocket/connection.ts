@@ -27,6 +27,14 @@ import { clientStates, registerUserSocket, unregisterUserSocket } from './state'
 import { temporaryLogStorageService } from '../ssh-suspend/temporary-log-storage.service';
 import { resetHeartbeat, cleanupHeartbeat } from './heartbeat'; // 导入心跳函数
 import { validateWebSocketMessage } from './validate'; // 导入消息校验函数
+import {
+  createMultiplexTransport,
+  registerTransport,
+  unregisterTransport,
+  isMultiplexEnabled,
+  MultiplexTransport,
+} from './multiplex'; // 导入多路复用模块
+import { destroyBatcher } from './output-batcher'; // 导入批处理器
 
 // Handlers
 import { handleRdpProxyConnection } from './handlers/remote-desktop.handler';
@@ -117,6 +125,14 @@ export function initializeConnectionHandler(
       resetHeartbeat(ws);
     });
 
+    // 多路复用模式：创建传输管理器
+    let multiplexTransport: MultiplexTransport | null = null;
+    if (ws.isMultiplex && isMultiplexEnabled()) {
+      multiplexTransport = createMultiplexTransport(ws);
+      registerTransport(ws, multiplexTransport);
+      logger.info(`[WebSocket] 多路复用传输已创建 (用户: ${ws.username}, ID: ${ws.userId})`);
+    }
+
     if (isRdpProxy) {
       handleRdpProxyConnection(ws, request);
     } else {
@@ -151,7 +167,26 @@ export function initializeConnectionHandler(
 
         // 使用已校验的消息数据
         const { type, payload, requestId } = validationResult.data;
-        const { sessionId } = ws; // Get current WebSocket's session ID
+        // 多路复用模式：仅在启用时从消息中提取 sid，并校验所有权
+        let effectiveSessionId = ws.sessionId;
+        if (isMultiplexEnabled() && ws.isMultiplex) {
+          const msgSid = (parsedMessage as Record<string, unknown>)?.sid as string | undefined;
+          if (msgSid) {
+            // 所有权校验：确认该 sid 对应的会话属于当前用户
+            const targetState = clientStates.get(msgSid);
+            if (targetState && targetState.ws.userId === ws.userId) {
+              effectiveSessionId = msgSid;
+            } else if (targetState) {
+              logger.warn(
+                `[WebSocket 安全] 用户 ${ws.userId} 尝试访问不属于自己的会话 ${msgSid}，已拒绝`
+              );
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'error', payload: '无权访问该会话' }));
+              }
+              return;
+            }
+          }
+        }
 
         try {
           switch (type) {
@@ -176,13 +211,13 @@ export function initializeConnectionHandler(
 
             // Docker Cases
             case 'docker:get_status':
-              await handleDockerGetStatus(ws, sessionId);
+              await handleDockerGetStatus(ws, effectiveSessionId);
               break;
             case 'docker:command':
-              await handleDockerCommand(ws, sessionId, payload);
+              await handleDockerCommand(ws, effectiveSessionId, payload);
               break;
             case 'docker:get_stats':
-              await handleDockerGetStats(ws, sessionId, payload);
+              await handleDockerGetStats(ws, effectiveSessionId, payload);
               break;
 
             // SFTP Cases (generic operations)
@@ -813,14 +848,14 @@ export function initializeConnectionHandler(
             }
             default:
               logger.warn(
-                `WebSocket：收到来自 ${ws.username} (会话: ${sessionId}) 的未知消息类型: ${type}`
+                `WebSocket：收到来自 ${ws.username} (会话: ${effectiveSessionId}) 的未知消息类型: ${type}`
               );
               if (ws.readyState === WebSocket.OPEN)
                 ws.send(JSON.stringify({ type: 'error', payload: `不支持的消息类型: ${type}` }));
           }
         } catch (error: unknown) {
           logger.error(
-            `WebSocket: 处理来自 ${ws.username} (会话: ${sessionId}) 的消息 (${type}) 时发生顶层错误:`,
+            `WebSocket: 处理来自 ${ws.username} (会话: ${effectiveSessionId}) 的消息 (${type}) 时发生顶层错误:`,
             error
           );
           if (ws.readyState === WebSocket.OPEN)
@@ -846,6 +881,17 @@ export function initializeConnectionHandler(
         // 清理心跳状态
         cleanupHeartbeat(ws);
 
+        // 清理多路复用传输
+        if (multiplexTransport) {
+          unregisterTransport(ws);
+          multiplexTransport.cleanup();
+        }
+
+        // 清理该会话的批处理器
+        if (ws.sessionId) {
+          destroyBatcher(ws.sessionId);
+        }
+
         cleanupClientConnection(ws.sessionId).catch((error: unknown) => {
           logger.debug(
             '[WebSocket] 连接关闭后清理失败:',
@@ -864,6 +910,17 @@ export function initializeConnectionHandler(
 
         // 清理心跳状态
         cleanupHeartbeat(ws);
+
+        // 清理多路复用传输
+        if (multiplexTransport) {
+          unregisterTransport(ws);
+          multiplexTransport.cleanup();
+        }
+
+        // 清理该会话的批处理器
+        if (ws.sessionId) {
+          destroyBatcher(ws.sessionId);
+        }
 
         cleanupClientConnection(ws.sessionId).catch((cleanupError: unknown) => {
           logger.debug(

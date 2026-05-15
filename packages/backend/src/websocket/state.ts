@@ -17,6 +17,43 @@ export const clientStates = new Map<string, ClientState>();
 // 但共享同一 userId 的 WebSocket 广播通道。切换设备不会自动迁移或同步 SSH 会话状态。
 // 如需跨设备会话列表，可通过 /api/v1/ssh-suspend/suspended-sessions 获取当前用户的挂起会话。
 
+// --- 多路复用通道追踪 ---
+// 追踪每个物理 WebSocket 连接关联的逻辑通道 (ws -> Set<sessionId>)
+export const transportChannels = new Map<AuthenticatedWebSocket, Set<string>>();
+
+/**
+ * 注册逻辑通道到物理连接
+ * @param ws 物理 WebSocket 连接
+ * @param sessionId 逻辑会话 ID
+ */
+export function registerChannel(ws: AuthenticatedWebSocket, sessionId: string): void {
+  let channels = transportChannels.get(ws);
+  if (!channels) {
+    channels = new Set();
+    transportChannels.set(ws, channels);
+  }
+  channels.add(sessionId);
+  logger.debug(`[WebSocket 状态] 注册通道 ${sessionId}，当前连接通道数: ${channels.size}`);
+}
+
+/**
+ * 注销逻辑通道
+ * @param ws 物理 WebSocket 连接
+ * @param sessionId 逻辑会话 ID
+ */
+export function unregisterChannel(ws: AuthenticatedWebSocket, sessionId: string): void {
+  const existingChannels = transportChannels.get(ws);
+  if (existingChannels) {
+    existingChannels.delete(sessionId);
+    if (existingChannels.size === 0) {
+      transportChannels.delete(ws);
+      logger.debug(`[WebSocket 状态] 物理连接的所有通道已注销`);
+    } else {
+      logger.debug(`[WebSocket 状态] 注销通道 ${sessionId}，剩余通道数: ${existingChannels.size}`);
+    }
+  }
+}
+
 // --- Per-session 互斥锁 ---
 // Map 中的 ClientState 可能被多个异步上下文（WebSocket 消息处理器、定时器、SFTP 操作等）并发访问。
 // 为每个 sessionId 维护一个 Promise 链，确保对同一会话的状态操作串行执行，

@@ -40,6 +40,9 @@ Below is a long-term summary of this fork's enhancements compared to upstream:
 | **In-Process Cache Layer**          | Settings table 5min TTL, connections table 2min TTL, reducing high-frequency SQL queries                                    |
 | **SSH Connection Pool**             | Batch task connection reuse, max 3 idle connections per target, 60s auto-reclaim                                            |
 | **Batch Task Priority**             | Supports low/normal/high/urgent priorities, urgent tasks execute first                                                      |
+| **WebSocket Multiplexing**          | Single connection carries multiple sessions, reducing browser connections and server resource consumption                   |
+| **Terminal Data Compression**       | permessage-deflate protocol compression + 16ms micro-batching, reducing bandwidth usage                                     |
+| **CDN Edge Deployment**             | Support for Cloudflare/CloudFront CDN to accelerate static resource distribution                                            |
 
 ### 🛠️ New Features
 

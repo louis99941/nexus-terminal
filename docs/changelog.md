@@ -27,6 +27,9 @@
 - **路由资源预加载**：认证后使用 `requestIdleCallback` 自动预加载核心路由 chunk
 - **Service Worker 增强**：结构化缓存策略（静态资源/API/图标/页面四个缓存桶），支持离线访问
 - **Service Worker 更新提示**：从 `window.confirm()` 弹窗改为通知 toast
+- **WebSocket 多路复用**：单连接承载多会话，减少浏览器连接数，通过 `ENABLE_MULTIPLEX` 环境变量控制
+- **终端数据压缩**：启用 permessage-deflate 协议压缩 + 16ms 微批处理，降低带宽占用
+- **CDN 边缘部署**：新增 Cloudflare/CloudFront 配置指南（`doc/CDN_DEPLOYMENT.md`）
 
 ### 改进
 

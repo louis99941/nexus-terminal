@@ -5,6 +5,7 @@ import { Request, RequestHandler } from 'express';
 import { WebSocketServer } from 'ws';
 import { AuthenticatedWebSocket } from './types';
 import { SECURITY_CONFIG } from '../config/security.config';
+import { isMultiplexEnabled } from './multiplex';
 import { logger } from '../utils/logger';
 
 type UpgradeRequestMeta = {
@@ -159,6 +160,14 @@ export function initializeUpgradeHandler(
           extWs.username = request.session.username;
           typedRequest.clientIpAddress = ipAddress;
           typedRequest.isRdpProxy = false; // 标记为非 RDP 代理连接
+
+          // 检测多路复用协议
+          const secProtocol = request.headers['sec-websocket-protocol'];
+          if (isMultiplexEnabled() && secProtocol === 'nexus-mux') {
+            extWs.isMultiplex = true;
+            logger.debug(`WebSocket: 多路复用模式已启用 (用户: ${request.session.username})`);
+          }
+
           wss.emit('connection', extWs, request);
         });
       }

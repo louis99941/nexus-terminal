@@ -28,9 +28,21 @@ export const initializeWebSocket = async (
   // Environment variables are expected to be loaded by index.ts
 
   // 设置最大负载大小为 4MB，防止 DoS 攻击
+  // 启用 permessage-deflate 压缩，降低带宽占用
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: 4 * 1024 * 1024, // 4MB
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        level: 3, // 低 CPU 开销的压缩级别
+      },
+      zlibInflateOptions: {
+        chunkSize: 10 * 1024,
+      },
+      threshold: 256, // 小于 256 字节不压缩
+      serverNoContextTakeover: true, // 避免字典内存累积
+      clientNoContextTakeover: true,
+    },
   });
   // const db = await getDbInstance(); // db instance might not be directly needed here anymore if all DB interactions are in services/handlers
 

@@ -19,6 +19,16 @@ import {
   addTagToMultipleConnections,
 } from './connection.repository';
 
+// Mock 缓存服务（防止测试间缓存泄漏）
+vi.mock('../services/cache.service', () => ({
+  cacheService: {
+    get: vi.fn().mockReturnValue(null),
+    set: vi.fn(),
+    delete: vi.fn(),
+    clear: vi.fn(),
+  },
+}));
+
 // Mock 数据库连接
 vi.mock('../database/connection', () => ({
   getDbInstance: vi.fn().mockResolvedValue({}),
