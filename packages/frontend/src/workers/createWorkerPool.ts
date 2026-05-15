@@ -119,10 +119,11 @@ export function createWorkerPool(
   }
 
   /**
-   * Reserve an idle worker and prepare the oldest pending request for dispatch.
+   * Selects an idle worker and reserves it for the oldest pending request.
    *
-   * If the pool is destroyed or no idle worker is available, the function returns without action.
-   * Otherwise it marks the selected worker as busy and constructs a `WorkerRequest` for the earliest entry in the pending queue; it does not post the message to the worker.
+   * If the pool is destroyed or no idle worker is available, this function does nothing.
+   * Otherwise it marks the chosen worker as busy and prepares a `WorkerRequest` object
+   * for the earliest pending entry without posting the message; actual sending is handled elsewhere.
    */
   function processQueue() {
     if (destroyed) return;
