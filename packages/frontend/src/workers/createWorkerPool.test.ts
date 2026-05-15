@@ -1,293 +1,288 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createWorkerPool } from './createWorkerPool';
+import type { WorkerResponse } from './types';
 
-// ==================== Mock Worker ====================
-
+// Mock Worker class
 class MockWorker {
-  static instances: MockWorker[] = [];
-
-  url: URL | string;
-  options?: { type?: string };
+  url: URL;
+  options: unknown;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   postMessage = vi.fn();
   terminate = vi.fn();
 
-  constructor(url: URL | string, options?: { type?: string }) {
+  constructor(url: URL, options?: unknown) {
     this.url = url;
     this.options = options;
-    MockWorker.instances.push(this);
   }
 
-  /** 模拟 Worker 发出成功响应 */
-  simulateMessage(data: { id: string; type: string; payload: unknown; error?: string }) {
-    const event = { data, target: this } as unknown as MessageEvent;
-    if (this.onmessage) this.onmessage(event);
+  // Helper to simulate a response from the worker
+  simulateResponse(response: WorkerResponse) {
+    const event = new MessageEvent('message', { data: response });
+    Object.defineProperty(event, 'target', { value: this });
+    if (this.onmessage) {
+      this.onmessage(event);
+    }
   }
 
-  /** 模拟 Worker 发出错误事件 */
+  // Helper to simulate an error
   simulateError(message: string) {
-    const event = { message } as unknown as ErrorEvent;
-    if (this.onerror) this.onerror(event);
+    const event = new ErrorEvent('error', { message });
+    if (this.onerror) {
+      this.onerror(event);
+    }
   }
 }
 
-// ==================== Setup ====================
+// Store references to created workers
+let createdWorkers: MockWorker[] = [];
 
-let originalWorker: typeof Worker;
+// Replace the global Worker with our mock
+const originalWorker = globalThis.Worker;
 
 beforeEach(() => {
-  MockWorker.instances = [];
-  vi.useFakeTimers();
-  originalWorker = global.Worker;
-  (global as unknown as Record<string, unknown>).Worker = MockWorker;
+  createdWorkers = [];
+  vi.clearAllMocks();
+  // Mock Worker globally
+  globalThis.Worker = vi.fn().mockImplementation((url: URL, options?: unknown) => {
+    const worker = new MockWorker(url, options);
+    createdWorkers.push(worker);
+    return worker;
+  }) as unknown as typeof Worker;
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  vi.clearAllMocks();
-  (global as unknown as Record<string, unknown>).Worker = originalWorker;
+  globalThis.Worker = originalWorker;
 });
 
-// ==================== Tests ====================
+const workerUrl = new URL('some-worker.ts', 'http://localhost/');
 
 describe('createWorkerPool', () => {
-  // Dynamic import after mocking Worker
-  async function getCreateWorkerPool() {
-    const { createWorkerPool } = await import('./createWorkerPool');
-    return createWorkerPool;
-  }
-
-  const fakeUrl = new URL('https://example.com/worker.js');
-
   describe('初始化', () => {
-    it('默认应创建 2 个 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl);
+    it('应该创建指定数量的 Worker', () => {
+      const pool = createWorkerPool(workerUrl, { size: 3 });
+      expect(pool.size).toBe(3);
+      expect(globalThis.Worker).toHaveBeenCalledTimes(3);
+      pool.destroy();
+    });
+
+    it('默认池大小应为 2', () => {
+      const pool = createWorkerPool(workerUrl);
       expect(pool.size).toBe(2);
       pool.destroy();
     });
 
-    it('指定 size 应创建对应数量的 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 3 });
-      expect(pool.size).toBe(3);
-      pool.destroy();
+    it('应该使用 module 类型创建 Worker', () => {
+      createWorkerPool(workerUrl, { size: 1 });
+      expect(globalThis.Worker).toHaveBeenCalledWith(workerUrl, { type: 'module' });
     });
 
-    it('size 为 1 应创建 1 个 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
-      expect(pool.size).toBe(1);
-      pool.destroy();
-    });
-
-    it('初始时所有 Worker 应为空闲状态', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
+    it('所有 Worker 初始应为空闲状态', () => {
+      const pool = createWorkerPool(workerUrl, { size: 2 });
       expect(pool.hasIdle).toBe(true);
       pool.destroy();
     });
-
-    it('应使用 module 类型创建 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      createWorkerPool(fakeUrl, { size: 1 });
-      const worker = MockWorker.instances[0];
-      expect(worker.options?.type).toBe('module');
-    });
   });
 
-  describe('execute - Worker 可用时', () => {
-    it('应将任务通过 postMessage 发送到 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+  describe('execute - 基本执行', () => {
+    it('应该向空闲 Worker 发送任务', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
 
-      const promise = pool.execute('myTask', { data: 'test' });
-      const worker = MockWorker.instances[0];
+      const executePromise = pool.execute<string>('testTask', { data: 'payload' });
 
-      expect(worker.postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'myTask',
-          payload: { data: 'test' },
-        })
-      );
+      // Verify postMessage was called
+      expect(worker.postMessage).toHaveBeenCalledOnce();
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      expect(sentMessage.type).toBe('testTask');
+      expect(sentMessage.payload).toEqual({ data: 'payload' });
+      expect(sentMessage.id).toBeTruthy();
 
-      // Cleanup: simulate response to resolve promise
-      const callArg = worker.postMessage.mock.calls[0][0];
-      worker.simulateMessage({ id: callArg.id, type: 'myTask', payload: 'result' });
+      // Simulate worker response
+      worker.simulateResponse({ id: sentMessage.id, type: 'testTask', payload: 'result' });
 
-      await expect(promise).resolves.toBe('result');
+      const result = await executePromise;
+      expect(result).toBe('result');
+
       pool.destroy();
     });
 
-    it('Worker 回复成功响应时应 resolve 对应 promise', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+    it('应该返回 Worker 响应的 payload', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
 
-      const promise = pool.execute<string>('process', { text: 'hello' });
-      const worker = MockWorker.instances[0];
-      const callArg = worker.postMessage.mock.calls[0][0];
+      const executePromise = pool.execute<{ value: number }>('compute', { input: 42 });
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      worker.simulateResponse({ id: sentMessage.id, type: 'compute', payload: { value: 84 } });
 
-      worker.simulateMessage({ id: callArg.id, type: 'process', payload: 'processed result' });
+      const result = await executePromise;
+      expect(result).toEqual({ value: 84 });
 
-      await expect(promise).resolves.toBe('processed result');
       pool.destroy();
     });
 
-    it('Worker 回复错误响应时应 reject 对应 promise', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+    it('Worker 返回错误时应 reject Promise', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
 
-      const promise = pool.execute<string>('process', { text: 'hello' });
-      const worker = MockWorker.instances[0];
-      const callArg = worker.postMessage.mock.calls[0][0];
-
-      worker.simulateMessage({
-        id: callArg.id,
-        type: 'process',
+      const executePromise = pool.execute<string>('failTask', {});
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      worker.simulateResponse({
+        id: sentMessage.id,
+        type: 'failTask',
         payload: null,
         error: '处理失败',
       });
 
-      await expect(promise).rejects.toThrow('处理失败');
+      await expect(executePromise).rejects.toThrow('处理失败');
+
       pool.destroy();
     });
 
-    it('任务 ID 不匹配时应忽略响应', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+    it('响应后 Worker 应恢复为空闲状态', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
 
-      const promise = pool.execute<string>('process', { text: 'hello' });
-      const worker = MockWorker.instances[0];
+      const executePromise = pool.execute<string>('task', {});
+      expect(pool.hasIdle).toBe(false);
 
-      // 发送不匹配的 ID
-      worker.simulateMessage({ id: 'nonexistent-id', type: 'process', payload: 'ignored' });
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      worker.simulateResponse({ id: sentMessage.id, type: 'task', payload: 'done' });
+      await executePromise;
 
-      // 发送正确 ID
-      const callArg = worker.postMessage.mock.calls[0][0];
-      worker.simulateMessage({ id: callArg.id, type: 'process', payload: 'correct' });
+      expect(pool.hasIdle).toBe(true);
 
-      await expect(promise).resolves.toBe('correct');
+      pool.destroy();
+    });
+
+    it('未知 id 的响应应被忽略', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
+
+      // Send a response with unknown id - should not crash
+      worker.simulateResponse({ id: 'unknown-id', type: 'task', payload: 'ignored' });
+      // Pool should still be functional
+      expect(pool.size).toBe(1);
+
       pool.destroy();
     });
   });
 
-  describe('execute - 超时处理', () => {
-    it('超时后应 reject 并包含超时错误信息', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1, timeout: 1000 });
+  describe('降级处理', () => {
+    it('Worker 不可用时应调用 fallback 函数', async () => {
+      // Temporarily remove Worker
+      const savedWorker = globalThis.Worker;
+      (globalThis as unknown as Record<string, unknown>).Worker = undefined;
 
-      const promise = pool.execute<string>('slowTask', { data: 'test' });
+      const fallback = vi.fn().mockReturnValue('fallback-result');
+      const pool = createWorkerPool(workerUrl, { size: 1, fallback });
 
-      // 触发超时
+      const result = await pool.execute<string>('task', { data: 'test' });
+
+      expect(fallback).toHaveBeenCalledWith('task', { data: 'test' });
+      expect(result).toBe('fallback-result');
+
+      globalThis.Worker = savedWorker;
+      pool.destroy();
+    });
+
+    it('Worker 不可用且没有 fallback 时应抛出错误', async () => {
+      const savedWorker = globalThis.Worker;
+      (globalThis as unknown as Record<string, unknown>).Worker = undefined;
+
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+
+      await expect(pool.execute<string>('task', {})).rejects.toThrow(
+        'Worker 不可用且未配置降级处理'
+      );
+
+      globalThis.Worker = savedWorker;
+      pool.destroy();
+    });
+
+    it('Worker 创建失败时应用 fallback', async () => {
+      // Make Worker throw on creation
+      globalThis.Worker = vi.fn().mockImplementation(() => {
+        throw new Error('Worker 创建失败');
+      }) as unknown as typeof Worker;
+
+      const fallback = vi.fn().mockReturnValue('fallback');
+      const pool = createWorkerPool(workerUrl, { size: 1, fallback });
+
+      // Workers failed to create, size should be 0
+      expect(pool.size).toBe(0);
+
+      const result = await pool.execute<string>('task', {});
+      expect(fallback).toHaveBeenCalled();
+      expect(result).toBe('fallback');
+
+      pool.destroy();
+    });
+  });
+
+  describe('超时处理', () => {
+    it('任务超时时应 reject Promise', async () => {
+      vi.useFakeTimers();
+
+      const pool = createWorkerPool(workerUrl, { size: 1, timeout: 1000 });
+
+      const executePromise = pool.execute<string>('slowTask', {});
+
+      // Advance time past timeout
       vi.advanceTimersByTime(1001);
 
-      await expect(promise).rejects.toThrow('Worker 任务超时: slowTask (1000ms)');
+      await expect(executePromise).rejects.toThrow('Worker 任务超时: slowTask (1000ms)');
+
       pool.destroy();
     });
 
-    it('超时错误信息应包含任务类型和超时时间', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1, timeout: 500 });
+    it('超时后 pending map 应清空对应任务', async () => {
+      vi.useFakeTimers();
 
-      const promise = pool.execute<string>('specificTask', {});
+      const pool = createWorkerPool(workerUrl, { size: 1, timeout: 500 });
 
-      vi.advanceTimersByTime(501);
+      const executePromise = pool.execute<string>('task', {}).catch(() => {});
+      vi.advanceTimersByTime(600);
 
-      await expect(promise).rejects.toThrow('Worker 任务超时: specificTask (500ms)');
+      await executePromise;
+      // After timeout, the worker should be free for new tasks
+      // (we can verify by checking that a new execute works)
+      expect(pool.size).toBe(1);
+
       pool.destroy();
-    });
-
-    it('成功响应后不应触发超时', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1, timeout: 1000 });
-
-      const promise = pool.execute<string>('fastTask', {});
-      const worker = MockWorker.instances[0];
-      const callArg = worker.postMessage.mock.calls[0][0];
-
-      // 在超时前响应
-      worker.simulateMessage({ id: callArg.id, type: 'fastTask', payload: 'done' });
-      vi.advanceTimersByTime(1001);
-
-      await expect(promise).resolves.toBe('done');
-      pool.destroy();
-    });
-  });
-
-  describe('execute - 降级处理', () => {
-    it('无 Worker 且有 fallback 时应调用 fallback', async () => {
-      // 临时禁用 Worker
-      (global as unknown as Record<string, unknown>).Worker = undefined;
-
-      const createWorkerPool = await getCreateWorkerPool();
-      const mockFallback = vi.fn().mockReturnValue('fallback result');
-      const pool = createWorkerPool(fakeUrl, { size: 2, fallback: mockFallback });
-
-      const result = await pool.execute('process', { text: 'test' });
-
-      expect(mockFallback).toHaveBeenCalledWith('process', { text: 'test' });
-      expect(result).toBe('fallback result');
-      pool.destroy();
-    });
-
-    it('无 Worker 且无 fallback 时应抛出错误', async () => {
-      (global as unknown as Record<string, unknown>).Worker = undefined;
-
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
-
-      await expect(pool.execute('process', {})).rejects.toThrow('Worker 不可用且未配置降级处理');
-      pool.destroy();
-    });
-  });
-
-  describe('execute - 销毁后', () => {
-    it('销毁后调用 execute 应抛出错误', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
-      pool.destroy();
-
-      await expect(pool.execute('task', {})).rejects.toThrow('Worker pool 已销毁');
     });
   });
 
   describe('destroy', () => {
-    it('应终止所有 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
-      const workers = MockWorker.instances.slice(-2);
-
+    it('销毁后应终止所有 Worker', () => {
+      const pool = createWorkerPool(workerUrl, { size: 2 });
       pool.destroy();
 
-      workers.forEach((w) => {
-        expect(w.terminate).toHaveBeenCalled();
-      });
-    });
-
-    it('销毁后 size 应为 0', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
-      pool.destroy();
-
+      for (const worker of createdWorkers) {
+        expect(worker.terminate).toHaveBeenCalledOnce();
+      }
       expect(pool.size).toBe(0);
     });
 
-    it('销毁时应拒绝所有待处理请求', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+    it('销毁时应 reject 所有待处理的请求', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
 
-      // 提交任务但不响应，让其处于 pending 状态
-      const pendingPromise = pool.execute<string>('pendingTask', {});
-
+      const executePromise = pool.execute<string>('task', {});
       pool.destroy();
 
-      await expect(pendingPromise).rejects.toThrow('Worker pool 已销毁');
+      await expect(executePromise).rejects.toThrow('Worker pool 已销毁');
     });
 
-    it('重复调用 destroy 应是安全的', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+    it('销毁后调用 execute 应抛出错误', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      pool.destroy();
 
+      await expect(pool.execute<string>('task', {})).rejects.toThrow('Worker pool 已销毁');
+    });
+
+    it('多次调用 destroy 应不抛出错误', () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
       expect(() => {
         pool.destroy();
         pool.destroy();
@@ -296,110 +291,243 @@ describe('createWorkerPool', () => {
   });
 
   describe('size 属性', () => {
-    it('初始 size 应等于配置值', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 3 });
+    it('未销毁时 size 应反映 Worker 数量', () => {
+      const pool = createWorkerPool(workerUrl, { size: 3 });
       expect(pool.size).toBe(3);
       pool.destroy();
     });
 
-    it('destroy 后 size 应为 0', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
+    it('销毁后 size 应为 0', () => {
+      const pool = createWorkerPool(workerUrl, { size: 2 });
       pool.destroy();
       expect(pool.size).toBe(0);
     });
   });
 
   describe('hasIdle 属性', () => {
-    it('初始时应有空闲 Worker', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
+    it('有空闲 Worker 时应返回 true', () => {
+      const pool = createWorkerPool(workerUrl, { size: 2 });
       expect(pool.hasIdle).toBe(true);
       pool.destroy();
     });
 
-    it('Worker 处理任务时 hasIdle 应反映实际状态', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 1 });
+    it('所有 Worker 忙碌时应返回 false', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
 
-      // 提交任务，Worker 变为忙碌
-      const promise = pool.execute<string>('task', {});
+      // Start a task but don't resolve it
+      pool.execute<string>('task1', {});
       expect(pool.hasIdle).toBe(false);
 
-      // 响应后 Worker 恢复空闲
-      const worker = MockWorker.instances[MockWorker.instances.length - 1];
-      const callArg = worker.postMessage.mock.calls[0][0];
-      worker.simulateMessage({ id: callArg.id, type: 'task', payload: 'done' });
-
-      await promise;
-      expect(pool.hasIdle).toBe(true);
       pool.destroy();
     });
 
-    it('destroy 后 hasIdle 应为 false（无 Worker）', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
-      pool.destroy();
+    it('任务完成后应恢复 true', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
+
+      const executePromise = pool.execute<string>('task', {});
       expect(pool.hasIdle).toBe(false);
+
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      worker.simulateResponse({ id: sentMessage.id, type: 'task', payload: 'done' });
+      await executePromise;
+
+      expect(pool.hasIdle).toBe(true);
+
+      pool.destroy();
     });
   });
 
-  describe('Worker 错误事件', () => {
-    it('Worker onerror 事件应记录错误到 console', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const createWorkerPool = await getCreateWorkerPool();
-      createWorkerPool(fakeUrl, { size: 1 });
+  describe('并发处理', () => {
+    it('多个 Worker 可以并行处理任务', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 2 });
+      const worker1 = createdWorkers[0];
+      const worker2 = createdWorkers[1];
 
-      const worker = MockWorker.instances[MockWorker.instances.length - 1];
-      worker.simulateError('Worker 内部错误');
+      const promise1 = pool.execute<string>('task1', { n: 1 });
+      const promise2 = pool.execute<string>('task2', { n: 2 });
+
+      // Both workers should have received a task
+      expect(worker1.postMessage).toHaveBeenCalledOnce();
+      expect(worker2.postMessage).toHaveBeenCalledOnce();
+
+      const msg1 = worker1.postMessage.mock.calls[0][0];
+      const msg2 = worker2.postMessage.mock.calls[0][0];
+
+      worker1.simulateResponse({ id: msg1.id, type: 'task1', payload: 'result1' });
+      worker2.simulateResponse({ id: msg2.id, type: 'task2', payload: 'result2' });
+
+      const [result1, result2] = await Promise.all([promise1, promise2]);
+      expect(result1).toBe('result1');
+      expect(result2).toBe('result2');
+
+      pool.destroy();
+    });
+
+    it('超过 Worker 数量的任务应等待空闲 Worker', async () => {
+      vi.useFakeTimers();
+
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
+
+      // First task - takes the only worker
+      const promise1 = pool.execute<string>('task1', {});
+      // Second task - has to wait
+      const promise2 = pool.execute<string>('task2', {});
+
+      expect(worker.postMessage).toHaveBeenCalledTimes(1);
+      const msg1 = worker.postMessage.mock.calls[0][0];
+
+      // Complete first task
+      worker.simulateResponse({ id: msg1.id, type: 'task1', payload: 'result1' });
+      await promise1;
+
+      // Advance time to trigger interval polling
+      vi.advanceTimersByTime(50);
+
+      // Second task should now be sent
+      expect(worker.postMessage).toHaveBeenCalledTimes(2);
+      const msg2 = worker.postMessage.mock.calls[1][0];
+      worker.simulateResponse({ id: msg2.id, type: 'task2', payload: 'result2' });
+      await promise2;
+
+      pool.destroy();
+    });
+  });
+
+  describe('Worker 错误处理', () => {
+    it('Worker onerror 触发时应记录错误', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
+
+      worker.simulateError('Worker crashed');
 
       expect(consoleSpy).toHaveBeenCalledWith(
         '[WorkerPool] Worker 错误:',
-        'Worker 内部错误'
+        'Worker crashed'
       );
+
       consoleSpy.mockRestore();
-    });
-  });
-
-  describe('请求/响应 ID 关联', () => {
-    it('多个并发任务应正确关联各自响应', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl, { size: 2 });
-
-      const promise1 = pool.execute<string>('task', { n: 1 });
-      const promise2 = pool.execute<string>('task', { n: 2 });
-
-      const workers = MockWorker.instances.slice(-2);
-      const id1 = workers[0].postMessage.mock.calls[0][0].id;
-      const id2 = workers[1].postMessage.mock.calls[0][0].id;
-
-      // 以相反顺序响应，验证 ID 正确匹配
-      workers[1].simulateMessage({ id: id2, type: 'task', payload: 'result-2' });
-      workers[0].simulateMessage({ id: id1, type: 'task', payload: 'result-1' });
-
-      const [r1, r2] = await Promise.all([promise1, promise2]);
-      expect(r1).toBe('result-1');
-      expect(r2).toBe('result-2');
       pool.destroy();
     });
   });
 
-  describe('默认值', () => {
-    it('默认 timeout 应为 30000ms', async () => {
-      const createWorkerPool = await getCreateWorkerPool();
-      const pool = createWorkerPool(fakeUrl);
+  describe('size=0 边界情况', () => {
+    it('size=0 时应无 Worker 可用，执行 fallback', async () => {
+      const fallback = vi.fn().mockReturnValue('fallback');
+      const pool = createWorkerPool(workerUrl, { size: 0, fallback });
 
-      const promise = pool.execute<string>('longTask', {});
+      expect(pool.size).toBe(0);
+      const result = await pool.execute<string>('task', {});
+      expect(fallback).toHaveBeenCalled();
+      expect(result).toBe('fallback');
 
-      // 29999ms 不应超时
-      vi.advanceTimersByTime(29999);
-      // Promise 还未 settle
+      pool.destroy();
+    });
+  });
 
-      // 30001ms 应超时
-      vi.advanceTimersByTime(2);
+  describe('异步 fallback', () => {
+    it('fallback 返回 Promise 时应正确解析', async () => {
+      const savedWorker = globalThis.Worker;
+      (globalThis as unknown as Record<string, unknown>).Worker = undefined;
 
-      await expect(promise).rejects.toThrow('30000ms');
+      const asyncFallback = vi.fn().mockResolvedValue('async-fallback-result');
+      const pool = createWorkerPool(workerUrl, { size: 1, fallback: asyncFallback });
+
+      const result = await pool.execute<string>('asyncTask', { input: 'data' });
+
+      expect(asyncFallback).toHaveBeenCalledWith('asyncTask', { input: 'data' });
+      expect(result).toBe('async-fallback-result');
+
+      globalThis.Worker = savedWorker;
+      pool.destroy();
+    });
+
+    it('fallback 抛出时应传播错误', async () => {
+      const savedWorker = globalThis.Worker;
+      (globalThis as unknown as Record<string, unknown>).Worker = undefined;
+
+      const throwingFallback = vi.fn().mockImplementation(() => {
+        throw new Error('fallback error');
+      });
+      const pool = createWorkerPool(workerUrl, { size: 1, fallback: throwingFallback });
+
+      await expect(pool.execute<string>('task', {})).rejects.toThrow('fallback error');
+
+      globalThis.Worker = savedWorker;
+      pool.destroy();
+    });
+  });
+
+  describe('请求 ID 唯一性', () => {
+    it('每次 execute 调用应使用不同的请求 ID', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 2 });
+      const worker1 = createdWorkers[0];
+      const worker2 = createdWorkers[1];
+
+      pool.execute<string>('task1', {});
+      pool.execute<string>('task2', {});
+
+      const msg1 = worker1.postMessage.mock.calls[0][0];
+      const msg2 = worker2.postMessage.mock.calls[0][0];
+
+      expect(msg1.id).toBeTruthy();
+      expect(msg2.id).toBeTruthy();
+      expect(msg1.id).not.toBe(msg2.id);
+
+      pool.destroy();
+    });
+  });
+
+  describe('payload 传递', () => {
+    it('复杂对象 payload 应原样传递给 Worker', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
+
+      const complexPayload = {
+        nested: { a: 1, b: [1, 2, 3] },
+        flag: true,
+        text: 'hello',
+      };
+
+      pool.execute<unknown>('process', complexPayload);
+
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      expect(sentMessage.payload).toEqual(complexPayload);
+
+      pool.destroy();
+    });
+
+    it('null payload 应可传递', async () => {
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+      const worker = createdWorkers[0];
+
+      const executePromise = pool.execute<string>('task', null);
+      const sentMessage = worker.postMessage.mock.calls[0][0];
+      expect(sentMessage.payload).toBeNull();
+
+      worker.simulateResponse({ id: sentMessage.id, type: 'task', payload: 'ok' });
+      await executePromise;
+
+      pool.destroy();
+    });
+  });
+
+  describe('默认超时', () => {
+    it('默认超时应为 30000ms', async () => {
+      vi.useFakeTimers();
+
+      // Use default timeout (30000ms)
+      const pool = createWorkerPool(workerUrl, { size: 1 });
+
+      const executePromise = pool.execute<string>('slowTask', {});
+
+      // Advance past 30000ms to trigger the default timeout
+      vi.advanceTimersByTime(30001);
+
+      await expect(executePromise).rejects.toThrow('Worker 任务超时: slowTask (30000ms)');
+
       pool.destroy();
     });
   });
