@@ -78,12 +78,12 @@ export function createWorkerPool(
   }
 
   /**
-   * Settle the pending promise that corresponds to an incoming worker message.
+   * Settle the pending promise matching a worker response and free its worker.
    *
-   * Looks up the pending request by `event.data.id`; if found, clears its timeout, removes it
-   * from the pending map, marks the originating worker as idle, resolves with `event.data.payload`
-   * or rejects with an `Error` when `event.data.error` is present, and then calls `processQueue`.
-   * If no matching pending request exists, the message is ignored.
+   * If a pending request with the response `id` exists, removes it from the pending map,
+   * clears its timeout, marks the originating worker as idle, and resolves with `payload`
+   * or rejects with an `Error` when `error` is present; then calls `processQueue`.
+   * Messages without a matching pending request are ignored.
    *
    * @param event - MessageEvent from a worker with shape `{ id, error?, payload? }`
    */
@@ -149,13 +149,15 @@ export function createWorkerPool(
   }
 
   /**
-   * Execute a task on the worker pool using the provided task type and payload.
+   * Dispatches a task to the worker pool identified by `taskType` using the provided `payload`.
    *
-   * If workers are unavailable and a `fallback` is configured, the fallback is invoked and its result is returned.
+   * If an idle worker is available the task is sent immediately; if all workers are busy the task is queued
+   * until a worker becomes available. If workers are unavailable and a `fallback` is configured, the fallback
+   * is invoked instead.
    *
-   * @param taskType - Identifier for the task to run inside the worker
+   * @param taskType - Identifier of the task to run inside the worker
    * @param payload - Data to pass to the worker for this task
-   * @returns The value produced by the worker (or by the configured `fallback`) cast to `T`
+   * @returns The value produced by the worker or by the configured `fallback`, typed as `T`
    * @throws Error when workers are unavailable and no `fallback` is configured
    * @throws Error when the worker pool has been destroyed
    */

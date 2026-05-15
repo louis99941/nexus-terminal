@@ -226,10 +226,10 @@ function detectType(output: string): OutputType {
 }
 
 /**
- * Apply ANSI color styling to a JSON string for terminal syntax highlighting.
+ * Apply ANSI color styling to JSON for terminal syntax highlighting.
  *
- * @param jsonText - The JSON text to highlight; expected to be valid JSON.
- * @returns The input JSON formatted with ANSI color codes applied to keys, strings, numbers, booleans, null, and punctuation. If `jsonText` cannot be parsed as JSON, the original `jsonText` is returned unchanged.
+ * @param jsonText - The JSON text to highlight.
+ * @returns The formatted JSON string with ANSI color codes applied to keys, string values, numeric values, booleans, null, and punctuation; if `jsonText` is not valid JSON the original `jsonText` is returned unchanged.
  */
 function highlightJSON(jsonText: string): string {
   try {
@@ -248,51 +248,10 @@ function highlightJSON(jsonText: string): string {
 }
 
 /**
- * Apply ANSI color highlighting to YAML-formatted text.
- *
- * Highlights YAML keys, scalar values, comments, and list markers using ANSI escape codes.
+ * Highlight YAML content using ANSI color codes for keys, values, comments, and list markers.
  *
  * @param yamlText - The YAML content to highlight; may be multiline.
- * @returns The input text with keys wrapped in cyan+bold, quoted strings in green, numbers in yellow, booleans (`true|false|yes|no`) in magenta, `null`/`~` in bright black, full-line comments in bright black, and list markers (`- `) in white.
-function highlightYAML(yamlText: string): string {
-  return yamlText
-    .split('\n')
-    .map((line) => {
-      if (/^(\s*)([\w.-]+):\s*(.*)$/.test(line)) {
-        return line.replace(
-          /^(\s*)([\w.-]+):\s*(.*)$/,
-          (_, indent: string, key: string, value: string) => {
-            let highlightedValue = value;
-            const trimmedValue = value.trim();
-            if (/^".*"$/.test(trimmedValue) || /^'.*'$/.test(trimmedValue)) {
-              highlightedValue = `${ANSI.GREEN}${value}${ANSI.RESET}`;
-            } else if (/^-?\d+(?:\.\d+)?$/.test(trimmedValue)) {
-              highlightedValue = `${ANSI.YELLOW}${value}${ANSI.RESET}`;
-            } else if (/^(true|false|yes|no)$/i.test(trimmedValue)) {
-              highlightedValue = `${ANSI.MAGENTA}${value}${ANSI.RESET}`;
-            } else if (/^(null|~)$/i.test(trimmedValue)) {
-              highlightedValue = `${ANSI.BRIGHT_BLACK}${value}${ANSI.RESET}`;
-            }
-            return `${indent}${ANSI.CYAN}${ANSI.BOLD}${key}${ANSI.RESET}: ${highlightedValue}`;
-          }
-        );
-      }
-      if (/^\s*#/.test(line)) {
-        return `${ANSI.BRIGHT_BLACK}${line}${ANSI.RESET}`;
-      }
-      if (/^\s*-\s/.test(line)) {
-        return line.replace(/^(\s*-\s)/, `${ANSI.WHITE}$1${ANSI.RESET}`);
-      }
-      return line;
-    })
-    .join('\n');
-}
-
-/**
- * Apply ANSI color highlighting to log text, emphasizing timestamps, level keywords, IPs, and status codes.
- *
- * @param logText - The raw log text to highlight
- * @returns The input text with ANSI color codes applied: timestamps in bright black; `ERROR/ERR` in bright red bold; `WARN/WARNING` in bright yellow bold; `INFO` in bright cyan bold; `DEBUG` in bright black bold; `SUCCESS/OK` in bright green bold; IPv4 addresses in yellow; HTTP status codes colored by range — 2xx green, 3xx cyan, 4xx yellow, 5xx red
+ * @returns The input text with keys wrapped in cyan+bold, quoted strings in green, numbers in yellow, booleans (`true`, `false`, `yes`, `no`) in magenta, `null`/`~` in bright black, full-line comments in bright black, and list markers (`- `) in white.
  */
 function highlightLog(logText: string): string {
   return logText
