@@ -1,5 +1,5 @@
-import { computed, type Ref } from 'vue';
 import { useVirtualList } from '@vueuse/core';
+import type { Ref } from 'vue';
 
 /**
  * Creates a reusable virtual-list setup that wraps useVirtualList and computes an appropriate overscan when not provided.
@@ -22,15 +22,16 @@ export function useVirtualListSetup<T>(
   const { itemHeight, overscan: overscanOverride } = options;
 
   // 自动 overscan 缩放：根据行高动态调整预渲染数量，平衡滚动流畅度与渲染开销
-  const resolvedOverscan = computed(() => {
-    if (overscanOverride !== undefined) return overscanOverride;
-    const height = typeof itemHeight === 'function' ? itemHeight() : itemHeight;
-    return Math.min(15, Math.max(5, Math.ceil(200 / height)));
-  });
+  // 注意：useVirtualList 仅在初始化时读取 overscan，后续变化不会生效，因此直接计算为常量
+  const height = typeof itemHeight === 'function' ? itemHeight() : itemHeight;
+  const resolvedOverscan =
+    overscanOverride !== undefined
+      ? overscanOverride
+      : Math.min(15, Math.max(5, Math.ceil(200 / height)));
 
   const { list, containerProps, wrapperProps, scrollTo } = useVirtualList(dataSource, {
     itemHeight,
-    overscan: resolvedOverscan.value,
+    overscan: resolvedOverscan,
   });
 
   return {

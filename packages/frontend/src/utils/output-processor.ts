@@ -398,8 +398,10 @@ export const outputProcessor = new OutputProcessor();
 
 // ==================== Worker 线程处理 ====================
 
-let workerPool: ReturnType<typeof import('../workers/createWorkerPool').createWorkerPool> | null =
-  null;
+type WorkerPoolType = ReturnType<typeof import('../workers/createWorkerPool').createWorkerPool>;
+
+let workerPool: WorkerPoolType | null = null;
+let workerPoolInit: Promise<WorkerPoolType> | null = null;
 
 /**
  * Process terminal output using a Worker thread when beneficial.
@@ -422,16 +424,16 @@ export async function processInWorker(
 ): Promise<ProcessedOutput> {
   // 小数据包直接同步处理，避免 Worker 通信开销
   if (text.length <= 100) {
-    return outputProcessor.process(text);
+    const processor = options ? new OutputProcessor(options) : outputProcessor;
+    return processor.process(text);
   }
 
   try {
-    // 懒加载 Worker 池
+    // 懒加载 Worker 池（单例初始化，防止并发竞态）
     if (!workerPool) {
-      const { createWorkerPool } = await import('../workers/createWorkerPool');
-      workerPool = createWorkerPool(
-        new URL('../workers/output-processor.worker.ts', import.meta.url),
-        {
+      workerPoolInit ??= (async () => {
+        const { createWorkerPool } = await import('../workers/createWorkerPool');
+        return createWorkerPool(new URL('../workers/output-processor.worker.ts', import.meta.url), {
           size: 2,
           timeout: 5000,
           // 降级处理：Worker 不可用时使用主线程同步处理
@@ -443,14 +445,16 @@ export async function processInWorker(
             const processor = opts ? new OutputProcessor(opts) : outputProcessor;
             return processor.process(inputText);
           },
-        }
-      );
+        });
+      })();
+      workerPool = await workerPoolInit;
     }
 
     return await workerPool.execute<ProcessedOutput>('process', { text, options });
   } catch {
-    // Worker 执行失败时降级为同步处理
-    return outputProcessor.process(text);
+    // Worker 执行失败时降级为同步处理（保留 options）
+    const processor = options ? new OutputProcessor(options) : outputProcessor;
+    return processor.process(text);
   }
 }
 

@@ -26,6 +26,9 @@ const ICON_URLS = [
   '/icons/icon-512x512.png',
 ];
 
+// 不应缓存的 API 端点（认证/会话相关）
+const AUTH_API_PREFIXES = ['/api/v1/auth/', '/api/v1/passkey'];
+
 // ==================== install ====================
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -34,9 +37,8 @@ self.addEventListener('install', (event) => {
       caches.open(CACHE_STATIC).then((cache) => cache.addAll(APP_SHELL_URLS)),
       // 预缓存图标
       caches.open(CACHE_ICONS).then((cache) => cache.addAll(ICON_URLS)),
-    ])
+    ]).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 // ==================== fetch ====================
@@ -53,9 +55,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API 请求：Network-First，10 秒超时降级到缓存
+  // API 请求：Network-First，10 秒超时降级到缓存（认证端点排除缓存）
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstWithTimeout(request, CACHE_API, API_TIMEOUT_MS));
+    const isAuthEndpoint = AUTH_API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+    if (isAuthEndpoint) {
+      // 认证端点始终走网络，不缓存
+      event.respondWith(networkFirst(request));
+    } else {
+      event.respondWith(networkFirstWithTimeout(request, CACHE_API, API_TIMEOUT_MS));
+    }
     return;
   }
 
@@ -101,18 +109,31 @@ self.addEventListener('activate', (event) => {
 // ==================== message ====================
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_SW_VERSION') {
-    event.source.postMessage({ type: 'SW_VERSION', version: SW_VERSION });
+    // event.source 可能为 null（消息来源上下文已关闭）
+    event.source?.postMessage({ type: 'SW_VERSION', version: SW_VERSION });
   }
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
   // 运行时缓存指定 URL（供客户端按需缓存 API 响应等）
   if (event.data && event.data.type === 'CACHE_URLS' && Array.isArray(event.data.urls)) {
-    caches
-      .open(CACHE_API)
-      .then((cache) =>
-        Promise.all(event.data.urls.map((url) => fetch(url).then((r) => cache.put(url, r))))
-      );
+    event.waitUntil(
+      caches.open(CACHE_API).then((cache) =>
+        Promise.all(
+          event.data.urls.map((url) =>
+            fetch(url)
+              .then((response) => {
+                if (response && response.ok) {
+                  return cache.put(url, response.clone());
+                }
+              })
+              .catch(() => {
+                // 单个 URL 失败不影响其他 URL 的缓存
+              })
+          )
+        )
+      )
+    );
   }
 });
 
