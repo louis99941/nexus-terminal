@@ -286,7 +286,7 @@ docker compose start backend
 Apache Guacamole 未提供 guacd 的 ARMv7 镜像，RDP 功能将被禁用。
 :::
 
-参考 [ARM 部署文档](./deployment/docker.md) 中的详细说明。
+参考上方 Docker 部署章节中的详细说明。
 
 ## 健康检查
 
