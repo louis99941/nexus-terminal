@@ -134,17 +134,12 @@ export function createWorkerPool(
     if (!idleWorker) return;
 
     // 从 pending 中找到等待最久的请求
-    for (const [id, request] of pending) {
+    for (const [id] of pending) {
       // 跳过已超时的请求
       if (pending.has(id)) {
         idleWorker.busy = true;
-        const message: WorkerRequest = {
-          id,
-          type: 'execute',
-          payload: { requestType: id, data: request },
-        };
-        // 实际发送需要知道任务类型，这里通过 payload 传递
-        // 由 execute 函数直接发送，此处仅处理队列调度
+        // 实际发送需要知道任务类型，由 execute 函数直接发送
+        // 此处仅标记 worker 为忙碌状态，等 execute 函数检测到空闲后发送
         break;
       }
     }
@@ -233,7 +228,7 @@ export function createWorkerPool(
     destroyed = true;
 
     // 拒绝所有待处理的请求
-    for (const [id, request] of pending) {
+    for (const [, request] of pending) {
       clearTimeout(request.timeoutId);
       request.reject(new Error('Worker pool 已销毁'));
     }
