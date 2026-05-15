@@ -34,6 +34,7 @@ import { loggingMiddleware, persistenceMiddleware } from './services/event.middl
 import './notifications/notification.processor.service';
 import './notifications/notification.dispatcher.service';
 import { sshPoolService } from './services/ssh-pool.service';
+import { cacheService } from './services/cache.service';
 
 // 注册内置事件中间件
 eventService.useEventMiddleware(loggingMiddleware);
@@ -96,10 +97,11 @@ process.on('uncaughtException', (error: Error) => {
 const gracefulShutdown = (signal: string) => {
   logger.info(`收到 ${signal} 信号，正在优雅关闭...`);
   sshPoolService.shutdown();
-  // 给其他清理逻辑一些时间
+  cacheService.stop();
+  // 给其他清理逻辑一些时间（2 秒确保连接池清理完成）
   setTimeout(() => {
     process.exit(0);
-  }, 100);
+  }, 2000);
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

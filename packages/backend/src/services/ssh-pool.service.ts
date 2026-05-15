@@ -70,9 +70,15 @@ export class SshPoolService {
    * 将新创建的连接添加到池中
    * 注意：新添加的连接默认为 inUse 状态，因为调用者会立即使用它
    */
-  add(key: PoolKey, client: Client): void {
+  add(key: PoolKey, client: Client): boolean {
     const poolKey = this.getPoolKey(key);
     const pool = this.pools.get(poolKey) ?? [];
+
+    // 检查是否已达到上限
+    if (pool.length >= this.maxPerTarget) {
+      logger.debug(`[SshPool] 连接池已满，拒绝添加: ${poolKey}`);
+      return false;
+    }
 
     pool.push({
       client,
@@ -82,7 +88,34 @@ export class SshPoolService {
     });
 
     this.pools.set(poolKey, pool);
+
+    // 监听连接关闭/错误事件，自动从池中移除
+    client.on('close', () => {
+      this.removeFromPool(poolKey, client);
+    });
+    client.on('error', () => {
+      this.removeFromPool(poolKey, client);
+    });
+
     logger.debug(`[SshPool] 添加连接到池: ${poolKey}，当前池大小: ${pool.length}`);
+    return true;
+  }
+
+  /**
+   * 从池中移除连接（内部方法）
+   */
+  private removeFromPool(poolKey: string, client: Client): void {
+    const pool = this.pools.get(poolKey);
+    if (!pool) return;
+
+    const index = pool.findIndex((c) => c.client === client);
+    if (index !== -1) {
+      pool.splice(index, 1);
+      logger.debug(`[SshPool] 连接已从池中移除: ${poolKey}`);
+    }
+    if (pool.length === 0) {
+      this.pools.delete(poolKey);
+    }
   }
 
   /**
@@ -101,7 +134,7 @@ export class SshPoolService {
   }
 
   /**
-   * 丢弃连接（连接异常时调用）
+   * 丢弃连接（连接异常或取消时调用）
    */
   discard(key: PoolKey, client: Client): void {
     const poolKey = this.getPoolKey(key);
@@ -109,7 +142,11 @@ export class SshPoolService {
     const index = pool.findIndex((c) => c.client === client);
     if (index !== -1) {
       pool.splice(index, 1);
-      client.end();
+      try {
+        client.end();
+      } catch (err) {
+        logger.debug(`[SshPool] 关闭连接时出错: ${poolKey}`, err);
+      }
       logger.debug(`[SshPool] 丢弃连接: ${poolKey}`);
     }
   }
@@ -125,7 +162,11 @@ export class SshPoolService {
       for (let i = pool.length - 1; i >= 0; i--) {
         const conn = pool[i];
         if (!conn.inUse && now - conn.lastUsedAt > this.idleTimeoutMs) {
-          conn.client.end();
+          try {
+            conn.client.end();
+          } catch (err) {
+            logger.debug(`[SshPool] 关闭空闲连接时出错: ${poolKey}`, err);
+          }
           pool.splice(i, 1);
           cleanedCount++;
           logger.debug(`[SshPool] 回收空闲连接: ${poolKey}`);

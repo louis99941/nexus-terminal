@@ -3,6 +3,7 @@
  * 使用最小堆实现，优先级高的任务先执行
  */
 import { BatchTask, BatchTaskPriority } from './batch.types';
+import { logger } from '../utils/logger';
 
 const PRIORITY_WEIGHT: Record<BatchTaskPriority, number> = {
   urgent: 0,
@@ -18,7 +19,13 @@ export class BatchScheduler {
    * 入队任务
    */
   enqueue(task: BatchTask): void {
-    this.queue.push(task);
+    // 验证优先级有效性
+    let normalizedPriority = task.priority;
+    if (!(normalizedPriority in PRIORITY_WEIGHT)) {
+      logger.warn(`[BatchScheduler] 无效的优先级值 '${normalizedPriority}'，已降级为 'normal'`);
+      normalizedPriority = 'normal';
+    }
+    this.queue.push({ ...task, priority: normalizedPriority });
     this.bubbleUp(this.queue.length - 1);
   }
 
@@ -67,9 +74,12 @@ export class BatchScheduler {
     if (index === this.queue.length - 1) {
       this.queue.pop();
     } else {
-      this.queue[index] = this.queue.pop()!;
-      this.sinkDown(index);
-      this.bubbleUp(index);
+      const last = this.queue.pop();
+      if (last) {
+        this.queue[index] = last;
+        this.sinkDown(index);
+        this.bubbleUp(index);
+      }
     }
     return true;
   }

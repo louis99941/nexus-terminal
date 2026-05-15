@@ -40,7 +40,8 @@ export class MemoryCacheService implements ICacheService {
   }
 
   set<T>(key: string, value: T, ttlMs?: number): void {
-    if (this.store.size >= this.maxSize) {
+    // 仅在 key 不存在且池已满时才逐出，避免更新已有 key 时不必要的逐出
+    if (this.store.size >= this.maxSize && !this.store.has(key)) {
       this.evictOldest();
     }
     this.store.set(key, {

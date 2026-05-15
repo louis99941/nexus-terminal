@@ -402,6 +402,9 @@ export const updateLastConnected = async (id: number, timestamp: number): Promis
     const result = await runDb(db, sql, [timestamp, id]);
     if (result.changes === 0) {
       logger.warn(`[Repository] updateLastConnected: No connection found with ID ${id} to update.`);
+    } else {
+      // 更新成功后失效缓存
+      cacheService.delete(CONNECTIONS_CACHE_KEY);
     }
     return result.changes > 0;
   } catch (err: unknown) {
@@ -584,6 +587,8 @@ export const addTagToMultipleConnections = async (
     await Promise.all(insertPromises);
 
     await runDb(db, 'COMMIT');
+    // 写入成功后失效缓存
+    cacheService.delete(CONNECTIONS_CACHE_KEY);
   } catch (err: unknown) {
     const errMsg = getErrorMessage(err);
     logger.error(`Repository: 为多个连接添加标签 ${tagId} 时事务出错:`, errMsg);

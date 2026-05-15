@@ -18,6 +18,7 @@ const RETENTION_DAYS = 30; // 保留 30 天日志
 
 let writeCount = 0;
 let lastCleanupTime = Date.now();
+let cleanupInProgress = false; // 防止并发清理
 
 /**
  * 清理过期的 event_logs 记录
@@ -120,6 +121,12 @@ async function persistEvent(eventType: AppEventType, payload: AppEventPayload): 
   if (writeCount >= CLEANUP_THRESHOLD || Date.now() - lastCleanupTime > CLEANUP_INTERVAL_MS) {
     writeCount = 0;
     lastCleanupTime = Date.now();
-    cleanupOldEventLogs();
+    // 防止并发清理
+    if (!cleanupInProgress) {
+      cleanupInProgress = true;
+      void cleanupOldEventLogs().finally(() => {
+        cleanupInProgress = false;
+      });
+    }
   }
 }

@@ -411,6 +411,7 @@ async function runSubTask(
   let sshClient: Client | null = null;
   let pooled = false;
   let poolKey: PoolKey | null = null;
+  let shouldDiscard = false; // 标记是否应该丢弃连接（取消时）
 
   try {
     // 检查取消
@@ -492,6 +493,8 @@ async function runSubTask(
 
     // 更新最终状态
     if (result.cancelled) {
+      // 取消时丢弃连接而不是归还，因为远端会话可能处于半关闭状态
+      shouldDiscard = true;
       await updateSubTask(taskId, subTaskId, 'cancelled', 100, {
         message: result.timedOut ? '执行超时' : '已取消',
         endedAt: new Date(),
@@ -561,8 +564,12 @@ async function runSubTask(
   } finally {
     if (sshClient) {
       if (pooled && poolKey) {
-        // 归还池化连接
-        sshPoolService.release(poolKey, sshClient);
+        // 取消或异常时丢弃连接，否则归还
+        if (shouldDiscard) {
+          sshPoolService.discard(poolKey, sshClient);
+        } else {
+          sshPoolService.release(poolKey, sshClient);
+        }
       } else {
         // 关闭非池化连接
         try {
