@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // 使用 vi.hoisted 创建 mock，确保在 vi.mock 之前执行
 const { mockUseAuthStore, mockAuthState } = vi.hoisted(() => {
@@ -10,7 +10,7 @@ vi.mock('../stores/auth.store', () => ({
   useAuthStore: mockUseAuthStore,
 }));
 
-import router from './index';
+import router, { schedulePrefetch } from './index';
 
 // Mock views to avoid actual component loading
 vi.mock('../views/DashboardView.vue', () => ({ default: { template: '<div />' } }));
@@ -110,6 +110,118 @@ describe('路由守卫', () => {
       await router.push('/workspace');
       await router.isReady();
       expect(router.currentRoute.value.name).toBe('Workspace');
+    });
+  });
+});
+
+describe('schedulePrefetch', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  describe('requestIdleCallback 可用时', () => {
+    it('应该使用 requestIdleCallback 调度预加载', () => {
+      const mockRIC = vi.fn();
+      vi.stubGlobal('requestIdleCallback', mockRIC);
+
+      schedulePrefetch();
+
+      expect(mockRIC).toHaveBeenCalledOnce();
+      expect(mockRIC).toHaveBeenCalledWith(expect.any(Function), { timeout: 5000 });
+
+      vi.unstubAllGlobals();
+    });
+
+    it('requestIdleCallback 回调执行时应触发路由解析', () => {
+      let capturedCallback: (() => void) | null = null;
+      const mockRIC = vi.fn((cb: () => void) => { capturedCallback = cb; });
+      vi.stubGlobal('requestIdleCallback', mockRIC);
+
+      const resolveSpy = vi.spyOn(router, 'resolve');
+
+      schedulePrefetch();
+
+      // Trigger the idle callback
+      expect(capturedCallback).not.toBeNull();
+      capturedCallback!();
+
+      // Should have resolved the 3 core routes
+      expect(resolveSpy).toHaveBeenCalledWith('/');
+      expect(resolveSpy).toHaveBeenCalledWith('/workspace');
+      expect(resolveSpy).toHaveBeenCalledWith('/connections');
+
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe('requestIdleCallback 不可用时降级', () => {
+    it('应该使用 setTimeout 降级执行', () => {
+      vi.useFakeTimers();
+
+      // Remove requestIdleCallback
+      const originalRIC = (globalThis as unknown as Record<string, unknown>).requestIdleCallback;
+      (globalThis as unknown as Record<string, unknown>).requestIdleCallback = undefined;
+
+      const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      schedulePrefetch();
+
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 2000);
+
+      // Restore
+      (globalThis as unknown as Record<string, unknown>).requestIdleCallback = originalRIC;
+    });
+
+    it('setTimeout 回调执行时应触发路由解析', () => {
+      vi.useFakeTimers();
+
+      const originalRIC = (globalThis as unknown as Record<string, unknown>).requestIdleCallback;
+      (globalThis as unknown as Record<string, unknown>).requestIdleCallback = undefined;
+
+      const resolveSpy = vi.spyOn(router, 'resolve');
+
+      schedulePrefetch();
+
+      // Before timeout fires, resolve should not have been called by schedulePrefetch
+      const callCountBefore = resolveSpy.mock.calls.filter(
+        (call) => ['/', '/workspace', '/connections'].includes(call[0] as string)
+      ).length;
+
+      vi.advanceTimersByTime(2000);
+
+      const callCountAfter = resolveSpy.mock.calls.filter(
+        (call) => ['/', '/workspace', '/connections'].includes(call[0] as string)
+      ).length;
+
+      expect(callCountAfter).toBeGreaterThan(callCountBefore);
+
+      (globalThis as unknown as Record<string, unknown>).requestIdleCallback = originalRIC;
+    });
+  });
+
+  describe('prefetch 核心路由', () => {
+    it('应该预加载 Dashboard、Workspace 和 Connections 路由', () => {
+      vi.useFakeTimers();
+
+      const originalRIC = (globalThis as unknown as Record<string, unknown>).requestIdleCallback;
+      (globalThis as unknown as Record<string, unknown>).requestIdleCallback = undefined;
+
+      const resolveSpy = vi.spyOn(router, 'resolve');
+
+      schedulePrefetch();
+      vi.advanceTimersByTime(2000);
+
+      const resolvedPaths = resolveSpy.mock.calls.map((call) => call[0]);
+      expect(resolvedPaths).toContain('/');
+      expect(resolvedPaths).toContain('/workspace');
+      expect(resolvedPaths).toContain('/connections');
+
+      (globalThis as unknown as Record<string, unknown>).requestIdleCallback = originalRIC;
+    });
+
+    it('schedulePrefetch 是一个函数', () => {
+      expect(typeof schedulePrefetch).toBe('function');
     });
   });
 });

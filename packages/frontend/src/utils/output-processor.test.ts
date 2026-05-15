@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OutputProcessor, OutputType } from './output-processor';
 
 describe('OutputProcessor', () => {
@@ -649,5 +649,148 @@ describe('OutputProcessor', () => {
       const result = processor.process('test');
       expect(result.type).toBe(OutputType.TEXT);
     });
+  });
+});
+
+// ==================== processInWorker 和 destroyWorkerPool 测试 ====================
+
+// Mock createWorkerPool to control worker behavior in tests
+const mockExecute = vi.fn();
+const mockDestroy = vi.fn();
+const mockWorkerPool = { execute: mockExecute, destroy: mockDestroy, size: 2, hasIdle: true };
+
+vi.mock('../workers/createWorkerPool', () => ({
+  createWorkerPool: vi.fn(() => mockWorkerPool),
+}));
+
+describe('processInWorker', () => {
+  let processInWorker: typeof import('./output-processor').processInWorker;
+  let destroyWorkerPool: typeof import('./output-processor').destroyWorkerPool;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    // Reset module to clear cached workerPool
+    vi.resetModules();
+    vi.mock('../workers/createWorkerPool', () => ({
+      createWorkerPool: vi.fn(() => mockWorkerPool),
+    }));
+    const module = await import('./output-processor');
+    processInWorker = module.processInWorker;
+    destroyWorkerPool = module.destroyWorkerPool;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('小数据包直接同步处理', () => {
+    it('文本长度 <= 100 时应同步处理', async () => {
+      const shortText = 'Hello world'; // 11 chars
+      const result = await processInWorker(shortText);
+
+      expect(result).toBeDefined();
+      expect(result.type).toBe(OutputType.TEXT);
+      // Should not have called worker
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('文本长度恰好为 100 时应同步处理', async () => {
+      const text100 = 'a'.repeat(100);
+      const result = await processInWorker(text100);
+
+      expect(result).toBeDefined();
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('空文本应同步处理', async () => {
+      const result = await processInWorker('');
+
+      expect(result).toBeDefined();
+      expect(result.type).toBe(OutputType.TEXT);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('大数据包通过 Worker 处理', () => {
+    it('文本长度 > 100 时应使用 Worker 处理', async () => {
+      const longText = 'a'.repeat(101);
+      const expectedResult = { type: OutputType.TEXT, content: longText, metadata: { lineCount: 1 } };
+      mockExecute.mockResolvedValueOnce(expectedResult);
+
+      const result = await processInWorker(longText);
+
+      expect(mockExecute).toHaveBeenCalledWith('process', { text: longText, options: undefined });
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('应该传递 options 给 Worker', async () => {
+      const longText = 'x'.repeat(200);
+      const options = { enableHighlight: false, foldThreshold: 100 };
+      mockExecute.mockResolvedValueOnce({ type: OutputType.TEXT, content: longText });
+
+      await processInWorker(longText, options);
+
+      expect(mockExecute).toHaveBeenCalledWith('process', { text: longText, options });
+    });
+  });
+
+  describe('Worker 失败降级', () => {
+    it('Worker 执行失败时应降级为同步处理', async () => {
+      const longText = '{"key": "value"} and more text here to exceed 100 chars ' + 'x'.repeat(50);
+      mockExecute.mockRejectedValueOnce(new Error('Worker crash'));
+
+      const result = await processInWorker(longText);
+
+      // Should fallback to synchronous processing
+      expect(result).toBeDefined();
+      expect(result.type).toBeDefined();
+    });
+  });
+});
+
+describe('destroyWorkerPool', () => {
+  let processInWorker: typeof import('./output-processor').processInWorker;
+  let destroyWorkerPool: typeof import('./output-processor').destroyWorkerPool;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    vi.mock('../workers/createWorkerPool', () => ({
+      createWorkerPool: vi.fn(() => mockWorkerPool),
+    }));
+    const module = await import('./output-processor');
+    processInWorker = module.processInWorker;
+    destroyWorkerPool = module.destroyWorkerPool;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('没有 worker pool 时调用 destroyWorkerPool 应不抛出', () => {
+    expect(() => destroyWorkerPool()).not.toThrow();
+  });
+
+  it('有 worker pool 时应调用 pool.destroy', async () => {
+    // Initialize the worker pool by making a call that triggers lazy init
+    const longText = 'x'.repeat(101);
+    mockExecute.mockResolvedValueOnce({ type: OutputType.TEXT, content: longText });
+    await processInWorker(longText);
+
+    // Now destroy
+    destroyWorkerPool();
+
+    expect(mockDestroy).toHaveBeenCalledOnce();
+  });
+
+  it('销毁后 workerPool 应被设为 null（再次调用 destroy 不会二次调用 pool.destroy）', async () => {
+    const longText = 'x'.repeat(101);
+    mockExecute.mockResolvedValueOnce({ type: OutputType.TEXT, content: longText });
+    await processInWorker(longText);
+
+    destroyWorkerPool();
+    destroyWorkerPool(); // second call should be a no-op
+
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 });
