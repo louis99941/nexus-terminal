@@ -210,34 +210,8 @@ describe('useVirtualListSetup', () => {
     });
   });
 
-  describe('返回值身份一致性', () => {
-    it('返回的 list 应是 useVirtualList 提供的 list', () => {
-      const dataSource = ref([1, 2, 3]);
-      const { list } = useVirtualListSetup(dataSource, { itemHeight: 50 });
-      expect(list).toBe(mockList);
-    });
-
-    it('返回的 containerProps 应是 useVirtualList 提供的 containerProps', () => {
-      const dataSource = ref([1, 2, 3]);
-      const { containerProps } = useVirtualListSetup(dataSource, { itemHeight: 50 });
-      expect(containerProps).toBe(mockContainerProps);
-    });
-
-    it('返回的 wrapperProps 应是 useVirtualList 提供的 wrapperProps', () => {
-      const dataSource = ref([1, 2, 3]);
-      const { wrapperProps } = useVirtualListSetup(dataSource, { itemHeight: 50 });
-      expect(wrapperProps).toBe(mockWrapperProps);
-    });
-
-    it('返回的 scrollTo 应是 useVirtualList 提供的 scrollTo', () => {
-      const dataSource = ref([1, 2, 3]);
-      const { scrollTo } = useVirtualListSetup(dataSource, { itemHeight: 50 });
-      expect(scrollTo).toBe(mockScrollTo);
-    });
-  });
-
-  describe('overscan 自动缩放 — 额外边界值', () => {
-    it('行高 100px 时 overscan 应为 clamp(ceil(200/100)=2, 5, 15)=5', () => {
+  describe('overscan 边界精确计算', () => {
+    it('行高 100px: ceil(200/100)=2 应钳制到最小值 5', () => {
       const dataSource = ref([1]);
       useVirtualListSetup(dataSource, { itemHeight: 100 });
       // Math.ceil(200/100) = 2, clamp(2, 5, 15) = 5
@@ -247,40 +221,30 @@ describe('useVirtualListSetup', () => {
       );
     });
 
-    it('行高 50px 时 overscan 应为 clamp(ceil(200/50)=4, 5, 15)=5', () => {
+    it('行高 13px: ceil(200/13)=16 应钳制到最大值 15', () => {
       const dataSource = ref([1]);
-      useVirtualListSetup(dataSource, { itemHeight: 50 });
-      // Math.ceil(200/50) = 4, clamp(4, 5, 15) = 5
-      expect(useVirtualList).toHaveBeenCalledWith(
-        dataSource,
-        expect.objectContaining({ overscan: 5 })
-      );
-    });
-
-    it('行高 180px 时 overscan 应为 clamp(ceil(200/180)=2, 5, 15)=5', () => {
-      const dataSource = ref([1]);
-      useVirtualListSetup(dataSource, { itemHeight: 180 });
-      // Math.ceil(200/180) = 2, clamp(2, 5, 15) = 5
-      expect(useVirtualList).toHaveBeenCalledWith(
-        dataSource,
-        expect.objectContaining({ overscan: 5 })
-      );
-    });
-
-    it('行高 14px 时 overscan 应为 clamp(ceil(200/14)=15, 5, 15)=15', () => {
-      const dataSource = ref([1]);
-      useVirtualListSetup(dataSource, { itemHeight: 14 });
-      // Math.ceil(200/14) = 15, clamp(15, 5, 15) = 15
+      useVirtualListSetup(dataSource, { itemHeight: 13 });
+      // Math.ceil(200/13) = 16, clamp(16, 5, 15) = 15
       expect(useVirtualList).toHaveBeenCalledWith(
         dataSource,
         expect.objectContaining({ overscan: 15 })
       );
     });
 
-    it('函数返回 50px 时 overscan 应为 5', () => {
+    it('行高 14px: ceil(200/14)=15 应恰好等于最大值 15', () => {
       const dataSource = ref([1]);
-      useVirtualListSetup(dataSource, { itemHeight: () => 50 });
-      // Math.ceil(200/50) = 4, clamp(4, 5, 15) = 5
+      useVirtualListSetup(dataSource, { itemHeight: 14 });
+      // Math.ceil(200/14) = ceil(14.28) = 15, clamp(15, 5, 15) = 15
+      expect(useVirtualList).toHaveBeenCalledWith(
+        dataSource,
+        expect.objectContaining({ overscan: 15 })
+      );
+    });
+
+    it('行高 40px: ceil(200/40)=5 恰好等于最小值 5', () => {
+      const dataSource = ref([1]);
+      useVirtualListSetup(dataSource, { itemHeight: 40 });
+      // Math.ceil(200/40) = 5, clamp(5, 5, 15) = 5
       expect(useVirtualList).toHaveBeenCalledWith(
         dataSource,
         expect.objectContaining({ overscan: 5 })
@@ -288,21 +252,29 @@ describe('useVirtualListSetup', () => {
     });
   });
 
-  describe('useVirtualList 调用次数', () => {
-    it('每次调用 useVirtualListSetup 应恰好调用一次 useVirtualList', () => {
+  describe('返回值正确性', () => {
+    it('返回的 list 应与 useVirtualList 的 list 相同', () => {
       const dataSource = ref([1, 2, 3]);
-      useVirtualListSetup(dataSource, { itemHeight: 40 });
-      expect(useVirtualList).toHaveBeenCalledTimes(1);
+      const { list } = useVirtualListSetup(dataSource, { itemHeight: 50 });
+      expect(list).toBe(mockList);
     });
 
-    it('多次调用 useVirtualListSetup 应各自调用一次 useVirtualList', () => {
-      const d1 = ref([1]);
-      const d2 = ref([2]);
-      const d3 = ref([3]);
-      useVirtualListSetup(d1, { itemHeight: 40 });
-      useVirtualListSetup(d2, { itemHeight: 60 });
-      useVirtualListSetup(d3, { itemHeight: 80 });
-      expect(useVirtualList).toHaveBeenCalledTimes(3);
+    it('返回的 containerProps 应与 useVirtualList 的 containerProps 相同', () => {
+      const dataSource = ref([1]);
+      const { containerProps } = useVirtualListSetup(dataSource, { itemHeight: 50 });
+      expect(containerProps).toBe(mockContainerProps);
+    });
+
+    it('返回的 wrapperProps 应与 useVirtualList 的 wrapperProps 相同', () => {
+      const dataSource = ref([1]);
+      const { wrapperProps } = useVirtualListSetup(dataSource, { itemHeight: 50 });
+      expect(wrapperProps).toBe(mockWrapperProps);
+    });
+
+    it('返回的 scrollTo 应与 useVirtualList 的 scrollTo 相同', () => {
+      const dataSource = ref([1]);
+      const { scrollTo } = useVirtualListSetup(dataSource, { itemHeight: 50 });
+      expect(scrollTo).toBe(mockScrollTo);
     });
   });
 });

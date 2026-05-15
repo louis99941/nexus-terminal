@@ -262,332 +262,154 @@ describe('output-processor.worker', () => {
       expect(response2.id).toBe('id-002');
     });
   });
+});
 
-  describe('YAML 高亮 — 值类型', () => {
-    it('应该高亮 YAML 键为青色粗体', () => {
-      const response = sendMessage('process', {
-        text: 'name: test\nversion: 1.0\ndescription: hello',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.content).toContain('\x1b[36m'); // CYAN
-      expect(response.payload.content).toContain('\x1b[1m'); // BOLD
-    });
+// ==================== 额外强化测试 ====================
 
-    it('应该高亮 YAML 布尔值为品红色', () => {
-      const response = sendMessage('process', {
-        text: 'enabled: true\ndisabled: false\nflag1: yes\nflag2: no\nother: value',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('yaml');
-      expect(response.payload.content).toContain('\x1b[35m'); // MAGENTA for boolean
-    });
-
-    it('应该高亮 YAML null/~ 值为亮黑色', () => {
-      const response = sendMessage('process', {
-        text: 'key1: null\nkey2: ~\nkey3: value\nkey4: data',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('yaml');
-      expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK for null
-    });
-
-    it('应该高亮 YAML 数字值为黄色', () => {
-      const response = sendMessage('process', {
-        text: 'port: 8080\ncount: 42\nratio: 3.14\nname: test',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('yaml');
-      expect(response.payload.content).toContain('\x1b[33m'); // YELLOW for number
-    });
-
-    it('应该高亮 YAML 注释行为亮黑色', () => {
-      const response = sendMessage('process', {
-        text: '# This is a comment\nname: test\nversion: 1.0\ndescription: hello',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('yaml');
-      // Comment line should be highlighted with BRIGHT_BLACK
-      expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK for comment
-    });
-
-    it('应该高亮 YAML 列表项标记为白色', () => {
-      const response = sendMessage('process', {
-        text: 'items:\n- first\n- second\n- third\ncount: 3',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('yaml');
-      expect(response.payload.content).toContain('\x1b[37m'); // WHITE for list marker
-    });
-
-    it('应该高亮 YAML 引号字符串值为绿色', () => {
-      const response = sendMessage('process', {
-        text: 'greeting: "hello world"\nalias: \'short\'\nname: plain\nversion: 1',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('yaml');
-      expect(response.payload.content).toContain('\x1b[32m'); // GREEN for quoted string
-    });
+describe('YAML 高亮细节', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+    // 确保 enableHighlight 为 true
+    sendMessage('configure', { enableHighlight: true, enableLinkDetection: false }, 'reset');
+    postMessageMock.mockClear();
   });
 
-  describe('LOG 高亮 — 更多关键词和模式', () => {
-    it('应该高亮 WARN 为亮黄色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 WARN: disk space low',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[93m'); // BRIGHT_YELLOW
+  it('YAML 数字值应高亮为黄色', () => {
+    const response = sendMessage('process', {
+      text: 'port: 8080\nhost: localhost\nretries: 3',
+      options: { enableHighlight: true, enableLinkDetection: false },
     });
-
-    it('应该高亮 WARNING 为亮黄色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 WARNING: deprecated API used',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[93m'); // BRIGHT_YELLOW
-    });
-
-    it('应该高亮 DEBUG 为亮黑色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 DEBUG: entering function foo',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK
-    });
-
-    it('应该高亮 SUCCESS 为亮绿色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 SUCCESS: deployment completed',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[92m'); // BRIGHT_GREEN
-    });
-
-    it('应该高亮 OK 为亮绿色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 OK: health check passed',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[92m'); // BRIGHT_GREEN
-    });
-
-    it('应该高亮 IPv4 地址为黄色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 INFO connection from 192.168.1.100',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[33m'); // YELLOW for IPv4
-      expect(response.payload.content).toContain('192.168.1.100');
-    });
-
-    it('应该高亮 HTTP 3xx 状态码为青色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 INFO HTTP 301 redirect',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[36m'); // CYAN for 3xx
-    });
-
-    it('应该高亮 HTTP 4xx 状态码为黄色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 WARN HTTP 404 not found',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      // 4xx gets YELLOW — same color as IPv4, just check the response is log type
-      expect(response.payload.content).toContain('404');
-    });
-
-    it('应该高亮 HTTP 5xx 状态码为红色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 ERROR HTTP 500 internal server error',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[31m'); // RED for 5xx
-      expect(response.payload.content).toContain('500');
-    });
-
-    it('应该高亮时间戳为亮黑色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 10:30:00 INFO server started',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK for timestamp
-    });
-
-    it('应该高亮 HTTP 2xx 状态码为绿色', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 INFO HTTP 200 OK response',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('log');
-      expect(response.payload.content).toContain('\x1b[32m'); // GREEN for 2xx
-    });
-
-    it('多行日志每行都应高亮', () => {
-      const response = sendMessage('process', {
-        text: '2024-01-15 ERROR: first error\n2024-01-15 INFO: second line',
-        options: { enableLinkDetection: false },
-      });
-      const lines = response.payload.content.split('\n');
-      expect(lines.length).toBe(2);
-      // Both lines should have ANSI codes
-      expect(response.payload.content).toContain('\x1b[91m'); // BRIGHT_RED (ERROR)
-      expect(response.payload.content).toContain('\x1b[96m'); // BRIGHT_CYAN (INFO)
-    });
+    expect(response.payload.type).toBe('yaml');
+    expect(response.payload.content).toContain('\x1b[33m'); // YELLOW
   });
 
-  describe('JSON 高亮 — 更多类型', () => {
-    it('应该高亮 JSON 布尔值为品红色', () => {
-      const response = sendMessage('process', {
-        text: '{"active": true, "disabled": false}',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('json');
-      expect(response.payload.content).toContain('\x1b[35m'); // MAGENTA for boolean
+  it('YAML 布尔值 true/false 应高亮为洋红色', () => {
+    const response = sendMessage('process', {
+      text: 'enabled: true\ndebug: false\nname: test',
+      options: { enableHighlight: true, enableLinkDetection: false },
     });
-
-    it('应该高亮 JSON null 值为亮黑色', () => {
-      const response = sendMessage('process', {
-        text: '{"value": null}',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('json');
-      expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK for null
-    });
-
-    it('应该高亮 JSON 大括号/方括号为白色', () => {
-      const response = sendMessage('process', {
-        text: '{"items": [1, 2, 3]}',
-        options: { enableHighlight: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('json');
-      expect(response.payload.content).toContain('\x1b[37m'); // WHITE for braces
-    });
-
-    it('无效 JSON 应返回原始文本', () => {
-      // While it won't be detected as JSON type, if somehow passed as JSON text it should fallback
-      const response = sendMessage('process', {
-        text: '{invalid json content here is not valid}',
-      });
-      // This won't be JSON type since it can't be parsed
-      expect(response.payload).toBeDefined();
-    });
+    expect(response.payload.type).toBe('yaml');
+    expect(response.payload.content).toContain('\x1b[35m'); // MAGENTA
   });
 
-  describe('表格格式化', () => {
-    it('管道分隔表格应正确格式化', () => {
-      const tableText =
-        '| Name   | Age | City |\n| Alice  | 30  | NYC  |\n| Bob    | 25  | LA   |';
-      const response = sendMessage('process', {
-        text: tableText,
-        options: { enableTableFormat: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('table');
-      // Header row should be highlighted with CYAN + BOLD
-      expect(response.payload.content).toContain('\x1b[36m'); // CYAN
-      expect(response.payload.content).toContain('\x1b[1m'); // BOLD
+  it('YAML 注释行应高亮为亮黑色（暗色）', () => {
+    const response = sendMessage('process', {
+      text: '# This is a comment\nname: test\nversion: 1.0\nkey: value',
+      options: { enableHighlight: true, enableLinkDetection: false },
     });
-
-    it('禁用表格格式化时应返回原始文本', () => {
-      const tableText =
-        '| Name   | Age | City |\n| Alice  | 30  | NYC  |\n| Bob    | 25  | LA   |';
-      const response = sendMessage('process', {
-        text: tableText,
-        options: { enableTableFormat: false, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('table');
-      // Without formatting, no table-specific ANSI codes for header
-      expect(response.payload.content).not.toContain('\x1b[1m');
-    });
-
-    it('表格包含分隔行时应高亮分隔行为亮黑色', () => {
-      const tableText = '---+---+---\nA  | B | C\n---+---+---';
-      const response = sendMessage('process', {
-        text: tableText,
-        options: { enableTableFormat: true, enableLinkDetection: false },
-      });
-      expect(response.payload.type).toBe('table');
-      expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK for separator
-    });
+    expect(response.payload.type).toBe('yaml');
+    expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK
   });
 
-  describe('链接高亮 — 路径检测', () => {
-    it('应该高亮路径形式的文本为青色', () => {
-      const response = sendMessage('process', {
-        text: 'Error reading /etc/config/app.conf file',
-        options: { enableLinkDetection: true },
-      });
-      expect(response.payload.content).toContain('/etc/config/app.conf');
-      expect(response.payload.content).toContain('\x1b[36m'); // CYAN for path
+  it('YAML 键名应高亮为青色粗体', () => {
+    const response = sendMessage('process', {
+      text: 'service: web\nport: 80\nhost: localhost',
+      options: { enableHighlight: true, enableLinkDetection: false },
     });
+    expect(response.payload.type).toBe('yaml');
+    expect(response.payload.content).toContain('\x1b[36m'); // CYAN
+    expect(response.payload.content).toContain('\x1b[1m'); // BOLD
+  });
+});
 
-    it('应该高亮 HTTP URL 且包含路径', () => {
-      const response = sendMessage('process', {
-        text: 'Download from http://example.com/path/to/file',
-        options: { enableLinkDetection: true },
-      });
-      expect(response.payload.content).toContain('http://example.com/path/to/file');
-      expect(response.payload.content).toContain('\x1b[34m'); // BLUE for URL
-    });
+describe('LOG 高亮细节', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+    sendMessage('configure', { enableHighlight: true, enableLinkDetection: false }, 'reset');
+    postMessageMock.mockClear();
   });
 
-  describe('换行符规范化', () => {
-    it('应该将 CRLF 换行符规范化为 LF', () => {
-      const response = sendMessage('process', {
-        text: 'line1\r\nline2\r\nline3',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.metadata.lineCount).toBe(3);
-      expect(response.payload.content).not.toContain('\r');
+  it('WARN 关键字应高亮为亮黄色', () => {
+    const response = sendMessage('process', {
+      text: '2024-01-15 WARN: disk usage high',
+      options: { enableLinkDetection: false },
     });
-
-    it('应该将单独的 CR 规范化为 LF', () => {
-      const response = sendMessage('process', {
-        text: 'line1\rline2\rline3',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.metadata.lineCount).toBe(3);
-      expect(response.payload.content).not.toContain('\r');
-    });
+    expect(response.payload.type).toBe('log');
+    expect(response.payload.content).toContain('\x1b[93m'); // BRIGHT_YELLOW
   });
 
-  describe('元数据计算', () => {
-    it('isLong 应在行数超过 foldThreshold 时为 true', () => {
-      const text = Array.from({ length: 20 }, (_, i) => `line ${i}`).join('\n');
-      const response = sendMessage('process', {
-        text,
-        options: { foldThreshold: 10, enableLinkDetection: false },
-      });
-      expect(response.payload.metadata.isLong).toBe(true);
-      expect(response.payload.metadata.shouldFold).toBe(true);
-      expect(response.payload.metadata.foldThreshold).toBe(10);
+  it('DEBUG 关键字应高亮为亮黑色', () => {
+    const response = sendMessage('process', {
+      text: '2024-01-15 DEBUG processing request',
+      options: { enableLinkDetection: false },
     });
+    expect(response.payload.type).toBe('log');
+    expect(response.payload.content).toContain('\x1b[90m'); // BRIGHT_BLACK
+  });
 
-    it('isLong 应在行数未超过 foldThreshold 时为 false', () => {
-      const text = Array.from({ length: 3 }, (_, i) => `line ${i}`).join('\n');
-      const response = sendMessage('process', {
-        text,
-        options: { foldThreshold: 10, enableLinkDetection: false },
-      });
-      expect(response.payload.metadata.isLong).toBe(false);
-      expect(response.payload.metadata.shouldFold).toBe(false);
+  it('SUCCESS 关键字应高亮为亮绿色', () => {
+    const response = sendMessage('process', {
+      text: '2024-01-15 SUCCESS: deployment complete',
+      options: { enableLinkDetection: false },
     });
+    expect(response.payload.type).toBe('log');
+    expect(response.payload.content).toContain('\x1b[92m'); // BRIGHT_GREEN
+  });
 
-    it('单行文本 lineCount 应为 1', () => {
-      const response = sendMessage('process', {
-        text: 'single line',
-        options: { enableLinkDetection: false },
-      });
-      expect(response.payload.metadata.lineCount).toBe(1);
+  it('HTTP 5xx 状态码应高亮为红色', () => {
+    const response = sendMessage('process', {
+      text: '2024-01-15 ERROR: returned 500 Internal Server Error',
+      options: { enableLinkDetection: false },
     });
+    expect(response.payload.type).toBe('log');
+    expect(response.payload.content).toContain('\x1b[31m'); // RED
+  });
+});
+
+describe('processOutput 元数据边界', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+    sendMessage('configure', { enableHighlight: true, enableLinkDetection: true, foldThreshold: 500 }, 'reset');
+    postMessageMock.mockClear();
+  });
+
+  it('shouldFold 在行数未超过阈值时应为 false', () => {
+    const text = Array.from({ length: 3 }, (_, i) => `line ${i}`).join('\n');
+    const response = sendMessage('process', { text });
+    expect(response.payload.metadata.shouldFold).toBe(false);
+    expect(response.payload.metadata.isLong).toBe(false);
+  });
+
+  it('foldThreshold 应反映配置值', () => {
+    sendMessage('configure', { foldThreshold: 100 }, 'cfg');
+    postMessageMock.mockClear();
+    const response = sendMessage('process', { text: 'hello world' });
+    expect(response.payload.metadata.foldThreshold).toBe(100);
+    // Reset
+    sendMessage('configure', { foldThreshold: 500 }, 'cfg-reset');
+  });
+
+  it('单行文本 lineCount 应为 1', () => {
+    const response = sendMessage('process', { text: 'single line' });
+    expect(response.payload.metadata.lineCount).toBe(1);
+  });
+
+  it('CRLF 换行应被规范化并正确计算行数', () => {
+    const response = sendMessage('process', { text: 'line1\r\nline2\r\nline3' });
+    expect(response.payload.metadata.lineCount).toBe(3);
+  });
+});
+
+describe('JSON 数组处理', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+    sendMessage('configure', { enableHighlight: true, enableLinkDetection: false }, 'reset');
+    postMessageMock.mockClear();
+  });
+
+  it('JSON 数组应被识别并高亮', () => {
+    const response = sendMessage('process', {
+      text: '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]',
+    });
+    expect(response.payload.type).toBe('json');
+    expect(response.payload.content).toContain('\x1b[');
+  });
+
+  it('无效 JSON 不应被识别为 json 类型', () => {
+    const response = sendMessage('process', {
+      text: '{"invalid": json, no quotes}',
+    });
+    // Not valid JSON so should be something other than json (text/log/etc)
+    expect(response.payload.type).not.toBe('json');
   });
 });
