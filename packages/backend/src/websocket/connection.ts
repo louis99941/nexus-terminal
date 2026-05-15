@@ -177,11 +177,19 @@ export function initializeConnectionHandler(
             if (targetState && targetState.ws.userId === ws.userId) {
               effectiveSessionId = msgSid;
             } else if (targetState) {
+              // 会话存在但不属于当前用户
               logger.warn(
                 `[WebSocket 安全] 用户 ${ws.userId} 尝试访问不属于自己的会话 ${msgSid}，已拒绝`
               );
               if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'error', payload: '无权访问该会话' }));
+                ws.send(JSON.stringify({ type: 'error', payload: '无权访问该会话', sid: msgSid }));
+              }
+              return;
+            } else {
+              // 会话不存在（已清理或 sid 错误），拒绝而非静默回退
+              logger.warn(`[WebSocket 多路复用] sid ${msgSid} 不存在，拒绝请求`);
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'error', payload: '会话不存在', sid: msgSid }));
               }
               return;
             }
@@ -881,13 +889,13 @@ export function initializeConnectionHandler(
         // 清理心跳状态
         cleanupHeartbeat(ws);
 
-        // 清理多路复用传输
+        // 清理多路复用传输（内部会销毁所有通道的批处理器）
         if (multiplexTransport) {
           unregisterTransport(ws);
           multiplexTransport.cleanup();
         }
 
-        // 清理该会话的批处理器
+        // 清理该会话的批处理器（非多路复用模式）
         if (ws.sessionId) {
           destroyBatcher(ws.sessionId);
         }
@@ -911,13 +919,13 @@ export function initializeConnectionHandler(
         // 清理心跳状态
         cleanupHeartbeat(ws);
 
-        // 清理多路复用传输
+        // 清理多路复用传输（内部会销毁所有通道的批处理器）
         if (multiplexTransport) {
           unregisterTransport(ws);
           multiplexTransport.cleanup();
         }
 
-        // 清理该会话的批处理器
+        // 清理该会话的批处理器（非多路复用模式）
         if (ws.sessionId) {
           destroyBatcher(ws.sessionId);
         }

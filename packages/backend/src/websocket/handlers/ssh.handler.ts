@@ -723,6 +723,7 @@ export async function handleSshConnect(
                   type: 'ssh:output',
                   payload: encoded,
                   encoding: 'base64',
+                  sid: newSessionId,
                 })
               );
             }

@@ -123,11 +123,32 @@ export function createWebSocketConnectionManager(
     reconnectManager.state.intentionalDisconnect = false;
     reconnectManager.clearTimer();
 
-    // 多路复用模式：委托给 transport
+    // 多路复用模式：委托给 transport，并同步状态
     if (transport) {
       statusMessage.value = getStatusText('connectingWs', { url });
       connectionStatus.value = 'connecting';
       isSftpReady.value = false;
+      // 注册消息处理器，同步 transport 状态到 manager
+      transport.onMessage('ssh:connected', () => {
+        connectionStatus.value = 'connected';
+        statusMessage.value = getStatusText('connected');
+      });
+      transport.onMessage('ssh:disconnected', (payload) => {
+        connectionStatus.value = 'disconnected';
+        statusMessage.value = getStatusText('disconnected', {
+          reason: typeof payload === 'string' ? payload : '未知原因',
+        });
+        isSftpReady.value = false;
+      });
+      transport.onMessage('ssh:error', (payload) => {
+        connectionStatus.value = 'error';
+        const errorMsg = typeof payload === 'string' ? payload : '错误';
+        statusMessage.value = getStatusText('error', { message: errorMsg });
+        isSftpReady.value = false;
+      });
+      transport.onMessage('sftp_ready', () => {
+        isSftpReady.value = true;
+      });
       transport.connect();
       return;
     }

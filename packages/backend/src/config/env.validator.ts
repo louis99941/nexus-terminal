@@ -318,6 +318,8 @@ const ENV_SCHEMA: Record<keyof EnvironmentConfig, EnvVarSchema> = {
     required: false,
     type: 'boolean',
     default: false,
+    validator: (value: string) => /^(true|false|1|0)$/i.test(value),
+    errorMessage: 'ENABLE_MULTIPLEX 仅支持 true/false/1/0',
   },
 };
 

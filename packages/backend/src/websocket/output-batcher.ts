@@ -98,19 +98,36 @@ export function createOutputBatcher(
     }
   };
 
-  /** 销毁批处理器 */
+  /** 销毁批处理器（先刷新再标记非活跃） */
   const destroy = (): void => {
-    state.isActive = false;
+    // 先清除定时器，阻止新的 flush 调度
     if (state.timer) {
       clearTimeout(state.timer);
       state.timer = null;
     }
-    // 销毁前刷新剩余数据
+    // 先刷新剩余数据（此时 isActive 仍为 true，flush 不会跳过）
     if (state.buffer.length > 0) {
-      flush();
+      const merged = state.buffer.join('');
+      state.buffer = [];
+      state.bufferLength = 0;
+      if (ws.readyState === WebSocket.OPEN) {
+        const encoded = Buffer.from(merged, 'utf8').toString('base64');
+        if (onSend) {
+          onSend(encoded);
+        } else {
+          ws.send(
+            JSON.stringify({
+              type: 'ssh:output',
+              payload: encoded,
+              encoding: 'base64',
+              sid: sessionId,
+            })
+          );
+        }
+      }
     }
-    state.buffer = [];
-    state.bufferLength = 0;
+    // 最后标记为非活跃
+    state.isActive = false;
   };
 
   /** 获取当前缓冲区大小 */

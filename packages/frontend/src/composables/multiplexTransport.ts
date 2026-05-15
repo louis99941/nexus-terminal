@@ -9,19 +9,19 @@
  * - 通道隔离：每个通道独立维护连接状态和消息处理
  */
 
-import { ref, readonly } from 'vue';
+import { ref, readonly, type Ref } from 'vue';
 import type { ConnectionStatus, WebSocketMessage, MessagePayload } from '../types/websocket.types';
 import { parseWebSocketMessage } from './useWebSocketConnection/messageParser';
 import { createReconnectManager } from './useWebSocketConnection/reconnect';
 import { log } from '@/utils/log';
 
-/** 逻辑通道状态 */
+/** 逻辑通道状态（使用 Ref 实现响应式） */
 export interface ChannelState {
   sid: string;
   dbConnectionId: string;
-  connectionStatus: ConnectionStatus;
-  statusMessage: string;
-  isSftpReady: boolean;
+  connectionStatus: Ref<ConnectionStatus>;
+  statusMessage: Ref<string>;
+  isSftpReady: Ref<boolean>;
   messageHandlers: Map<string, Set<(payload: MessagePayload, message: WebSocketMessage) => void>>;
   isResumeFlow: boolean;
 }
@@ -29,9 +29,9 @@ export interface ChannelState {
 /** 通道控制接口 */
 export interface MultiplexChannel {
   sid: string;
-  connectionStatus: ReturnType<typeof readonly>;
-  statusMessage: ReturnType<typeof readonly>;
-  isSftpReady: ReturnType<typeof readonly>;
+  connectionStatus: Readonly<Ref<ConnectionStatus>>;
+  statusMessage: Readonly<Ref<string>>;
+  isSftpReady: Readonly<Ref<boolean>>;
   connect: () => void;
   disconnect: () => void;
   sendMessage: (message: WebSocketMessage) => void;
@@ -51,8 +51,8 @@ const reconnectManager = createReconnectManager({ maxAttempts: 5 });
  * 构建 WebSocket URL
  */
 function buildWsUrl(): string {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
+  const protocol = globalThis.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = globalThis.location.host;
   return `${protocol}//${host}/ws/`;
 }
 
@@ -60,7 +60,7 @@ function buildWsUrl(): string {
  * 向物理连接发送消息
  */
 function sendRawMessage(message: object): void {
-  if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+  if (ws.value?.readyState === WebSocket.OPEN) {
     try {
       ws.value.send(JSON.stringify(message));
     } catch (error) {
@@ -94,20 +94,20 @@ function dispatchToChannel(message: WebSocketMessage): void {
     return;
   }
 
-  // 更新通道状态
+  // 更新通道状态（通过 Ref 响应式更新）
   if (message.type === 'ssh:connected') {
-    channel.connectionStatus = 'connected';
-    channel.statusMessage = '已连接';
+    channel.connectionStatus.value = 'connected';
+    channel.statusMessage.value = '已连接';
   } else if (message.type === 'ssh:disconnected') {
-    channel.connectionStatus = 'disconnected';
-    channel.statusMessage = typeof message.payload === 'string' ? message.payload : '已断开';
-    channel.isSftpReady = false;
+    channel.connectionStatus.value = 'disconnected';
+    channel.statusMessage.value = typeof message.payload === 'string' ? message.payload : '已断开';
+    channel.isSftpReady.value = false;
   } else if (message.type === 'ssh:error' || message.type === 'error') {
-    channel.connectionStatus = 'error';
-    channel.statusMessage = typeof message.payload === 'string' ? message.payload : '错误';
-    channel.isSftpReady = false;
+    channel.connectionStatus.value = 'error';
+    channel.statusMessage.value = typeof message.payload === 'string' ? message.payload : '错误';
+    channel.isSftpReady.value = false;
   } else if (message.type === 'sftp_ready') {
-    channel.isSftpReady = true;
+    channel.isSftpReady.value = true;
   }
 
   // 分发到注册的处理器
@@ -124,6 +124,24 @@ function dispatchToChannel(message: WebSocketMessage): void {
 }
 
 /**
+ * 向通道发送 ssh:connect 请求
+ */
+function sendConnectToChannel(channel: ChannelState): void {
+  if (!channel.isResumeFlow) {
+    sendToChannel(channel.sid, {
+      type: 'ssh:connect',
+      payload: { connectionId: Number.parseInt(channel.dbConnectionId, 10) },
+    });
+  } else {
+    // 直接通过 Ref 更新状态
+    const ch = channels.get(channel.sid);
+    if (ch) {
+      ch.connectionStatus.value = 'connected';
+    }
+  }
+}
+
+/**
  * 建立物理连接
  */
 function connectPhysical(): void {
@@ -135,10 +153,7 @@ function connectPhysical(): void {
   }
 
   const url = buildWsUrl();
-  let secureUrl = url;
-  if (window.location.protocol === 'https:') {
-    secureUrl = url.replace(/^ws:/, 'wss:');
-  }
+  const secureUrl = globalThis.location.protocol === 'https:' ? url.replace(/^ws:/, 'wss:') : url;
 
   // 添加多路复用协议头
   ws.value = new WebSocket(secureUrl, 'nexus-mux');
@@ -149,16 +164,12 @@ function connectPhysical(): void {
     reconnectManager.reset();
     log.info('[MultiplexTransport] 物理连接已建立');
 
-    // 通知所有通道物理连接已就绪
-    channels.forEach((channel, sid) => {
-      if (channel.connectionStatus === 'disconnected' || channel.connectionStatus === 'error') {
-        // 重新发送 ssh:connect 请求
-        sendToChannel(sid, {
-          type: 'ssh:connect',
-          payload: { connectionId: parseInt(channel.dbConnectionId, 10) },
-        });
+    // 通知所有通道物理连接已就绪（包括 connecting 状态的首连通道）
+    for (const channel of channels.values()) {
+      if (channel.connectionStatus.value !== 'connected') {
+        sendConnectToChannel(channel);
       }
-    });
+    }
   };
 
   ws.value.onmessage = (event: MessageEvent) => {
@@ -178,13 +189,10 @@ function connectPhysical(): void {
     ws.value = null;
 
     // 通知所有通道物理连接已断开
-    channels.forEach((_ch, sid) => {
-      const ch = channels.get(sid);
-      if (ch) {
-        ch.connectionStatus = 'disconnected';
-        ch.isSftpReady = false;
-      }
-    });
+    for (const channel of channels.values()) {
+      channel.connectionStatus.value = 'disconnected';
+      channel.isSftpReady.value = false;
+    }
 
     // 自动重连
     if (!reconnectManager.state.intentionalDisconnect && event.code !== 1000) {
@@ -222,48 +230,39 @@ export function createChannel(
     log.warn(`[MultiplexTransport] 通道 ${sid} 已存在，将覆盖`);
   }
 
+  const isResumeFlow = options?.isResumeFlow ?? false;
   const channelState: ChannelState = {
     sid,
     dbConnectionId,
-    connectionStatus: 'connecting',
-    statusMessage: '正在连接...',
-    isSftpReady: false,
+    connectionStatus: ref<ConnectionStatus>('connecting'),
+    statusMessage: ref('正在连接...'),
+    isSftpReady: ref(false),
     messageHandlers: new Map(),
-    isResumeFlow: options?.isResumeFlow ?? false,
+    isResumeFlow,
   };
 
   channels.set(sid, channelState);
 
-  // 如果物理连接未建立，先建立连接
-  if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
+  // 如果物理连接未建立，先建立连接（onopen 中会自动发送 ssh:connect）
+  if (ws.value?.readyState !== WebSocket.OPEN) {
     connectPhysical();
   } else {
     // 物理连接已就绪，直接发送 ssh:connect
-    if (!channelState.isResumeFlow) {
-      sendToChannel(sid, {
-        type: 'ssh:connect',
-        payload: { connectionId: parseInt(dbConnectionId, 10) },
-      });
-    } else {
-      channelState.connectionStatus = 'connected';
-    }
+    sendConnectToChannel(channelState);
   }
 
-  // 返回通道控制接口
+  // 返回通道控制接口（直接暴露 Ref，保证响应式）
   return {
     sid,
-    connectionStatus: readonly(ref(channelState.connectionStatus)),
-    statusMessage: readonly(ref(channelState.statusMessage)),
-    isSftpReady: readonly(ref(channelState.isSftpReady)),
+    connectionStatus: readonly(channelState.connectionStatus),
+    statusMessage: readonly(channelState.statusMessage),
+    isSftpReady: readonly(channelState.isSftpReady),
 
     connect: () => {
-      if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
+      if (ws.value?.readyState !== WebSocket.OPEN) {
         connectPhysical();
-      } else if (!channelState.isResumeFlow) {
-        sendToChannel(sid, {
-          type: 'ssh:connect',
-          payload: { connectionId: parseInt(dbConnectionId, 10) },
-        });
+      } else {
+        sendConnectToChannel(channelState);
       }
     },
 
@@ -280,18 +279,18 @@ export function createChannel(
       type: string,
       handler: (payload: MessagePayload, message: WebSocketMessage) => void
     ) => {
-      let handlers = channelState.messageHandlers.get(type);
-      if (!handlers) {
-        handlers = new Set();
-        channelState.messageHandlers.set(type, handlers);
+      let existingHandlers = channelState.messageHandlers.get(type);
+      if (!existingHandlers) {
+        existingHandlers = new Set();
+        channelState.messageHandlers.set(type, existingHandlers);
       }
-      handlers.add(handler);
+      existingHandlers.add(handler);
 
       return () => {
-        const handlers = channelState.messageHandlers.get(type);
-        if (handlers) {
-          handlers.delete(handler);
-          if (handlers.size === 0) {
+        const currentHandlers = channelState.messageHandlers.get(type);
+        if (currentHandlers) {
+          currentHandlers.delete(handler);
+          if (currentHandlers.size === 0) {
             channelState.messageHandlers.delete(type);
           }
         }
@@ -326,11 +325,8 @@ export function disconnectAll(): void {
     ws.value = null;
   }
 
-  channels.forEach((_ch, sid) => {
-    const ch = channels.get(sid);
-    if (ch) {
-      ch.connectionStatus = 'disconnected';
-    }
-  });
+  for (const channel of channels.values()) {
+    channel.connectionStatus.value = 'disconnected';
+  }
   channels.clear();
 }

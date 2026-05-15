@@ -161,9 +161,12 @@ export function initializeUpgradeHandler(
           typedRequest.clientIpAddress = ipAddress;
           typedRequest.isRdpProxy = false; // 标记为非 RDP 代理连接
 
-          // 检测多路复用协议
+          // 检测多路复用协议（支持逗号分隔的协议列表）
           const secProtocol = request.headers['sec-websocket-protocol'];
-          if (isMultiplexEnabled() && secProtocol === 'nexus-mux') {
+          const protocols = Array.isArray(secProtocol)
+            ? secProtocol
+            : (secProtocol?.split(',').map((p) => p.trim()) ?? []);
+          if (isMultiplexEnabled() && protocols.includes('nexus-mux')) {
             extWs.isMultiplex = true;
             logger.debug(`WebSocket: 多路复用模式已启用 (用户: ${request.session.username})`);
           }

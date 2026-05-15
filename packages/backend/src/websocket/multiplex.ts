@@ -11,6 +11,7 @@
 
 import WebSocket from 'ws';
 import { logger } from '../utils/logger';
+import { destroyBatcher } from './output-batcher';
 
 /** 逻辑通道状态 */
 export interface ChannelState {
@@ -126,6 +127,7 @@ export function createMultiplexTransport(ws: WebSocket): MultiplexTransport {
     const count = channels.size;
     channels.forEach((_channel, sid) => {
       logger.debug(`[Multiplex] 清理通道 ${sid}`);
+      destroyBatcher(sid);
       channels.delete(sid);
     });
     logger.info(`[Multiplex] 已清理 ${count} 个通道`);
