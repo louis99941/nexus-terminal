@@ -881,3 +881,46 @@ describe('processInWorker - 额外强化', () => {
     );
   });
 });
+
+// ==================== 额外回归测试 ====================
+
+describe('processInWorker 回归', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('99 个字符应同步处理（边界 - 低于阈值）', async () => {
+    const { processInWorker } = await import('./output-processor');
+    const text = 'a'.repeat(99);
+    await processInWorker(text);
+    expect(wpMockExecute).not.toHaveBeenCalled();
+  });
+
+  it('Worker 返回 null payload 时应降级到同步处理', async () => {
+    wpMockExecute.mockRejectedValueOnce(new Error('Worker returned null'));
+    const { processInWorker } = await import('./output-processor');
+    const result = await processInWorker('a'.repeat(200));
+    // Should fall back to sync processing - result should be valid ProcessedOutput
+    expect(result).toHaveProperty('type');
+    expect(result).toHaveProperty('content');
+    expect(result).toHaveProperty('metadata');
+  });
+
+  it('multiline text (>100 chars) should send text with all newlines to Worker', async () => {
+    const multilineText = Array.from({ length: 20 }, (_, i) => `line ${i}: content`).join('\n');
+    expect(multilineText.length).toBeGreaterThan(100);
+
+    const expectedResult = {
+      type: OutputType.TEXT,
+      content: multilineText,
+      metadata: { lineCount: 20, isLong: false, shouldFold: false, foldThreshold: 500 },
+    };
+    wpMockExecute.mockResolvedValueOnce(expectedResult);
+
+    const { processInWorker } = await import('./output-processor');
+    const result = await processInWorker(multilineText);
+
+    expect(wpMockExecute).toHaveBeenCalledWith('process', { text: multilineText, options: undefined });
+    expect(result).toBe(expectedResult);
+  });
+});

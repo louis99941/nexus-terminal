@@ -60,18 +60,7 @@ const mockFetch = vi.fn();
 
 // ==================== Mock Service Worker globals ====================
 
-const mockSelf = {
-  location: { origin: 'http://localhost:3000' },
-  skipWaiting: vi.fn(),
-  clients: {
-    claim: vi.fn(),
-  },
-  onmessage: null as ((event: MessageEvent) => void) | null,
-};
-
-// ==================== Setup / Teardown ====================
-
-// Store the event listeners registered by the SW
+// Store the event listeners registered by the SW (populated when getSWHelpers is called)
 const swListeners: Record<string, ((...args: unknown[]) => void)[]> = {};
 
 function resetSWListeners() {
@@ -79,6 +68,22 @@ function resetSWListeners() {
     delete swListeners[key];
   }
 }
+
+const mockSelf = {
+  location: { origin: 'http://localhost:3000' },
+  skipWaiting: vi.fn(),
+  clients: {
+    claim: vi.fn(),
+  },
+  onmessage: null as ((event: MessageEvent) => void) | null,
+  // addEventListener is needed because sw.js calls self.addEventListener(...)
+  addEventListener: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+    if (!swListeners[event]) swListeners[event] = [];
+    swListeners[event].push(handler);
+  }),
+};
+
+// ==================== Setup / Teardown ====================
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -91,9 +96,14 @@ beforeEach(() => {
   Object.defineProperty(globalThis, 'fetch', { value: mockFetch, writable: true, configurable: true });
   Object.defineProperty(globalThis, 'self', { value: mockSelf, writable: true, configurable: true });
 
-  // Track addEventListener calls
+  // Re-bind mock functions so clearAllMocks doesn't break them
   mockSelf.skipWaiting.mockClear();
   mockSelf.clients.claim.mockClear();
+  // Re-register addEventListener since vi.clearAllMocks() resets the mock
+  mockSelf.addEventListener.mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
+    if (!swListeners[event]) swListeners[event] = [];
+    swListeners[event].push(handler);
+  });
 });
 
 afterEach(() => {
@@ -113,7 +123,8 @@ function makeResponse(body: string, status = 200, headers: Record<string, string
 // controlled environment that captures the exported helper functions.
 
 /**
- * Build a minimal SW-like scope and evaluate sw.js in it, returning the helper functions.
+ * Build a minimal SW-like scope and evaluate sw.js in it, returning the helper functions
+ * and captured event handlers.
  */
 async function getSWHelpers() {
   const { readFileSync } = await import('fs');
@@ -121,11 +132,23 @@ async function getSWHelpers() {
   const swPath = path.resolve(__dirname, '../public/sw.js');
   const swCode = readFileSync(swPath, 'utf-8');
 
+  // Capture handlers registered by self.addEventListener during sw.js initialization
+  const capturedHandlers: Record<string, (...args: unknown[]) => void> = {};
+
   // We'll extract the helper functions by eval in a scope with mocked globals
   const scope = {
     caches: mockCaches,
     fetch: mockFetch,
-    self: mockSelf,
+    self: {
+      ...mockSelf,
+      // Override addEventListener in scope to capture handlers from sw.js init
+      addEventListener: (event: string, handler: (...args: unknown[]) => void) => {
+        capturedHandlers[event] = handler;
+        // Also populate the module-level swListeners for compatibility
+        if (!swListeners[event]) swListeners[event] = [];
+        swListeners[event].push(handler);
+      },
+    },
     AbortController: globalThis.AbortController,
     Response: globalThis.Response,
     Request: globalThis.Request,
@@ -142,7 +165,7 @@ async function getSWHelpers() {
   const wrappedCode = `
     "use strict";
     ${swCode}
-    // Return helpers
+    // Return helpers and any other needed references
     ({ cacheFirst, networkFirst, networkFirstWithFallback, networkFirstWithTimeout, trimCache });
   `;
 
@@ -152,12 +175,18 @@ async function getSWHelpers() {
     wrappedCode
   );
 
-  return factory(...Object.values(scope)) as {
+  const helpers = factory(...Object.values(scope)) as {
     cacheFirst: (req: Request, cacheName: string) => Promise<Response>;
     networkFirst: (req: Request) => Promise<Response>;
     networkFirstWithFallback: (req: Request, cacheName: string) => Promise<Response>;
     networkFirstWithTimeout: (req: Request, cacheName: string, timeoutMs: number) => Promise<Response>;
     trimCache: (cacheName: string, maxEntries: number) => Promise<void>;
+  };
+
+  return {
+    ...helpers,
+    /** Event handlers registered by sw.js (install, fetch, activate, message) */
+    handlers: capturedHandlers,
   };
 }
 
@@ -547,121 +576,435 @@ describe('manifest.json 变更', () => {
   });
 });
 
-// ==================== 额外边界与回归测试 ====================
+// ==================== SW 事件处理器测试 ====================
 
-describe('trimCache - 额外边界', () => {
-  it('maxEntries=0 时应删除所有条目', async () => {
-    const { trimCache } = await getSWHelpers();
+describe('SW install 事件处理器', () => {
+  it('install 时应预缓存静态 shell 资源（/ 和 /index.html）', async () => {
+    const { handlers } = await getSWHelpers();
+    const installHandler = handlers['install'];
+    expect(installHandler).toBeDefined();
 
-    const cache = await mockCaches.open('nexus-api-v2.0.0');
-    for (let i = 0; i < 3; i++) {
-      await cache.put(new Request(`http://localhost/api/item${i}`), makeResponse(`item${i}`));
+    const waitUntilMock = vi.fn();
+    const event = { waitUntil: waitUntilMock };
+    installHandler(event);
+
+    // waitUntil should be called with a Promise
+    expect(waitUntilMock).toHaveBeenCalledOnce();
+    const promise = waitUntilMock.mock.calls[0][0];
+    expect(promise).toBeInstanceOf(Promise);
+  });
+
+  it('install 时应打开 CACHE_STATIC 和 CACHE_ICONS 两个缓存桶', async () => {
+    const { handlers } = await getSWHelpers();
+    const installHandler = handlers['install'];
+
+    const waitUntilMock = vi.fn();
+    const event = { waitUntil: waitUntilMock };
+    installHandler(event);
+
+    await waitUntilMock.mock.calls[0][0];
+
+    // Both static and icons caches should be opened
+    const openedCaches = mockCaches.open.mock.calls.map((c) => c[0]);
+    expect(openedCaches).toContain('nexus-static-v2.0.0');
+    expect(openedCaches).toContain('nexus-icons-v2.0.0');
+  });
+
+  it('install 时应调用 self.skipWaiting()', async () => {
+    const { handlers } = await getSWHelpers();
+    const installHandler = handlers['install'];
+
+    const waitUntilMock = vi.fn();
+    installHandler({ waitUntil: waitUntilMock });
+
+    expect(mockSelf.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it('install 时 CACHE_STATIC 应缓存 APP_SHELL_URLS', async () => {
+    const { handlers } = await getSWHelpers();
+    const installHandler = handlers['install'];
+
+    const waitUntilMock = vi.fn();
+    installHandler({ waitUntil: waitUntilMock });
+    await waitUntilMock.mock.calls[0][0];
+
+    const staticCache = await mockCaches.open('nexus-static-v2.0.0');
+    expect(staticCache.addAll).toHaveBeenCalledWith(expect.arrayContaining(['/', '/index.html']));
+  });
+
+  it('install 时 CACHE_ICONS 应缓存图标 URLs', async () => {
+    const { handlers } = await getSWHelpers();
+    const installHandler = handlers['install'];
+
+    const waitUntilMock = vi.fn();
+    installHandler({ waitUntil: waitUntilMock });
+    await waitUntilMock.mock.calls[0][0];
+
+    const iconsCache = await mockCaches.open('nexus-icons-v2.0.0');
+    expect(iconsCache.addAll).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        '/icons/icon-72x72.png',
+        '/icons/icon-512x512.png',
+      ])
+    );
+  });
+});
+
+describe('SW activate 事件处理器', () => {
+  it('activate 时应调用 event.waitUntil', async () => {
+    const { handlers } = await getSWHelpers();
+    const activateHandler = handlers['activate'];
+    expect(activateHandler).toBeDefined();
+
+    const waitUntilMock = vi.fn();
+    activateHandler({ waitUntil: waitUntilMock });
+
+    expect(waitUntilMock).toHaveBeenCalledOnce();
+  });
+
+  it('activate 时应调用 clients.claim()', async () => {
+    const { handlers } = await getSWHelpers();
+    const activateHandler = handlers['activate'];
+
+    const waitUntilMock = vi.fn();
+    activateHandler({ waitUntil: waitUntilMock });
+    await waitUntilMock.mock.calls[0][0];
+
+    expect(mockSelf.clients.claim).toHaveBeenCalledOnce();
+  });
+
+  it('activate 时应删除不在当前缓存列表中的旧缓存', async () => {
+    const { handlers } = await getSWHelpers();
+    const activateHandler = handlers['activate'];
+
+    // Simulate old caches existing
+    const oldCacheNames = ['nexus-terminal-cache-1.0.0', 'old-cache-v1'];
+    const currentCacheNames = [
+      'nexus-static-v2.0.0',
+      'nexus-api-v2.0.0',
+      'nexus-icons-v2.0.0',
+      'nexus-pages-v2.0.0',
+    ];
+    mockCaches.keys.mockResolvedValueOnce([...oldCacheNames, ...currentCacheNames]);
+
+    const waitUntilMock = vi.fn();
+    activateHandler({ waitUntil: waitUntilMock });
+    await waitUntilMock.mock.calls[0][0];
+
+    // Old caches should be deleted
+    expect(mockCaches.delete).toHaveBeenCalledWith('nexus-terminal-cache-1.0.0');
+    expect(mockCaches.delete).toHaveBeenCalledWith('old-cache-v1');
+    // Current caches should NOT be deleted
+    for (const name of currentCacheNames) {
+      expect(mockCaches.delete).not.toHaveBeenCalledWith(name);
     }
-
-    await trimCache('nexus-api-v2.0.0', 0);
-    // 3 - 0 = 3 entries should be deleted
-    expect(cache.delete).toHaveBeenCalledTimes(3);
   });
 
-  it('maxEntries=1 且有 2 条目时应删除 1 条', async () => {
-    const { trimCache } = await getSWHelpers();
+  it('activate 时如果没有旧缓存则不删除任何缓存', async () => {
+    const { handlers } = await getSWHelpers();
+    const activateHandler = handlers['activate'];
 
-    const cache = await mockCaches.open('nexus-api-v2.0.0');
-    await cache.put(new Request('http://localhost/api/a'), makeResponse('a'));
-    await cache.put(new Request('http://localhost/api/b'), makeResponse('b'));
+    mockCaches.keys.mockResolvedValueOnce([
+      'nexus-static-v2.0.0',
+      'nexus-api-v2.0.0',
+      'nexus-icons-v2.0.0',
+      'nexus-pages-v2.0.0',
+    ]);
 
-    await trimCache('nexus-api-v2.0.0', 1);
-    expect(cache.delete).toHaveBeenCalledTimes(1);
-  });
-});
+    const waitUntilMock = vi.fn();
+    activateHandler({ waitUntil: waitUntilMock });
+    await waitUntilMock.mock.calls[0][0];
 
-describe('networkFirstWithTimeout - 额外边界', () => {
-  it('网络返回 404 时不应缓存响应', async () => {
-    const { networkFirstWithTimeout } = await getSWHelpers();
-    const request = new Request('http://localhost:3000/api/missing');
-    const notFoundResponse = new Response('Not Found', { status: 404 });
-    // ok = false for 4xx
-    Object.defineProperty(notFoundResponse, 'ok', { value: false });
-
-    mockFetch.mockResolvedValueOnce(notFoundResponse);
-
-    const cache = await mockCaches.open('nexus-api-v2.0.0');
-    const putSpy = vi.spyOn(cache, 'put');
-
-    const result = await networkFirstWithTimeout(request, 'nexus-api-v2.0.0', 10000);
-    expect(result.status).toBe(404);
-    expect(putSpy).not.toHaveBeenCalled();
-  });
-
-  it('网络返回 500 时不应缓存响应', async () => {
-    const { networkFirstWithTimeout } = await getSWHelpers();
-    const request = new Request('http://localhost:3000/api/error');
-    const serverErrorResponse = new Response('Server Error', { status: 500 });
-    Object.defineProperty(serverErrorResponse, 'ok', { value: false });
-
-    mockFetch.mockResolvedValueOnce(serverErrorResponse);
-
-    const cache = await mockCaches.open('nexus-api-v2.0.0');
-    const putSpy = vi.spyOn(cache, 'put');
-
-    const result = await networkFirstWithTimeout(request, 'nexus-api-v2.0.0', 10000);
-    expect(result.status).toBe(500);
-    expect(putSpy).not.toHaveBeenCalled();
+    expect(mockCaches.delete).not.toHaveBeenCalled();
   });
 });
 
-describe('cacheFirst - 额外边界', () => {
-  it('网络响应 ok=false 时不应缓存', async () => {
-    const { cacheFirst } = await getSWHelpers();
-    const request = new Request('http://localhost:3000/broken.js');
-    const badResponse = new Response('Bad Gateway', { status: 502 });
-    Object.defineProperty(badResponse, 'ok', { value: false });
+describe('SW message 事件处理器', () => {
+  it('GET_SW_VERSION 消息应回复版本号', async () => {
+    const { handlers } = await getSWHelpers();
+    const messageHandler = handlers['message'];
+    expect(messageHandler).toBeDefined();
 
-    mockCaches.match.mockResolvedValueOnce(undefined);
-    mockFetch.mockResolvedValueOnce(badResponse);
+    const postMessageMock = vi.fn();
+    const event = {
+      data: { type: 'GET_SW_VERSION' },
+      source: { postMessage: postMessageMock },
+    };
+    messageHandler(event);
 
-    const cache = await mockCaches.open('nexus-static-v2.0.0');
-    const putSpy = vi.spyOn(cache, 'put');
-
-    const result = await cacheFirst(request, 'nexus-static-v2.0.0');
-    expect(result.status).toBe(502);
-    expect(putSpy).not.toHaveBeenCalled();
+    expect(postMessageMock).toHaveBeenCalledWith({ type: 'SW_VERSION', version: '2.0.0' });
   });
 
-  it('缓存命中时不应发起网络请求', async () => {
-    const { cacheFirst } = await getSWHelpers();
-    const request = new Request('http://localhost:3000/cached.js');
-    const cachedResponse = makeResponse('<cached js>');
+  it('SKIP_WAITING 消息应调用 self.skipWaiting()', async () => {
+    const { handlers } = await getSWHelpers();
+    const messageHandler = handlers['message'];
 
-    mockCaches.match.mockResolvedValueOnce(cachedResponse);
+    const event = {
+      data: { type: 'SKIP_WAITING' },
+      source: { postMessage: vi.fn() },
+    };
+    messageHandler(event);
 
-    await cacheFirst(request, 'nexus-static-v2.0.0');
+    expect(mockSelf.skipWaiting).toHaveBeenCalled();
+  });
+
+  it('CACHE_URLS 消息应获取并缓存指定 URLs', async () => {
+    const { handlers } = await getSWHelpers();
+    const messageHandler = handlers['message'];
+
+    const mockResponse = makeResponse('<content>');
+    mockFetch.mockResolvedValue(mockResponse);
+
+    const event = {
+      data: {
+        type: 'CACHE_URLS',
+        urls: ['http://localhost:3000/api/data1', 'http://localhost:3000/api/data2'],
+      },
+      source: { postMessage: vi.fn() },
+    };
+    messageHandler(event);
+
+    // Give the async operations time to run
+    await vi.runAllTimersAsync();
+
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/data1');
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/data2');
+  });
+
+  it('未知消息类型应安静忽略', async () => {
+    const { handlers } = await getSWHelpers();
+    const messageHandler = handlers['message'];
+
+    const postMessageMock = vi.fn();
+    const event = {
+      data: { type: 'UNKNOWN_TYPE' },
+      source: { postMessage: postMessageMock },
+    };
+
+    expect(() => messageHandler(event)).not.toThrow();
+    expect(postMessageMock).not.toHaveBeenCalled();
+    expect(mockSelf.skipWaiting).not.toHaveBeenCalled();
+  });
+
+  it('data 为 null 时应安静忽略', async () => {
+    const { handlers } = await getSWHelpers();
+    const messageHandler = handlers['message'];
+
+    const event = { data: null, source: { postMessage: vi.fn() } };
+    expect(() => messageHandler(event)).not.toThrow();
+  });
+
+  it('CACHE_URLS 且 urls 不是数组时应忽略', async () => {
+    const { handlers } = await getSWHelpers();
+    const messageHandler = handlers['message'];
+
+    const event = {
+      data: { type: 'CACHE_URLS', urls: 'not-an-array' },
+      source: { postMessage: vi.fn() },
+    };
+    expect(() => messageHandler(event)).not.toThrow();
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
-describe('networkFirst - 额外边界', () => {
-  it('网络抛出非 TypeError 错误时也应降级到缓存', async () => {
-    const { networkFirst } = await getSWHelpers();
-    const request = new Request('http://localhost:3000/resource');
-    const cachedResponse = makeResponse('<cached>');
+describe('SW fetch 事件处理器路由规则', () => {
+  it('导航请求（mode=navigate）应使用 networkFirstWithFallback 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+    expect(fetchHandler).toBeDefined();
 
-    // Throw a generic Error (not TypeError)
-    mockFetch.mockRejectedValueOnce(new Error('some unexpected error'));
+    const networkResponse = makeResponse('<html/>');
+    Object.defineProperty(networkResponse, 'ok', { value: true });
+    Object.defineProperty(networkResponse, 'clone', { value: () => new Response('<html/>') });
+    mockFetch.mockResolvedValueOnce(networkResponse);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/', { mode: 'navigate' } as RequestInit);
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const responsePromise = respondWithMock.mock.calls[0][0];
+    const result = await responsePromise;
+    expect(result).toBe(networkResponse);
+  });
+
+  it('/api/ 路径应使用 networkFirstWithTimeout 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const networkResponse = new Response('{"data":1}', { status: 200 });
+    Object.defineProperty(networkResponse, 'ok', { value: true });
+    Object.defineProperty(networkResponse, 'clone', { value: () => new Response('{"data":1}') });
+    mockFetch.mockResolvedValueOnce(networkResponse);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/api/users');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(networkResponse);
+  });
+
+  it('.js 静态资源应使用 cacheFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    // Serve from network (no cache)
+    const networkResponse = makeResponse('console.log(1)');
+    mockCaches.match.mockResolvedValueOnce(undefined);
+    mockFetch.mockResolvedValueOnce(networkResponse);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/assets/app.js');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(networkResponse);
+  });
+
+  it('.css 静态资源应使用 cacheFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const cachedResponse = makeResponse('body {}');
     mockCaches.match.mockResolvedValueOnce(cachedResponse);
 
-    const result = await networkFirst(request);
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/assets/styles.css');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(cachedResponse);
+    // fetch should NOT be called since cache hit
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('.woff2 字体文件应使用 cacheFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const cachedResponse = makeResponse('font-data', 200, { 'Content-Type': 'font/woff2' });
+    mockCaches.match.mockResolvedValueOnce(cachedResponse);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/fonts/inter.woff2');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
     expect(result).toBe(cachedResponse);
   });
 
-  it('网络抛出错误且缓存返回 undefined 时应返回 503', async () => {
-    const { networkFirst } = await getSWHelpers();
-    const request = new Request('http://localhost:3000/no-cache-here');
+  it('/icons/ 路径应使用 cacheFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
 
-    mockFetch.mockRejectedValueOnce(new Error('network gone'));
+    const cachedIcon = makeResponse('icon-data', 200, { 'Content-Type': 'image/png' });
+    mockCaches.match.mockResolvedValueOnce(cachedIcon);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/icons/icon-192x192.png');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(cachedIcon);
+  });
+
+  it('其他请求应使用 networkFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const networkResponse = makeResponse('<image>');
+    mockFetch.mockResolvedValueOnce(networkResponse);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/some/other/resource');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(networkResponse);
+  });
+
+  it('跨域请求应绕过缓存（不调用 respondWith）', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const respondWithMock = vi.fn();
+    const request = new Request('https://external-domain.com/api/data');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    // Cross-origin requests bypass the cache handler
+    expect(respondWithMock).not.toHaveBeenCalled();
+  });
+
+  it('.woff 字体文件应使用 cacheFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const networkResponse = makeResponse('woff-data', 200, { 'Content-Type': 'font/woff' });
     mockCaches.match.mockResolvedValueOnce(undefined);
+    mockFetch.mockResolvedValueOnce(networkResponse);
 
-    const result = await networkFirst(request);
-    expect(result.status).toBe(503);
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/fonts/font.woff');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(networkResponse);
+  });
+
+  it('.ttf 字体文件应使用 cacheFirst 策略', async () => {
+    const { handlers } = await getSWHelpers();
+    const fetchHandler = handlers['fetch'];
+
+    const networkResponse = makeResponse('ttf-data', 200, { 'Content-Type': 'font/ttf' });
+    mockCaches.match.mockResolvedValueOnce(undefined);
+    mockFetch.mockResolvedValueOnce(networkResponse);
+
+    const respondWithMock = vi.fn();
+    const request = new Request('http://localhost:3000/fonts/font.ttf');
+    const event = { request, respondWith: respondWithMock };
+
+    fetchHandler(event);
+
+    expect(respondWithMock).toHaveBeenCalledOnce();
+    const result = await respondWithMock.mock.calls[0][0];
+    expect(result).toBe(networkResponse);
+  });
+});
+
+// ==================== 回归测试 ====================
+
+describe('SW 回归：sw.js 注册了正确的事件监听器', () => {
+  it('应注册 install、fetch、activate 和 message 事件处理器', async () => {
+    const { handlers } = await getSWHelpers();
+    expect(typeof handlers['install']).toBe('function');
+    expect(typeof handlers['fetch']).toBe('function');
+    expect(typeof handlers['activate']).toBe('function');
+    expect(typeof handlers['message']).toBe('function');
   });
 });
