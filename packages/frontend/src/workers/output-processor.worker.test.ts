@@ -413,3 +413,109 @@ describe('JSON 数组处理', () => {
     expect(response.payload.type).not.toBe('json');
   });
 });
+
+// ==================== 额外边界与回归测试 ====================
+
+describe('configure - 额外边界', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+    // Reset to known defaults
+    sendMessage('configure', { enableHighlight: true, enableLinkDetection: true, foldThreshold: 500 }, 'reset');
+    postMessageMock.mockClear();
+  });
+
+  it('配置空对象应返回 ok 且不崩溃', () => {
+    const response = sendMessage('configure', {}, 'cfg-empty');
+    expect(response.id).toBe('cfg-empty');
+    expect(response.type).toBe('configure');
+    expect(response.payload).toEqual({ ok: true });
+  });
+
+  it('配置 enableTableFormat=false 时 table 类型依然检测为 table，但不应用格式化', () => {
+    sendMessage('configure', { enableTableFormat: false }, 'cfg-no-table');
+    postMessageMock.mockClear();
+
+    const tableText =
+      '| Name   | Age   | City   |\n| Alice  | 30    | NYC    |\n| Bob    | 25    | LA     |';
+    const response = sendMessage('process', { text: tableText });
+    // Type is still 'table' - enableTableFormat only controls formatting, not detection
+    expect(response.payload.type).toBe('table');
+    // Content should equal the sanitized text without special formatting
+    expect(response.payload.content).toContain('| Name');
+
+    // Reset
+    sendMessage('configure', { enableTableFormat: true }, 'cfg-reset');
+  });
+
+  it('多次 configure 调用结果应是最后一次生效', () => {
+    sendMessage('configure', { foldThreshold: 200 }, 'cfg-1');
+    sendMessage('configure', { foldThreshold: 300 }, 'cfg-2');
+    postMessageMock.mockClear();
+
+    const text = Array.from({ length: 250 }, (_, i) => `line ${i}`).join('\n');
+    const response = sendMessage('process', { text });
+    // With foldThreshold=300, 250 lines should not fold
+    expect(response.payload.metadata.shouldFold).toBe(false);
+    expect(response.payload.metadata.foldThreshold).toBe(300);
+
+    // Reset
+    sendMessage('configure', { foldThreshold: 500 }, 'cfg-reset');
+  });
+});
+
+describe('process - 单行超长文本', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+    sendMessage('configure', { enableHighlight: true, enableLinkDetection: false }, 'reset');
+    postMessageMock.mockClear();
+  });
+
+  it('超长单行文本（无换行）应返回 lineCount=1', () => {
+    const longLine = 'a'.repeat(10000);
+    const response = sendMessage('process', { text: longLine });
+
+    expect(response.payload.metadata.lineCount).toBe(1);
+    expect(response.payload.type).toBe('text');
+  });
+
+  it('process options 中的 foldThreshold 应覆盖全局配置', () => {
+    // Global is 500, but we specify 2 per-request
+    const text = Array.from({ length: 5 }, (_, i) => `line ${i}`).join('\n');
+    const response = sendMessage('process', { text, options: { foldThreshold: 2 } });
+
+    expect(response.payload.metadata.shouldFold).toBe(true);
+    expect(response.payload.metadata.foldThreshold).toBe(2);
+  });
+
+  it('process 时 options.enableHighlight=true 应确保输出含 ANSI 码（JSON）', () => {
+    const response = sendMessage('process', {
+      text: '{"status": "ok"}',
+      options: { enableHighlight: true, enableLinkDetection: false },
+    });
+
+    expect(response.payload.type).toBe('json');
+    expect(response.payload.content).toContain('\x1b[');
+  });
+});
+
+describe('响应结构完整性 - 回归', () => {
+  beforeEach(() => {
+    postMessageMock.mockClear();
+  });
+
+  it('每个响应都应包含 id、type 和 payload', () => {
+    const response = sendMessage('process', { text: 'hello' }, 'integrity-check');
+    expect(response).toHaveProperty('id', 'integrity-check');
+    expect(response).toHaveProperty('type', 'process');
+    expect(response).toHaveProperty('payload');
+    expect(response.payload).toHaveProperty('type');
+    expect(response.payload).toHaveProperty('content');
+    expect(response.payload).toHaveProperty('metadata');
+  });
+
+  it('未知任务的响应应包含 error 字段', () => {
+    const response = sendMessage('invalidType', {}, 'err-test');
+    expect(response).toHaveProperty('error');
+    expect(typeof response.error).toBe('string');
+  });
+});

@@ -546,3 +546,122 @@ describe('manifest.json 变更', () => {
     expect(manifest.short_name).toBe('NexusTerm');
   });
 });
+
+// ==================== 额外边界与回归测试 ====================
+
+describe('trimCache - 额外边界', () => {
+  it('maxEntries=0 时应删除所有条目', async () => {
+    const { trimCache } = await getSWHelpers();
+
+    const cache = await mockCaches.open('nexus-api-v2.0.0');
+    for (let i = 0; i < 3; i++) {
+      await cache.put(new Request(`http://localhost/api/item${i}`), makeResponse(`item${i}`));
+    }
+
+    await trimCache('nexus-api-v2.0.0', 0);
+    // 3 - 0 = 3 entries should be deleted
+    expect(cache.delete).toHaveBeenCalledTimes(3);
+  });
+
+  it('maxEntries=1 且有 2 条目时应删除 1 条', async () => {
+    const { trimCache } = await getSWHelpers();
+
+    const cache = await mockCaches.open('nexus-api-v2.0.0');
+    await cache.put(new Request('http://localhost/api/a'), makeResponse('a'));
+    await cache.put(new Request('http://localhost/api/b'), makeResponse('b'));
+
+    await trimCache('nexus-api-v2.0.0', 1);
+    expect(cache.delete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('networkFirstWithTimeout - 额外边界', () => {
+  it('网络返回 404 时不应缓存响应', async () => {
+    const { networkFirstWithTimeout } = await getSWHelpers();
+    const request = new Request('http://localhost:3000/api/missing');
+    const notFoundResponse = new Response('Not Found', { status: 404 });
+    // ok = false for 4xx
+    Object.defineProperty(notFoundResponse, 'ok', { value: false });
+
+    mockFetch.mockResolvedValueOnce(notFoundResponse);
+
+    const cache = await mockCaches.open('nexus-api-v2.0.0');
+    const putSpy = vi.spyOn(cache, 'put');
+
+    const result = await networkFirstWithTimeout(request, 'nexus-api-v2.0.0', 10000);
+    expect(result.status).toBe(404);
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it('网络返回 500 时不应缓存响应', async () => {
+    const { networkFirstWithTimeout } = await getSWHelpers();
+    const request = new Request('http://localhost:3000/api/error');
+    const serverErrorResponse = new Response('Server Error', { status: 500 });
+    Object.defineProperty(serverErrorResponse, 'ok', { value: false });
+
+    mockFetch.mockResolvedValueOnce(serverErrorResponse);
+
+    const cache = await mockCaches.open('nexus-api-v2.0.0');
+    const putSpy = vi.spyOn(cache, 'put');
+
+    const result = await networkFirstWithTimeout(request, 'nexus-api-v2.0.0', 10000);
+    expect(result.status).toBe(500);
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('cacheFirst - 额外边界', () => {
+  it('网络响应 ok=false 时不应缓存', async () => {
+    const { cacheFirst } = await getSWHelpers();
+    const request = new Request('http://localhost:3000/broken.js');
+    const badResponse = new Response('Bad Gateway', { status: 502 });
+    Object.defineProperty(badResponse, 'ok', { value: false });
+
+    mockCaches.match.mockResolvedValueOnce(undefined);
+    mockFetch.mockResolvedValueOnce(badResponse);
+
+    const cache = await mockCaches.open('nexus-static-v2.0.0');
+    const putSpy = vi.spyOn(cache, 'put');
+
+    const result = await cacheFirst(request, 'nexus-static-v2.0.0');
+    expect(result.status).toBe(502);
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it('缓存命中时不应发起网络请求', async () => {
+    const { cacheFirst } = await getSWHelpers();
+    const request = new Request('http://localhost:3000/cached.js');
+    const cachedResponse = makeResponse('<cached js>');
+
+    mockCaches.match.mockResolvedValueOnce(cachedResponse);
+
+    await cacheFirst(request, 'nexus-static-v2.0.0');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('networkFirst - 额外边界', () => {
+  it('网络抛出非 TypeError 错误时也应降级到缓存', async () => {
+    const { networkFirst } = await getSWHelpers();
+    const request = new Request('http://localhost:3000/resource');
+    const cachedResponse = makeResponse('<cached>');
+
+    // Throw a generic Error (not TypeError)
+    mockFetch.mockRejectedValueOnce(new Error('some unexpected error'));
+    mockCaches.match.mockResolvedValueOnce(cachedResponse);
+
+    const result = await networkFirst(request);
+    expect(result).toBe(cachedResponse);
+  });
+
+  it('网络抛出错误且缓存返回 undefined 时应返回 503', async () => {
+    const { networkFirst } = await getSWHelpers();
+    const request = new Request('http://localhost:3000/no-cache-here');
+
+    mockFetch.mockRejectedValueOnce(new Error('network gone'));
+    mockCaches.match.mockResolvedValueOnce(undefined);
+
+    const result = await networkFirst(request);
+    expect(result.status).toBe(503);
+  });
+});

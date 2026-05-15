@@ -277,4 +277,58 @@ describe('useVirtualListSetup', () => {
       expect(scrollTo).toBe(mockScrollTo);
     });
   });
+
+  describe('额外边界与回归测试', () => {
+    it('非整数行高（如 33.3px）应向上取整后用于 overscan 计算', () => {
+      const dataSource = ref([1]);
+      // Math.ceil(200 / 33.3) = ceil(6.006) = 7, clamp(7, 5, 15) = 7
+      useVirtualListSetup(dataSource, { itemHeight: 33.3 });
+      expect(useVirtualList).toHaveBeenCalledWith(
+        dataSource,
+        expect.objectContaining({ overscan: 7 })
+      );
+    });
+
+    it('超大行高（1000px）时 overscan 应钳制到最小值 5', () => {
+      const dataSource = ref([1]);
+      // Math.ceil(200 / 1000) = 1, clamp(1, 5, 15) = 5
+      useVirtualListSetup(dataSource, { itemHeight: 1000 });
+      expect(useVirtualList).toHaveBeenCalledWith(
+        dataSource,
+        expect.objectContaining({ overscan: 5 })
+      );
+    });
+
+    it('函数形式 itemHeight 返回 0 时不应导致除零崩溃', () => {
+      const dataSource = ref([1]);
+      // itemHeight() = 0 => 200/0 = Infinity, ceil(Infinity) = Infinity, clamp => 15
+      expect(() =>
+        useVirtualListSetup(dataSource, { itemHeight: () => 0 })
+      ).not.toThrow();
+      expect(useVirtualList).toHaveBeenCalledWith(
+        dataSource,
+        expect.objectContaining({ overscan: 15 })
+      );
+    });
+
+    it('行高 180px（AuditLogView 使用值）overscan 应为 5', () => {
+      const dataSource = ref([1]);
+      // Math.ceil(200 / 180) = ceil(1.11) = 2, clamp(2, 5, 15) = 5
+      useVirtualListSetup(dataSource, { itemHeight: 180 });
+      expect(useVirtualList).toHaveBeenCalledWith(
+        dataSource,
+        expect.objectContaining({ overscan: 5 })
+      );
+    });
+
+    it('覆盖 overscan=15 同时使用超小行高时应使用显式值 15', () => {
+      const dataSource = ref([1]);
+      // Auto would compute 15 anyway, but explicit is 15
+      useVirtualListSetup(dataSource, { itemHeight: 10, overscan: 15 });
+      expect(useVirtualList).toHaveBeenCalledWith(
+        dataSource,
+        expect.objectContaining({ overscan: 15 })
+      );
+    });
+  });
 });
