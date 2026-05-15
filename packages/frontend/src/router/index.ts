@@ -113,4 +113,45 @@ router.beforeEach(async (to) => {
   return true;
 });
 
+/**
+ * Preloads lazy-loaded chunks for a given route.
+ *
+ * Resolves the route and invokes any lazy component import factories found on matched route records so the browser can fetch the corresponding chunks ahead of navigation.
+ *
+ * @param path - A router-resolvable location (for example a URL path or named route) identifying which route's chunks to preload
+ */
+function prefetchRoute(path: string) {
+  const route = router.resolve(path);
+  if (route.matched.length > 0) {
+    // 触发路由组件的 dynamic import，浏览器会自动下载对应 chunk
+    route.matched.forEach((record) => {
+      if (typeof record.components?.default === 'function') {
+        (record.components.default as () => Promise<unknown>)();
+      }
+    });
+  }
+}
+
+/**
+ * Schedules prefetching of core route chunks when the browser is idle.
+ *
+ * Prefetches Dashboard (`/`), Workspace (`/workspace`), and Connections (`/connections`) in that priority order.
+ * Uses `requestIdleCallback` with a 5000ms timeout when available, otherwise falls back to a 2000ms delayed `setTimeout`.
+ */
+function schedulePrefetch() {
+  const CORE_ROUTES = ['/', '/workspace', '/connections'];
+
+  const doPrefetch = () => {
+    CORE_ROUTES.forEach((path) => prefetchRoute(path));
+  };
+
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(doPrefetch, { timeout: 5000 });
+  } else {
+    // 降级：延迟 2 秒后执行
+    setTimeout(doPrefetch, 2000);
+  }
+}
+
+export { schedulePrefetch };
 export default router;

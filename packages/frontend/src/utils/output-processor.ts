@@ -395,3 +395,78 @@ export class OutputProcessor {
 }
 
 export const outputProcessor = new OutputProcessor();
+
+// ==================== Worker 线程处理 ====================
+
+type WorkerPoolType = ReturnType<typeof import('../workers/createWorkerPool').createWorkerPool>;
+
+let workerPool: WorkerPoolType | null = null;
+let workerPoolInit: Promise<WorkerPoolType> | null = null;
+
+/**
+ * Process terminal output using a Worker thread when beneficial.
+ *
+ * Uses a Worker pool for large inputs to offload CPU-heavy formatting and highlighting;
+ * falls back to synchronous processing on the main thread if Workers are unavailable or fail.
+ *
+ * @param text - The terminal output to process
+ * @param options - Optional processing overrides (fold threshold and feature toggles)
+ * @returns The processed output as a `ProcessedOutput` object
+ */
+export async function processInWorker(
+  text: string,
+  options?: {
+    foldThreshold?: number;
+    enableHighlight?: boolean;
+    enableTableFormat?: boolean;
+    enableLinkDetection?: boolean;
+  }
+): Promise<ProcessedOutput> {
+  // 小数据包直接同步处理，避免 Worker 通信开销
+  if (text.length <= 100) {
+    const processor = options ? new OutputProcessor(options) : outputProcessor;
+    return processor.process(text);
+  }
+
+  try {
+    // 懒加载 Worker 池（单例初始化，防止并发竞态）
+    if (!workerPool) {
+      workerPoolInit ??= (async () => {
+        const { createWorkerPool } = await import('../workers/createWorkerPool');
+        return createWorkerPool(new URL('../workers/output-processor.worker.ts', import.meta.url), {
+          size: 2,
+          timeout: 5000,
+          // 降级处理：Worker 不可用时使用主线程同步处理
+          fallback: (_type: string, payload: unknown) => {
+            const { text: inputText, options: opts } = payload as {
+              text: string;
+              options?: typeof options;
+            };
+            const processor = opts ? new OutputProcessor(opts) : outputProcessor;
+            return processor.process(inputText);
+          },
+        });
+      })();
+      workerPool = await workerPoolInit;
+    }
+
+    return await workerPool.execute<ProcessedOutput>('process', { text, options });
+  } catch {
+    // Worker 执行失败时降级为同步处理（保留 options）
+    const processor = options ? new OutputProcessor(options) : outputProcessor;
+    return processor.process(text);
+  }
+}
+
+/**
+ * Destroy the internal worker pool and release its resources.
+ *
+ * If no worker pool exists, this function is a no-op. After calling, the module-level
+ * worker pool reference is cleared. 
+ */
+export function destroyWorkerPool(): void {
+  if (workerPool) {
+    workerPool.destroy();
+    workerPool = null;
+  }
+}
