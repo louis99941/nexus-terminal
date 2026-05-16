@@ -43,6 +43,9 @@ RUN npm install --omit=dev --prefer-offline
 
 RUN apk del .build-deps
 
+# 创建非 root 用户运行应用
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
 
 EXPOSE 3001
 
