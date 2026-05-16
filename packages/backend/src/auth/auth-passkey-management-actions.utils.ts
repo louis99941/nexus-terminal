@@ -8,6 +8,9 @@ import {
   summarizePasskeyCredentialId,
 } from './auth-passkey-management-flow.utils';
 
+// 清洗日志中的 CRLF 字符，防止 Log Forge 注入
+const sanitizeForLog = (value: string): string => value.replace(/[\r\n]/g, '_');
+
 export interface PasskeyActor {
   userId: number;
   username: string;
@@ -103,7 +106,7 @@ export const buildListPasskeysSuccessAction = <TPasskey>(
     },
     log: {
       level: 'debug',
-      message: `[AuthController] 用户 ${actor.username} (ID: ${actor.userId}) 获取了 Passkey 列表，数量: ${passkeys.length}`,
+      message: `[AuthController] 用户 ${sanitizeForLog(actor.username)} (ID: ${actor.userId}) 获取了 Passkey 列表，数量: ${passkeys.length}`,
     },
   };
 };
@@ -121,7 +124,7 @@ export const buildDeletePasskeyResultAction = (
       response: mappedDeleteResult,
       log: {
         level: 'warn',
-        message: `[AuthController] 用户 ${actor.username} (ID: ${actor.userId}) 删除 Passkey (CredentialID: ${maskedCredentialId}) 失败，但未抛出错误。`,
+        message: `[AuthController] 用户 ${sanitizeForLog(actor.username)} (ID: ${actor.userId}) 删除 Passkey (CredentialID: ${maskedCredentialId}) 失败，但未抛出错误。`,
       },
       sideEffects: [],
     };
@@ -131,7 +134,7 @@ export const buildDeletePasskeyResultAction = (
     response: mappedDeleteResult,
     log: {
       level: 'info',
-      message: `[AuthController] 用户 ${actor.username} (ID: ${actor.userId}) 成功删除了 Passkey (CredentialID: ${maskedCredentialId})。`,
+      message: `[AuthController] 用户 ${sanitizeForLog(actor.username)} (ID: ${actor.userId}) 成功删除了 Passkey (CredentialID: ${maskedCredentialId})。`,
     },
     sideEffects: [
       {
@@ -165,7 +168,7 @@ export const resolveDeletePasskeyErrorAction = (
   const maskedCredentialId = summarizePasskeyCredentialId(credentialId);
   const baseErrorLog: PasskeyLogAction = {
     level: 'error',
-    message: `[AuthController] 用户 ${actor.username} (ID: ${actor.userId}) 删除 Passkey (CredentialID: ${maskedCredentialId}) 时出错:`,
+    message: `[AuthController] 用户 ${sanitizeForLog(actor.username)} (ID: ${actor.userId}) 删除 Passkey (CredentialID: ${maskedCredentialId}) 时出错:`,
     errorMessage: getErrorMessage(error),
     errorStack: (error as Error)?.stack,
   };
@@ -215,7 +218,7 @@ export const buildUpdatePasskeyNameSuccessAction = (
     },
     log: {
       level: 'info',
-      message: `[AuthController] 用户 ${actor.username} (ID: ${actor.userId}) 成功更新了 Passkey (CredentialID: ${summarizePasskeyCredentialId(credentialId)}) 的名称为 "${trimmedName}"。`,
+      message: `[AuthController] 用户 ${sanitizeForLog(actor.username)} (ID: ${actor.userId}) 成功更新了 Passkey (CredentialID: ${summarizePasskeyCredentialId(credentialId)}) 的名称为 "${sanitizeForLog(trimmedName)}"。`,
     },
     sideEffects: [
       {
@@ -241,7 +244,7 @@ export const resolveUpdatePasskeyNameErrorAction = (
   const maskedCredentialId = summarizePasskeyCredentialId(credentialId);
   const baseErrorLog: PasskeyLogAction = {
     level: 'error',
-    message: `[AuthController] 用户 ${actor.username} (ID: ${actor.userId}) 更新 Passkey (CredentialID: ${maskedCredentialId}) 名称时出错:`,
+    message: `[AuthController] 用户 ${sanitizeForLog(actor.username)} (ID: ${actor.userId}) 更新 Passkey (CredentialID: ${maskedCredentialId}) 名称时出错:`,
     errorMessage: getErrorMessage(error),
     errorStack: (error as Error)?.stack,
   };

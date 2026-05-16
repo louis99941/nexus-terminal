@@ -1,3 +1,6 @@
+// 清洗日志中的 CRLF 字符，防止 Log Forge 注入
+const sanitizeForLog = (value: string): string => value.replace(/[\r\n]/g, '_');
+
 const toPasskeyIdSuffix = (passkeyId: number): string => {
   const passkeyIdString = passkeyId.toString();
   return passkeyIdString.substring(passkeyIdString.length - 4);
@@ -10,7 +13,7 @@ export const buildPasskeyRegistrationOptionsGeneratedDebugLogAction = (
   message: string;
 } => ({
   level: 'debug',
-  message: `[AuthController] Generated Passkey registration options for user ${username}`,
+  message: `[AuthController] Generated Passkey registration options for user ${sanitizeForLog(username)}`,
 });
 
 export const buildPasskeyRegistrationOptionsErrorLogAction = (
@@ -20,7 +23,7 @@ export const buildPasskeyRegistrationOptionsErrorLogAction = (
   message: string;
 } => ({
   level: 'error',
-  message: `[AuthController] 生成 Passkey 注册选项时出错 (用户: ${username}):`,
+  message: `[AuthController] 生成 Passkey 注册选项时出错 (用户: ${sanitizeForLog(username)}):`,
 });
 
 export const buildPasskeyRegistrationSuccessInfoLogAction = (payload: {
@@ -31,7 +34,7 @@ export const buildPasskeyRegistrationSuccessInfoLogAction = (payload: {
   message: string;
 } => ({
   level: 'info',
-  message: `[AuthController] 用户 ${payload.userHandle} 的 Passkey 注册成功并已保存。 CredentialID: ${payload.credentialId.substring(0, 8)}***`,
+  message: `[AuthController] 用户 ${sanitizeForLog(payload.userHandle)} 的 Passkey 注册成功并已保存。 CredentialID: ${payload.credentialId.substring(0, 8)}***`,
 });
 
 export const buildPasskeyRegistrationVerificationFailedWarnLogAction = (
@@ -41,7 +44,7 @@ export const buildPasskeyRegistrationVerificationFailedWarnLogAction = (
   message: string;
 } => ({
   level: 'warn',
-  message: `[AuthController] Passkey 注册验证失败 (用户: ${userHandle}):`,
+  message: `[AuthController] Passkey 注册验证失败 (用户: ${sanitizeForLog(userHandle)}):`,
 });
 
 export const buildPasskeyRegistrationVerificationErrorLogAction = (
@@ -51,7 +54,7 @@ export const buildPasskeyRegistrationVerificationErrorLogAction = (
   message: string;
 } => ({
   level: 'error',
-  message: `[AuthController] 验证 Passkey 注册时出错 (用户: ${userHandle}):`,
+  message: `[AuthController] 验证 Passkey 注册时出错 (用户: ${sanitizeForLog(userHandle)}):`,
 });
 
 export const buildPasskeyAuthenticationOptionsGeneratedDebugLogAction = (
@@ -61,7 +64,7 @@ export const buildPasskeyAuthenticationOptionsGeneratedDebugLogAction = (
   message: string;
 } => ({
   level: 'debug',
-  message: `[AuthController] Generated Passkey authentication options (username=${username})`,
+  message: `[AuthController] Generated Passkey authentication options (username=${sanitizeForLog(username)})`,
 });
 
 export const buildPasskeyAuthenticationOptionsErrorLogAction = (
@@ -71,7 +74,7 @@ export const buildPasskeyAuthenticationOptionsErrorLogAction = (
   message: string;
 } => ({
   level: 'error',
-  message: `[AuthController] 生成 Passkey 认证选项时出错 (username=${username}):`,
+  message: `[AuthController] 生成 Passkey 认证选项时出错 (username=${sanitizeForLog(username)}):`,
 });
 
 export const buildPasskeyAuthenticationUserNotFoundAfterVerifiedErrorLogAction = (
@@ -93,7 +96,7 @@ export const buildPasskeyAuthenticationSuccessInfoLogAction = (payload: {
   message: string;
 } => ({
   level: 'info',
-  message: `[AuthController] 用户 ${payload.username} (ID: ${payload.userId}) 通过 Passkey (ID: ***${toPasskeyIdSuffix(payload.passkeyId)}) 认证成功。`,
+  message: `[AuthController] 用户 ${sanitizeForLog(payload.username)} (ID: ${payload.userId}) 通过 Passkey (ID: ***${toPasskeyIdSuffix(payload.passkeyId)}) 认证成功。`,
 });
 
 export const buildPasskeyAuthenticationVerificationFailedWarnLogAction = (): {
@@ -120,7 +123,7 @@ export const buildPasskeyListErrorLogAction = (payload: {
   message: string;
 } => ({
   level: 'error',
-  message: `[AuthController] 用户 ${payload.username} (ID: ${payload.userId}) 获取 Passkey 列表时出错:`,
+  message: `[AuthController] 用户 ${sanitizeForLog(payload.username)} (ID: ${payload.userId}) 获取 Passkey 列表时出错:`,
 });
 
 export const buildPasskeyHasConfiguredCheckErrorLogAction = (
@@ -130,5 +133,5 @@ export const buildPasskeyHasConfiguredCheckErrorLogAction = (
   message: string;
 } => ({
   level: 'error',
-  message: `[AuthController] 检查 Passkey 配置状态时出错 (username=${username}):`,
+  message: `[AuthController] 检查 Passkey 配置状态时出错 (username=${sanitizeForLog(username)}):`,
 });

@@ -91,8 +91,11 @@ export const buildTwoFactorVerifySkewWarnLogActionAlways = (
   message: buildTwoFactorVerifySkewWarnMessage(userId, delta),
 });
 
+// 清洗日志中的 CRLF 字符，防止 Log Forge 注入
+const sanitizeForLog = (value: string): string => value.replace(/[\r\n]/g, '_');
+
 export const buildLoginTwoFactorSkewWarnMessage = (username: string, delta: number): string =>
-  `[AuthController] 用户 ${username} 的 2FA 登录验证码存在明显时间偏差（delta=${delta}），建议校准客户端时间。`;
+  `[AuthController] 用户 ${sanitizeForLog(username)} 的 2FA 登录验证码存在明显时间偏差（delta=${delta}），建议校准客户端时间。`;
 
 export const buildLoginTwoFactorSkewWarnLogAction = (payload: {
   username: string;
@@ -131,7 +134,7 @@ export const buildLoginTwoFactorSuccessInfoLogAction = (
   message: string;
 } => ({
   level: 'info',
-  message: `用户 ${username} 2FA 验证成功。`,
+  message: `用户 ${sanitizeForLog(username)} 2FA 验证成功。`,
 });
 
 export const buildLoginTwoFactorInvalidDebugLogAction = (
@@ -141,7 +144,7 @@ export const buildLoginTwoFactorInvalidDebugLogAction = (
   message: string;
 } => ({
   level: 'debug',
-  message: `用户 ${username} 2FA 验证失败: 验证码错误。`,
+  message: `用户 ${sanitizeForLog(username)} 2FA 验证失败: 验证码错误。`,
 });
 
 export const buildVerifyLoginTwoFactorInternalErrorLogAction = (
