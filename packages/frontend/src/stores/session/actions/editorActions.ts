@@ -439,7 +439,7 @@ export const changeLineEndingInSession = (
   } catch (err: unknown) {
     log.error(`[EditorActions] 更换行符失败 (会话 ${sessionId}, 标签页 ${tabId}):`, err);
     const errMsg = err instanceof Error ? err.message : String(err);
-    tab.loadingError = `${dependencies.t('fileManager.errors.lineEndingConversionFailed', '换行符转换失败')}: ${errMsg}`;
+    tab.loadingError = `换行符转换失败: ${errMsg}`;
   }
 };
 
