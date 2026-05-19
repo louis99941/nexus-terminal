@@ -1,6 +1,6 @@
 /**
  * IP 地理定位服务
- * 支持多提供商适配器（ip-api、ipinfo 等）
+ * 支持多提供商适配器（ip-api、ipinfo、iplocate 等）
  * 两级缓存：内存 L1 + SQLite L2，持久化避免重启后重复查询
  * 用于登录事件审计日志增强
  */
@@ -105,11 +105,38 @@ const ipinfoAdapter: GeoProviderAdapter = {
   },
 };
 
+/** iplocate.io 适配器（免费基础查询，可选 API key 提升配额） */
+const iplocateAdapter: GeoProviderAdapter = {
+  name: 'iplocate',
+
+  buildUrl(ip: string): string {
+    const token = process.env.IPLOCATE_TOKEN;
+    const base = `https://iplocate.io/api/lookup/${ip}`;
+    return token ? `${base}?apikey=${token}` : base;
+  },
+
+  parseResponse(data: unknown, ip: string): GeoInfo | null {
+    const d = data as Record<string, unknown>;
+    // iplocate 对无效 IP 返回空对象或错误，无 country 字段即视为失败
+    if (!d || typeof d.country !== 'string') return null;
+    const asnObj = d.asn as Record<string, unknown> | undefined;
+    return {
+      country: (d.country as string) || '',
+      regionName: (d.subdivision as string) || '',
+      city: (d.city as string) || '',
+      isp: (asnObj?.name as string) || '',
+      asn: asnObj ? `${asnObj.asn as string} ${(asnObj.name as string) || ''}`.trim() : '',
+      query: (d.ip as string) || ip,
+    };
+  },
+};
+
 // ==================== 适配器注册表 ====================
 
 const PROVIDER_ADAPTERS: Record<string, GeoProviderAdapter> = {
   'ip-api': ipApiAdapter,
   ipinfo: ipinfoAdapter,
+  iplocate: iplocateAdapter,
 };
 
 // ==================== 服务实现 ====================

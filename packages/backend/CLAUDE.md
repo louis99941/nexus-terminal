@@ -316,8 +316,9 @@ npm start
 | `RP_ORIGIN`         | -           | Passkey Origin，支持逗号分隔多值（完整 URL）                          |
 | `ENABLE_METRICS`    | false       | 启用 Prometheus 指标端点（/api/v1/metrics）                           |
 | `ENABLE_GEO_LOOKUP` | true        | 启用登录事件 IP 地理位置查询（设为 false 禁用）                       |
-| `GEO_PROVIDER`      | ip-api      | IP 地理定位提供商：`ip-api`（默认）或 `ipinfo`                        |
+| `GEO_PROVIDER`      | ip-api      | IP 地理定位提供商：`ip-api`（默认）、`ipinfo` 或 `iplocate`           |
 | `IPINFO_TOKEN`      | -           | ipinfo.io API Token（可选，提升请求配额）                             |
+| `IPLOCATE_TOKEN`    | -           | iplocate.io API Key（可选，提升请求配额与速率限制）                   |
 | `LOG_LEVEL`         | info        | 运行时日志等级（debug/info/warn/error/silent）                        |
 | `LOG_PRETTY`        | -           | 日志格式化开关（true=pino-pretty 彩色，false=JSON），dev 模式默认开启 |
 | `LOG_REDACT`        | true        | 日志脱敏开关（false 可关闭敏感信息脱敏）                              |

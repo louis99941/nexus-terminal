@@ -77,28 +77,29 @@
 
 ### 可选配置
 
-| 变量名                       | 默认值   | 描述                                                                        |
-| ---------------------------- | -------- | --------------------------------------------------------------------------- |
-| `ALLOWED_ORIGINS`            | -        | 额外允许的 CORS 来源（逗号分隔多个域名）                                    |
-| `ALLOWED_WS_ORIGINS`         | -        | 额外允许的 WebSocket 来源（逗号分隔多个域名）                               |
-| `ENABLE_GEO_LOOKUP`          | `true`   | 登录事件 IP 地理位置查询开关。设为 `false` 可禁用（节省外部请求）。         |
-| `GEO_PROVIDER`               | `ip-api` | IP 地理定位提供商：`ip-api`（默认，免费）或 `ipinfo`（ipinfo.io）。         |
-| `IPINFO_TOKEN`               | -        | ipinfo.io API Token（可选，提升请求配额至 50k/月）。                        |
-| `IP_API_USE_HTTPS`           | `false`  | IP 地理定位 API 是否使用 HTTPS                                              |
-| `HEARTBEAT_INTERVAL_DESKTOP` | `30000`  | 桌面端心跳间隔（毫秒）                                                      |
-| `HEARTBEAT_INTERVAL_MOBILE`  | `12000`  | 移动端心跳间隔（毫秒）                                                      |
-| `MAX_MISSED_PONGS_DESKTOP`   | `1`      | 桌面端最大允许丢失 pong 次数，超过则断开连接                                |
-| `MAX_MISSED_PONGS_MOBILE`    | `3`      | 移动端最大允许丢失 pong 次数，超过则断开连接                                |
-| `ENABLE_MULTIPLEX`           | `false`  | WebSocket 多路复用开关。设为 `true` 启用单连接多会话模式                    |
-| `TRUST_PROXY`                | -        | 是否信任代理 (`true`/`false`)                                               |
-| `TRUST_PROXY_HOPS`           | -        | 信任的代理跳数                                                              |
-| `SHELL`                      | -        | 终端默认 Shell（如 `/bin/bash`）                                            |
-| `METRICS_TOKEN`              | -        | Prometheus 指标端点访问令牌（保护 `/api/v1/metrics`）                       |
-| `LOG_LEVEL`                  | `info`   | 后端日志等级（`debug/info/warn/error/silent`）                              |
-| `LOG_PRETTY`                 | -        | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启 |
-| `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                   |
-| `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                           |
-| `TZ`                         | `UTC`    | 后端进程默认时区                                                            |
+| 变量名                       | 默认值   | 描述                                                                                           |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `ALLOWED_ORIGINS`            | -        | 额外允许的 CORS 来源（逗号分隔多个域名）                                                       |
+| `ALLOWED_WS_ORIGINS`         | -        | 额外允许的 WebSocket 来源（逗号分隔多个域名）                                                  |
+| `ENABLE_GEO_LOOKUP`          | `true`   | 登录事件 IP 地理位置查询开关。设为 `false` 可禁用（节省外部请求）。                            |
+| `GEO_PROVIDER`               | `ip-api` | IP 地理定位提供商：`ip-api`（默认，免费）、`ipinfo`（ipinfo.io）或 `iplocate`（iplocate.io）。 |
+| `IPINFO_TOKEN`               | -        | ipinfo.io API Token（可选，提升请求配额至 50k/月）。                                           |
+| `IPLOCATE_TOKEN`             | -        | iplocate.io API Key（可选，提升请求配额与速率限制）。                                          |
+| `IP_API_USE_HTTPS`           | `false`  | IP 地理定位 API 是否使用 HTTPS                                                                 |
+| `HEARTBEAT_INTERVAL_DESKTOP` | `30000`  | 桌面端心跳间隔（毫秒）                                                                         |
+| `HEARTBEAT_INTERVAL_MOBILE`  | `12000`  | 移动端心跳间隔（毫秒）                                                                         |
+| `MAX_MISSED_PONGS_DESKTOP`   | `1`      | 桌面端最大允许丢失 pong 次数，超过则断开连接                                                   |
+| `MAX_MISSED_PONGS_MOBILE`    | `3`      | 移动端最大允许丢失 pong 次数，超过则断开连接                                                   |
+| `ENABLE_MULTIPLEX`           | `false`  | WebSocket 多路复用开关。设为 `true` 启用单连接多会话模式                                       |
+| `TRUST_PROXY`                | -        | 是否信任代理 (`true`/`false`)                                                                  |
+| `TRUST_PROXY_HOPS`           | -        | 信任的代理跳数                                                                                 |
+| `SHELL`                      | -        | 终端默认 Shell（如 `/bin/bash`）                                                               |
+| `METRICS_TOKEN`              | -        | Prometheus 指标端点访问令牌（保护 `/api/v1/metrics`）                                          |
+| `LOG_LEVEL`                  | `info`   | 后端日志等级（`debug/info/warn/error/silent`）                                                 |
+| `LOG_PRETTY`                 | -        | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启                    |
+| `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                                      |
+| `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                                              |
+| `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
 
 ### NL2CMD 调试配置
 
