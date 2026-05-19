@@ -2,6 +2,18 @@
 
 > 本文档整理可通过 Docker/Docker Compose 配置的环境变量。完整的变量参考请查看下方环境变量表格。
 
+::: danger ⚠️ v1.5.1 环境变量变更
+自 v1.5.1 起，以下环境变量**默认值已变更**：
+
+| 变量                           | 旧默认值                   | 新默认值                   |
+| ------------------------------ | -------------------------- | -------------------------- |
+| `REMOTE_GATEWAY_WS_PORT`       | `8080`                     | `8081`                     |
+| `REMOTE_GATEWAY_WS_URL_LOCAL`  | `ws://localhost:8080`      | `ws://localhost:8081`      |
+| `REMOTE_GATEWAY_WS_URL_DOCKER` | `ws://remote-gateway:8080` | `ws://remote-gateway:8081` |
+
+如果您的 `.env` 文件中显式设置了这些变量，请同步更新。同时 `docker-compose.yml` 中的端口映射也需更新（Frontend: `18111:80` → `18111:8080`，Remote Gateway WS: `8080` → `8081`）。
+:::
+
 ---
 
 ## 目录
