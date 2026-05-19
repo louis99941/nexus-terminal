@@ -176,13 +176,18 @@ jobs:
 
       - name: 合并更新日志内容
         id: release_notes
+        env:
+          KITTYLOG_FOUND: ${{ steps.kittylog_extract.outputs.found }}
+          KITTYLOG_BODY: ${{ steps.kittylog_extract.outputs.body }}
+          LOCAL_BODY: ${{ steps.local_notes.outputs.body }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.TAG }}
         run: |
           # 优先使用 kittylog.app 内容，否则使用本地兜底
-          if [[ "${{ steps.kittylog_extract.outputs.found }}" == "true" ]]; then
-            BODY="${{ steps.kittylog_extract.outputs.body }}"
+          if [[ "$KITTYLOG_FOUND" == "true" ]]; then
+            BODY="$KITTYLOG_BODY"
             SOURCE="kittylog.app"
           else
-            BODY="${{ steps.local_notes.outputs.body }}"
+            BODY="$LOCAL_BODY"
             SOURCE="本地 docs/changelog.md"
           fi
 
@@ -196,7 +201,7 @@ jobs:
           # 生成完整更新日志链接
           OWNER="${GITHUB_REPOSITORY%/*}"
           REPO="${GITHUB_REPOSITORY#*/}"
-          CURRENT_TAG="${{ steps.release_meta.outputs.TAG }}"
+          CURRENT_TAG="$RELEASE_TAG"
           PREV_TAG=$(git tag --sort=-version:refname | grep '^v' | grep -v "$CURRENT_TAG" | head -n 1 || true)
           if [ -n "$PREV_TAG" ]; then
             CHANGELOG_URL="https://github.com/${OWNER}/${REPO}/compare/${PREV_TAG}...${CURRENT_TAG}"
