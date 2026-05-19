@@ -35,7 +35,7 @@ const ensurePresetHtmlThemesDirExists = async () => {
         `[AppearanceService] Created preset html-themes directory at ${PRESET_HTML_THEMES_DIR}`
       );
     } catch (createErr: unknown) {
-      const errCode = (createErr as NodeJS.ErrnoException).code;
+      const errCode = getNodeErrorCode(createErr);
       // 仅对权限/只读文件系统错误降级，其它错误上抛
       if (errCode === 'EACCES' || errCode === 'EROFS' || errCode === 'EPERM') {
         logger.warn(

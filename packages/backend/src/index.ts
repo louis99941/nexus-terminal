@@ -158,6 +158,8 @@ const initializeEnvironment = async () => {
         fs.writeFileSync(dataEnvPath, keysToAppend.trim(), { mode: 0o600 });
       } else {
         fs.appendFileSync(dataEnvPath, prefix + keysToAppend.trim());
+        // 追加后也收紧权限，防止历史文件权限过宽（如本地开发场景）
+        fs.chmodSync(dataEnvPath, 0o600);
       }
       logger.warn(`[ENV Init] 已自动生成密钥并保存到 ${dataEnvPath}`); // Use dataEnvPath
       logger.warn('[ENV Init] !!! 重要：请务必备份此 data/.env 文件，并在生产环境中妥善保管 !!!');
