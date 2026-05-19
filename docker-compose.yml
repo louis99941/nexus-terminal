@@ -7,7 +7,7 @@ services:
     image: ghcr.io/silentely/nexus-terminal-frontend:latest
     container_name: nexus-terminal-frontend
     ports:
-      - "18111:80"
+      - "18111:8080"
     depends_on:
       - backend
       - remote-gateway

@@ -18,6 +18,8 @@ mkdir -p "${DATA_DIR}/uploads" \
 
 # 修复权限：确保 appuser 对数据目录有完全访问权限
 chown -R appuser:appgroup "$DATA_DIR"
+# 补充目录写权限：chown 只改属主不改 mode，确保 appuser 可写
+chmod -R u+rwX "$DATA_DIR"
 
 # 修复 .env 文件权限：密钥文件仅 owner 可读写
 if [ -f "$DATA_ENV_PATH" ]; then
