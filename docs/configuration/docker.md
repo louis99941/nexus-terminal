@@ -84,11 +84,16 @@
 | `ENABLE_GEO_LOOKUP`          | `true`   | 登录事件 IP 地理位置查询开关。设为 `false` 可禁用（节省外部请求）。         |
 | `GEO_PROVIDER`               | `ip-api` | IP 地理定位提供商：`ip-api`（默认，免费）或 `ipinfo`（ipinfo.io）。         |
 | `IPINFO_TOKEN`               | -        | ipinfo.io API Token（可选，提升请求配额至 50k/月）。                        |
+| `IP_API_USE_HTTPS`           | `false`  | IP 地理定位 API 是否使用 HTTPS                                              |
 | `HEARTBEAT_INTERVAL_DESKTOP` | `30000`  | 桌面端心跳间隔（毫秒）                                                      |
 | `HEARTBEAT_INTERVAL_MOBILE`  | `12000`  | 移动端心跳间隔（毫秒）                                                      |
+| `MAX_MISSED_PONGS_DESKTOP`   | `3`      | 桌面端最大允许丢失 pong 次数，超过则断开连接                                |
+| `MAX_MISSED_PONGS_MOBILE`    | `3`      | 移动端最大允许丢失 pong 次数，超过则断开连接                                |
 | `ENABLE_MULTIPLEX`           | `false`  | WebSocket 多路复用开关。设为 `true` 启用单连接多会话模式                    |
 | `TRUST_PROXY`                | -        | 是否信任代理 (`true`/`false`)                                               |
 | `TRUST_PROXY_HOPS`           | -        | 信任的代理跳数                                                              |
+| `SHELL`                      | -        | 终端默认 Shell（如 `/bin/bash`）                                            |
+| `METRICS_TOKEN`              | -        | Prometheus 指标端点访问令牌（保护 `/api/v1/metrics`）                       |
 | `LOG_LEVEL`                  | `info`   | 后端日志等级（`debug/info/warn/error/silent`）                              |
 | `LOG_PRETTY`                 | -        | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启 |
 | `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                   |
@@ -201,6 +206,40 @@ REMOTE_GATEWAY_WS_URL_DOCKER=ws://remote-gateway:8081
 # backend 通过 .env 读取，remote-gateway 通过 docker-compose.yml 的 ${REMOTE_GATEWAY_API_TOKEN} 引用
 REMOTE_GATEWAY_API_TOKEN=
 
+# ===== 代理配置（反向代理/Cloudflare 场景）=====
+# TRUST_PROXY=true
+# TRUST_PROXY_HOPS=1
+
+# ===== IP 地理位置查询 =====
+# ENABLE_GEO_LOOKUP=true
+# GEO_PROVIDER=ip-api
+# IPINFO_TOKEN=
+# IP_API_USE_HTTPS=false
+
+# ===== WebSocket 多路复用 =====
+# ENABLE_MULTIPLEX=false
+
+# ===== 心跳与连接保活 =====
+# HEARTBEAT_INTERVAL_DESKTOP=30000
+# HEARTBEAT_INTERVAL_MOBILE=12000
+# MAX_MISSED_PONGS_DESKTOP=3
+# MAX_MISSED_PONGS_MOBILE=3
+
+# ===== CORS 额外白名单 =====
+# ALLOWED_ORIGINS=https://yourdomain.com
+# ALLOWED_WS_ORIGINS=https://yourdomain.com
+
+# ===== 监控与日志 =====
+# METRICS_TOKEN=
+# LOG_LEVEL=info
+# LOG_PRETTY=
+# LOG_REDACT=
+# LOG_TZ=
+# TZ=UTC
+
+# ===== 终端配置 =====
+# SHELL=/bin/bash
+
 # ===== 前端构建时变量（可选，仅自构建 frontend 镜像时生效）=====
 # VITE_NOTIFICATION_TIMEOUT_MS=3000
 # VITE_API_BASE_URL=
@@ -262,6 +301,8 @@ services:
   remote-gateway:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
+    ports:
+      - "127.0.0.1:8081:8081"   # Guacamole WebSocket（宿主机 Nginx 需要直连）
     environment:
       # guacd 已内嵌于本容器，使用 localhost 连接
       GUACD_HOST: localhost

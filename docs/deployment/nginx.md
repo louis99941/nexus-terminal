@@ -84,6 +84,14 @@ server {
 
 ::: warning 架构说明
 此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。但前端容器内部的 nginx **仅代理 `/api/` 和 `/ws/` 到 backend**，不会转发 `/guacamole/`。因此 `/guacamole/` 必须在宿主机 Nginx 中单独代理到 `remote-gateway:8081`（宿主机上通常是 `127.0.0.1:8081`）。
+
+**前置条件**：`docker-compose.yml` 中 remote-gateway 必须暴露 8081 端口到宿主机：
+
+```yaml
+remote-gateway:
+  ports:
+    - "127.0.0.1:8081:8081"  # Guacamole WebSocket
+```
 :::
 
 ```nginx

@@ -120,6 +120,8 @@ services:
 
   remote-gateway:
     container_name: nexus-terminal-remote-gateway
+    ports:
+      - "127.0.0.1:8081:8081"   # Guacamole WebSocket（宿主机 Nginx 需要直连）
     environment:
       NODE_ENV: production
       GUACD_HOST: localhost

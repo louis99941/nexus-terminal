@@ -61,6 +61,8 @@ services:
   remote-gateway:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
+    ports:
+      - "127.0.0.1:8081:8081"   # Guacamole WebSocket（宿主机 Nginx 需要直连）
     environment:
       # guacd 已内嵌于本容器，使用 localhost 连接
       GUACD_HOST: localhost
