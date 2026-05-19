@@ -20,16 +20,12 @@
 
 ### 如何修改默认端口 18111？
 
-编辑 `.env` 和 `docker-compose.yml`：
-
-```env
-FRONTEND_PORT=8080
-```
+编辑 `docker-compose.yml` 中的端口映射：
 
 ```yaml
 frontend:
   ports:
-    - '8080:8080'
+    - '8080:8080'  # 修改左侧宿主机端口即可
 ```
 
 ### 从 v1.5.0 升级到 v1.5.1 后容器启动失败怎么办？

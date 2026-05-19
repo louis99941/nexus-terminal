@@ -128,6 +128,7 @@ services:
       REMOTE_GATEWAY_WS_PORT: 8081
       FRONTEND_URL: http://frontend
       MAIN_BACKEND_URL: http://backend:3001
+      REMOTE_GATEWAY_API_TOKEN: ${REMOTE_GATEWAY_API_TOKEN}
     networks:
       - nexus-terminal-network
     depends_on:
@@ -148,6 +149,7 @@ DEPLOYMENT_MODE=docker
 NODE_ENV=production
 APP_NAME=Nexus Terminal
 PORT=3001
+REMOTE_GATEWAY_API_TOKEN=
 EOF
 ```
 
@@ -227,16 +229,14 @@ RP_ORIGIN=https://your-domain.com
 - 启用 Passkey 后，确保 `/.well-known/webauthn` 可访问
   :::
 
-### 通知配置（可选）
+### Remote Gateway API 鉴权（推荐）
 
 ```env
-# Webhook 通知
-WEBHOOK_URL=https://your-webhook-url
-
-# Telegram 通知
-TELEGRAM_BOT_TOKEN=your-bot-token
-TELEGRAM_CHAT_ID=your-chat-id
+# 共享令牌：backend 与 remote-gateway 必须使用相同值
+REMOTE_GATEWAY_API_TOKEN=
 ```
+
+> 详细配置请参考 [环境变量配置](./configuration/docker)。
 
 ### Prometheus 监控（可选）
 

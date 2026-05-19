@@ -112,7 +112,6 @@ export default defineConfig({
         items: [
           { text: '环境变量配置', link: '/configuration/docker' },
           { text: 'CORS 跨域配置', link: '/configuration/cors' },
-          { text: '变量说明', link: '/configuration/docker' },
         ],
       },
       {

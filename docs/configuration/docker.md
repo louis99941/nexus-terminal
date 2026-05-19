@@ -2,6 +2,10 @@
 
 > 本文档整理可通过 Docker/Docker Compose 配置的环境变量。完整的变量参考请查看下方环境变量表格。
 
+::: warning ⚠️ `.env` 生效范围
+`.env` 文件**仅对 backend 容器生效**（通过 `env_file` 加载）。Remote Gateway 的变量必须在 `docker-compose.yml` 的 `environment` 段中直接配置，或通过 `${VAR}` 语法从 `.env` 引用（仅 `REMOTE_GATEWAY_API_TOKEN` 等少量变量支持此方式）。
+:::
+
 ::: danger ⚠️ v1.5.1 环境变量变更
 自 v1.5.1 起，以下环境变量**默认值已变更**：
 
@@ -105,14 +109,37 @@
 
 ## 2. Remote Gateway 服务变量
 
-> **配置方式**: 在 `docker-compose.yml` 的 `remote-gateway` 服务中配置
+> **配置方式**: 在 `docker-compose.yml` 的 `remote-gateway` 服务的 `environment` 中直接配置
+> **⚠️ 重要**: Remote Gateway **不读取 `.env` 文件**，仅 `docker-compose.yml` 中通过 `${VAR}` 语法引用的变量会从 `.env` 解析。其他变量必须直接写在 `environment` 段中。
 
-| 变量名             | 默认值                | 必填 | 描述                                             |
-| ------------------ | --------------------- | ---- | ------------------------------------------------ |
-| `GUACD_HOST`       | `localhost`           | 否   | Guacd 服务地址（内嵌于同一容器，默认 localhost） |
-| `GUACD_PORT`       | `4822`                | 否   | Guacd 服务端口                                   |
-| `FRONTEND_URL`     | `http://frontend`     | 否   | 前端 URL（CORS 白名单）                          |
-| `MAIN_BACKEND_URL` | `http://backend:3001` | 否   | 后端 URL（CORS 白名单）                          |
+### 端口配置
+
+| 变量名                   | 默认值 | 描述                                           |
+| ------------------------ | ------ | ---------------------------------------------- |
+| `REMOTE_GATEWAY_API_PORT`| `9090` | Remote Gateway API 端口（Docker 内部通信端口） |
+| `REMOTE_GATEWAY_WS_PORT` | `8081` | Guacamole WebSocket 端口                       |
+
+### Guacd 连接
+
+| 变量名             | 默认值                | 描述                                             |
+| ------------------ | --------------------- | ------------------------------------------------ |
+| `GUACD_HOST`       | `localhost`           | Guacd 服务地址（内嵌于同一容器，默认 localhost） |
+| `GUACD_PORT`       | `4822`                | Guacd 服务端口                                   |
+
+### CORS 白名单
+
+| 变量名             | 默认值                | 描述                                             |
+| ------------------ | --------------------- | ------------------------------------------------ |
+| `FRONTEND_URL`     | `http://frontend`     | 前端 URL（始终加入 CORS 白名单）                 |
+| `MAIN_BACKEND_URL` | `http://backend:3001` | 后端 URL（始终加入 CORS 白名单）                 |
+
+### API 鉴权
+
+| 变量名                     | 默认值 | 描述                                                              |
+| -------------------------- | ------ | ----------------------------------------------------------------- |
+| `REMOTE_GATEWAY_API_TOKEN` | -      | 共享令牌。若配置，backend 的 `.env` 中也必须配置相同值            |
+
+> ⚠️ 生产环境**强烈推荐**配置此令牌。未配置时，生产模式下会输出警告日志。
 
 ### 可选配置
 
@@ -148,11 +175,13 @@
 
 ### `.env` 文件示例
 
+> 以下变量**仅对 backend 容器生效**。Remote Gateway 端口、Guacd 连接等变量需在 `docker-compose.yml` 中配置。
+
 ```env
-# 部署模式
+# ===== 部署模式 =====
 DEPLOYMENT_MODE=docker
 
-# Passkey 配置（生产环境必须修改）
+# ===== Passkey 配置（生产环境必须修改）=====
 # 单域名
 RP_ID=yourdomain.com
 RP_ORIGIN=https://yourdomain.com
@@ -161,22 +190,26 @@ RP_ORIGIN=https://yourdomain.com
 # RP_ORIGIN=https://yourdomain.com,https://another-domain.net
 # 并确保 https://yourdomain.com/.well-known/webauthn 可访问
 
-# 远程网关地址
+# ===== 远程网关地址（backend 连接 remote-gateway 用）=====
 REMOTE_GATEWAY_API_BASE_LOCAL=http://localhost:9090
 REMOTE_GATEWAY_API_BASE_DOCKER=http://remote-gateway:9090
 REMOTE_GATEWAY_WS_URL_LOCAL=ws://localhost:8081
 REMOTE_GATEWAY_WS_URL_DOCKER=ws://remote-gateway:8081
 
-# Remote Gateway API 访问令牌（可选但强烈推荐；需与 docker-compose.yml 的 remote-gateway 一致）
+# ===== Remote Gateway API 鉴权 =====
+# 共享令牌：backend 与 remote-gateway 必须使用相同值
+# backend 通过 .env 读取，remote-gateway 通过 docker-compose.yml 的 ${REMOTE_GATEWAY_API_TOKEN} 引用
 REMOTE_GATEWAY_API_TOKEN=
 
-# 前端通知自动关闭时间（毫秒，正整数）
-# 仅在自构建 frontend 镜像时生效（Vite 构建时变量）
-VITE_NOTIFICATION_TIMEOUT_MS=3000
+# ===== 前端构建时变量（可选，仅自构建 frontend 镜像时生效）=====
+# VITE_NOTIFICATION_TIMEOUT_MS=3000
+# VITE_API_BASE_URL=
 
-# 前端资源 URL 基础地址（可选）
-# 仅在自构建 frontend 镜像时生效（Vite 构建时变量）
-VITE_API_BASE_URL=
+# ===== Rate Limit（可选）=====
+# API_RATE_LIMIT_WINDOW_MS=900000
+# API_RATE_LIMIT_MAX=300
+# SETTINGS_RATE_LIMIT_WINDOW_MS=900000
+# SETTINGS_RATE_LIMIT_MAX=500
 ```
 
 ## Rate Limit（后端限流）
@@ -209,12 +242,13 @@ services:
       - remote-gateway
     networks:
       - nexus-terminal-network
+    restart: unless-stopped
 
   backend:
     image: ghcr.io/silentely/nexus-terminal-backend:latest
     container_name: nexus-terminal-backend
     env_file:
-      - .env
+      - .env                              # ← 仅 backend 读取 .env
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -222,11 +256,14 @@ services:
       - ./data:/app/data
     networks:
       - nexus-terminal-network
+    restart: unless-stopped
 
+  # Remote Gateway：内嵌 guacd，guacd 进程与 Node.js 共享同一容器
   remote-gateway:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
     environment:
+      # guacd 已内嵌于本容器，使用 localhost 连接
       GUACD_HOST: localhost
       GUACD_PORT: 4822
       REMOTE_GATEWAY_API_PORT: 9090
@@ -234,20 +271,16 @@ services:
       FRONTEND_URL: http://frontend
       MAIN_BACKEND_URL: http://backend:3001
       NODE_ENV: production
+      # Remote Gateway API 访问令牌（可选但强烈推荐）
+      # 若配置，则 backend（.env）与 remote-gateway 必须使用相同值
+      REMOTE_GATEWAY_API_TOKEN: ${REMOTE_GATEWAY_API_TOKEN}
       # CORS 配置（可选）
-      CORS_ALLOWED_ORIGINS: https://yourdomain.com
+      # CORS_ALLOWED_ORIGINS: https://yourdomain.com
       # CORS_ALLOW_ALL: false  # ⚠️ 仅开发环境使用
     networks:
       - nexus-terminal-network
     depends_on:
-      - guacd
       - backend
-
-  guacd:
-    image: guacamole/guacd:latest
-    container_name: nexus-terminal-guacd
-    networks:
-      - nexus-terminal-network
     restart: unless-stopped
 
 networks:
