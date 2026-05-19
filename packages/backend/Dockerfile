@@ -25,8 +25,9 @@ FROM node:20-alpine
 
 ENV NODE_ENV=production
 
-# Install build dependencies including setuptools for node-gyp
-RUN apk add --no-cache --virtual .build-deps python3 py3-setuptools make g++
+# Install build dependencies including setuptools for node-gyp, gosu for user switching
+RUN apk add --no-cache --virtual .build-deps python3 py3-setuptools make g++ \
+    && apk add --no-cache gosu
 
 WORKDIR /app
 
@@ -43,14 +44,15 @@ RUN npm install --omit=dev --prefer-offline
 
 RUN apk del .build-deps
 
-# 创建数据目录并设置非 root 用户权限
-RUN mkdir -p /app/data /app/data/sessions /app/data/background /app/data/uploads \
-    && addgroup -S appgroup && adduser -S appuser -G appgroup \
-    && chown -R appuser:appgroup /app/data
+# 创建非 root 用户
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-USER appuser
+# 复制 entrypoint 脚本
+COPY packages/backend/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3001
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 CMD ["node", "dist/index.js"]
