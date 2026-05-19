@@ -43,9 +43,7 @@ COPY packages/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
 
-# 确保 nginx 运行时目录权限正确（非 root 用户需要写权限）
-RUN chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx
-
-USER nginx
+# nginx master 进程以 root 运行（标准模式：管理 PID、信号、worker）                               
+# worker 进程由 nginx.conf 中 `user nginx;` 指令自动降权 
 
 CMD ["nginx", "-g", "daemon off;"]

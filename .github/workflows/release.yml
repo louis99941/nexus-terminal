@@ -68,19 +68,19 @@ jobs:
             echo "VERSION=$VERSION"
           } >> "$GITHUB_OUTPUT"
 
-      - name: 等待 kittylog.app 更新（最多 15 分钟）
+      - name: 等待 kittylog.app 更新（最多 5 分钟）
         env:
           VERSION: ${{ steps.release_meta.outputs.VERSION }}
         run: |
           echo "⏳ 等待 kittylog.app 生成 v${VERSION} 更新日志..."
           KITTYLOG_URL="https://kittylog.app/c/Silentely/nexus-terminal"
-          MAX_ATTEMPTS=15  # 每分钟轮询一次，最多 15 分钟
+          MAX_ATTEMPTS=5  # 每分钟轮询一次，最多 5 分钟
           POLL_INTERVAL=60
 
           for i in $(seq 1 $MAX_ATTEMPTS); do
             echo "  📡 轮询 [$i/$MAX_ATTEMPTS]..."
 
-            PAGE=$(curl -sL --max-time 15 "$KITTYLOG_URL" 2>/dev/null || true)
+            PAGE=$(curl -sL --max-time 5 "$KITTYLOG_URL" 2>/dev/null || true)
 
             if echo "$PAGE" | grep -qi "v${VERSION}"; then
               echo "✅ kittylog.app 已包含 v${VERSION} 更新日志"
