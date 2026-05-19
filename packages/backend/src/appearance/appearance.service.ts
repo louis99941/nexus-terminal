@@ -37,7 +37,7 @@ const ensurePresetHtmlThemesDirExists = async () => {
     } catch (createErr: unknown) {
       const errCode = (createErr as NodeJS.ErrnoException).code;
       // 仅对权限/只读文件系统错误降级，其它错误上抛
-      if (errCode === 'EACCES' || errCode === 'EROFS') {
+      if (errCode === 'EACCES' || errCode === 'EROFS' || errCode === 'EPERM') {
         logger.warn(
           `[AppearanceService] 无法创建预设主题目录 ${PRESET_HTML_THEMES_DIR}（${errCode}），降级跳过`
         );

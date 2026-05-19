@@ -191,7 +191,7 @@ services:
     image: ghcr.io/silentely/nexus-terminal-frontend:latest
     container_name: nexus-terminal-frontend
     ports:
-      - '18111:80'
+      - '18111:8080'
     depends_on:
       - backend
       - remote-gateway
@@ -268,7 +268,7 @@ services:
         VITE_NOTIFICATION_TIMEOUT_MS: ${VITE_NOTIFICATION_TIMEOUT_MS:-3000}
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     ports:
-      - '18111:80'
+      - '18111:8080'
     depends_on:
       - backend
       - remote-gateway

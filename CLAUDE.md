@@ -230,7 +230,7 @@ npx playwright install          # 首次运行 E2E 需安装浏览器
 ### 部署架构
 
 ```
-Frontend (18111:80) -> Nginx + Vite build
+Frontend (18111:8080) -> Nginx + Vite build
   | API 代理
 Backend (3001) -> Express + SQLite + SSH2
   | WebSocket

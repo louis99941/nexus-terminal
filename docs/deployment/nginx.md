@@ -83,7 +83,7 @@ server {
 适用于 Docker Compose 部署 + 宿主机 Nginx 反向代理的场景（最常见）。
 
 ::: warning 架构说明
-此模式下前端容器监听 `127.0.0.1:18111:80`，宿主机 Nginx 统一入口代理到 `18111`。但前端容器内部的 nginx **仅代理 `/api/` 和 `/ws/` 到 backend**，不会转发 `/guacamole/`。因此 `/guacamole/` 必须在宿主机 Nginx 中单独代理到 `remote-gateway:8080`（宿主机上通常是 `127.0.0.1:8080`）。
+此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。但前端容器内部的 nginx **仅代理 `/api/` 和 `/ws/` 到 backend**，不会转发 `/guacamole/`。因此 `/guacamole/` 必须在宿主机 Nginx 中单独代理到 `remote-gateway:8080`（宿主机上通常是 `127.0.0.1:8080`）。
 :::
 
 ```nginx
@@ -185,7 +185,7 @@ upstream nexus_gateway {
 }
 
 server {
-    listen 80;
+    listen 8080;
     server_name localhost;
 
     client_max_body_size 100m;

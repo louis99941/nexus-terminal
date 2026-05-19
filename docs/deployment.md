@@ -81,7 +81,7 @@ services:
   frontend:
     container_name: nexus-terminal-frontend
     ports:
-      - '127.0.0.1:18111:80'
+      - '127.0.0.1:18111:8080'
     depends_on:
       - backend
       - remote-gateway
