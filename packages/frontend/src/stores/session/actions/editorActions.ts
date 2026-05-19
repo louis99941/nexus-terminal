@@ -432,13 +432,14 @@ export const changeLineEndingInSession = (
     tab.content = newContent;
     tab.lineEnding = newLineEnding;
     tab.isModified = tab.content !== tab.originalContent;
+    tab.loadingError = null; // 清除可能存在的旧错误
     log.info(
       `[EditorActions] 文件 ${tab.filePath} (会话 ${sessionId}) 换行符已更改为 ${newLineEnding}。`
     );
   } catch (err: unknown) {
     log.error(`[EditorActions] 更换行符失败 (会话 ${sessionId}, 标签页 ${tabId}):`, err);
     const errMsg = err instanceof Error ? err.message : String(err);
-    tab.loadingError = `换行符转换失败: ${errMsg}`;
+    tab.loadingError = `${dependencies.t('fileManager.errors.lineEndingConversionFailed', '换行符转换失败')}: ${errMsg}`;
   }
 };
 

@@ -804,11 +804,12 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
       tab.content = newContent;
       tab.lineEnding = newLineEnding;
       tab.isModified = tab.content !== tab.originalContent;
+      tab.loadingError = null; // 清除可能存在的旧错误
       log.info(`[文件编辑器 Store] 文件 ${tab.filePath} 换行符已更改为 ${newLineEnding}。`);
     } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err, String(err));
       log.error(`[文件编辑器 Store] 更换行符失败:`, err);
-      tab.loadingError = `换行符转换失败: ${errorMessage}`;
+      tab.loadingError = `${t('fileManager.errors.lineEndingConversionFailed', '换行符转换失败')}: ${errorMessage}`;
     }
   };
 

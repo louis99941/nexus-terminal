@@ -297,11 +297,11 @@ const encodingOptions = ref([
 ]);
 
 // +++ 换行符选项 +++
-const lineEndingOptions = ref([
+const lineEndingOptions = [
   { value: 'lf', text: 'LF' },
   { value: 'crlf', text: 'CRLF' },
   { value: 'cr', text: 'CR' },
-]);
+] as const;
 
 // 保存当前激活的标签页
 const handleSaveRequest = () => {
@@ -622,7 +622,7 @@ onBeforeUnmount(() => {
           <div class="line-ending-select-wrapper" v-if="activeTab && !currentTabIsLoading">
             <select
               :value="currentLineEnding"
-              aria-label="换行符选择"
+              :aria-label="t('fileManager.lineEndingAriaLabel', '换行符选择')"
               @change="handleLineEndingChange"
               class="line-ending-select"
               :title="t('fileManager.changeLineEndingTooltip', '更改换行符格式')"
@@ -633,7 +633,7 @@ onBeforeUnmount(() => {
             </select>
           </div>
           <span v-else-if="activeTab" class="line-ending-select-placeholder">{{
-            t('fileManager.loadingEncoding', '加载中...')
+            t('fileManager.loadingLineEnding', '加载中...')
           }}</span>
 
           <span v-if="currentTabSaveStatus === 'saving'" class="save-status saving"
