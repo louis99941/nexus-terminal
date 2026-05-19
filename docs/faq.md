@@ -66,7 +66,7 @@ proxy_pass http://127.0.0.1:8081;
 
 同时更新 `.env` 中的环境变量（如果显式设置了旧值）：
 
-```env
+```dotenv
 # 旧值
 REMOTE_GATEWAY_WS_PORT=8080
 REMOTE_GATEWAY_WS_URL_LOCAL=ws://localhost:8080
@@ -140,7 +140,7 @@ cd packages/remote-gateway && npm run dev
 
 调整心跳配置：
 
-```env
+```dotenv
 HEARTBEAT_INTERVAL_DESKTOP=15000
 MAX_MISSED_PONGS_DESKTOP=5
 ```

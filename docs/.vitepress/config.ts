@@ -174,5 +174,8 @@ export default defineConfig({
 
   markdown: {
     lineNumbers: true,
+    shiki: {
+      langs: ['dotenv'],
+    },
   },
 });

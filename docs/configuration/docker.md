@@ -177,7 +177,7 @@
 
 > 以下变量**仅对 backend 容器生效**。Remote Gateway 端口、Guacd 连接等变量需在 `docker-compose.yml` 中配置。
 
-```env
+```dotenv
 # ===== 部署模式 =====
 DEPLOYMENT_MODE=docker
 
@@ -218,7 +218,7 @@ REMOTE_GATEWAY_API_TOKEN=
 
 可通过以下环境变量调节（单位：毫秒 ms；仅支持正整数，缺省或非法会回退默认值）：
 
-```env
+```dotenv
 # 通用 API（除 auth/AI 等特殊路由外）
 API_RATE_LIMIT_WINDOW_MS=900000
 API_RATE_LIMIT_MAX=300

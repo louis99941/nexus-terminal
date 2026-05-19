@@ -163,7 +163,7 @@ wget https://raw.githubusercontent.com/Silentely/nexus-terminal/refs/heads/main/
 
 Configure nginx
 
-```conf
+```nginx
 location / {
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;

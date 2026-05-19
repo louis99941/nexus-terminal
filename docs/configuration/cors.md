@@ -16,7 +16,7 @@ Remote Gateway 服务支持灵活的 CORS（跨域资源共享）配置，可以
 
 **示例**:
 
-```env
+```dotenv
 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com,https://admin.yourdomain.com
 ```
 
@@ -28,7 +28,7 @@ CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com,https://a
 
 **示例**:
 
-```env
+```dotenv
 CORS_ALLOW_ALL=true  # ⚠️ 仅用于开发/测试
 ```
 
@@ -70,7 +70,7 @@ remote-gateway:
 
 创建或编辑 `.env` 文件：
 
-```env
+```dotenv
 FRONTEND_URL=http://localhost:5173
 MAIN_BACKEND_URL=http://localhost:3001
 CORS_ALLOWED_ORIGINS=http://localhost:8080

@@ -185,7 +185,7 @@ docker compose pull && docker compose up -d
 
 编辑 `.env` 文件，配置以下关键变量：
 
-```env
+```dotenv
 # 部署模式
 DEPLOYMENT_MODE=docker
 
@@ -201,7 +201,7 @@ PORT=3001
 
 ### 安全配置
 
-```env
+```dotenv
 # 加密密钥（自动生成，首次启动时创建）
 # 请勿手动修改，除非您知道自己在做什么
 ENCRYPTION_KEY=
@@ -214,7 +214,7 @@ SESSION_SECRET=
 
 如果需要启用 Passkey 登录：
 
-```env
+```dotenv
 # Passkey Relying Party ID（域名，不带协议）
 RP_ID=your-domain.com
 
@@ -231,7 +231,7 @@ RP_ORIGIN=https://your-domain.com
 
 ### Remote Gateway API 鉴权（推荐）
 
-```env
+```dotenv
 # 共享令牌：backend 与 remote-gateway 必须使用相同值
 REMOTE_GATEWAY_API_TOKEN=
 ```
@@ -240,7 +240,7 @@ REMOTE_GATEWAY_API_TOKEN=
 
 ### Prometheus 监控（可选）
 
-```env
+```dotenv
 # 启用 Prometheus 端点
 ENABLE_METRICS=true
 ```

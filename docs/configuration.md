@@ -31,7 +31,7 @@ remote-gateway:
 
 ### 基础配置
 
-```env
+```dotenv
 # Passkey Relying Party ID（域名，不带协议）
 RP_ID=your-domain.com
 
@@ -43,7 +43,7 @@ RP_ORIGIN=https://your-domain.com
 
 一个 Passkey 跨多个独立域名使用：
 
-```env
+```dotenv
 RP_ID=your-domain.com
 RP_ORIGIN=https://domain-a.com,https://domain-b.com
 ```
@@ -54,7 +54,7 @@ RP_ORIGIN=https://domain-a.com,https://domain-b.com
 
 ## API Token 配置
 
-```env
+```dotenv
 # .env 文件中设置
 REMOTE_GATEWAY_API_TOKEN=your-secure-token-here
 
@@ -82,7 +82,7 @@ remote-gateway:
 
 ### 心跳参数
 
-```env
+```dotenv
 HEARTBEAT_INTERVAL_DESKTOP=30000   # 桌面端心跳（毫秒）
 HEARTBEAT_INTERVAL_MOBILE=60000    # 移动端心跳（毫秒）
 MAX_MISSED_PONGS_DESKTOP=3         # 桌面端最大丢包次数
@@ -93,7 +93,7 @@ MAX_MISSED_PONGS_MOBILE=5          # 移动端最大丢包次数
 
 启用 WebSocket 多路复用，单个物理连接可承载多个 SSH 会话，减少浏览器连接数和服务器资源消耗。
 
-```env
+```dotenv
 ENABLE_MULTIPLEX=false             # 默认关闭，设为 true 启用
 ```
 
@@ -110,7 +110,7 @@ location ~ ^/(ws|guacamole)/ {
 
 ## 日志配置
 
-```env
+```dotenv
 LOG_LEVEL=info   # debug | info | warn | error
 ```
 
