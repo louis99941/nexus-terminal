@@ -7,10 +7,16 @@ import { CreateTerminalThemeDto, UpdateTerminalThemeDto } from '../types/termina
 import * as terminalThemeService from './terminal-theme.service';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { TEMP_UPLOAD_DIR } from '../config/paths';
+
+// 确保临时目录存在
+if (!fs.existsSync(TEMP_UPLOAD_DIR)) {
+  fs.mkdirSync(TEMP_UPLOAD_DIR, { recursive: true });
+}
 
 // 配置 multer 用于处理 JSON 文件上传 (导入)
 const upload = multer({
-  dest: path.join(__dirname, '../../temp-uploads/'), // 临时存储目录
+  dest: TEMP_UPLOAD_DIR,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
       cb(null, true);
@@ -171,9 +177,9 @@ export const importThemeController = async (
   // 允许用户通过 body 传递 name，否则使用文件名
   const themeName = req.body.name || defaultName;
 
-  // 防止路径遍历：确保临时文件路径不会逃逸到 temp-uploads 目录之外
+  // 防止路径遍历：确保临时文件路径不会逃逸到临时目录之外
   const resolvedFilePath = path.resolve(filePath);
-  const allowedUploadDir = path.resolve(path.join(__dirname, '../../temp-uploads/'));
+  const allowedUploadDir = TEMP_UPLOAD_DIR;
   if (
     !resolvedFilePath.startsWith(allowedUploadDir + path.sep) &&
     resolvedFilePath !== allowedUploadDir

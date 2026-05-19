@@ -43,8 +43,11 @@ RUN npm install --omit=dev --prefer-offline
 
 RUN apk del .build-deps
 
-# 创建非 root 用户运行应用
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# 创建数据目录并设置非 root 用户权限
+RUN mkdir -p /app/data /app/data/sessions /app/data/background /app/data/uploads \
+    && addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && chown -R appuser:appgroup /app/data
+
 USER appuser
 
 EXPOSE 3001

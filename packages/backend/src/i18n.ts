@@ -5,6 +5,7 @@ import fs from 'fs';
 import { logger } from './utils/logger';
 
 // --- 动态确定支持的语言 ---
+// __dirname 在 dev 模式下为 src/，生产模式下为 dist/，locales 目录始终与代码同级
 const localesDir = path.join(__dirname, 'locales');
 let dynamicSupportedLngs: string[] = [];
 try {

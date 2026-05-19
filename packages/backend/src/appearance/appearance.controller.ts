@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs'; // Keep fs for sync operations if needed, add promises for async
-import fsp from 'fs/promises'; // Use fs.promises for async file operations
+import fs from 'fs';
+import fsp from 'fs/promises';
 import { UpdateAppearanceDto } from '../types/appearance.types';
 import * as appearanceService from './appearance.service';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { BACKGROUND_DIR } from '../config/paths';
 
 const getErrorCode = (error: unknown): string | undefined => {
   if (typeof error !== 'object' || error === null || !('code' in error)) {
@@ -16,13 +17,15 @@ const getErrorCode = (error: unknown): string | undefined => {
   return typeof code === 'string' ? code : undefined;
 };
 
-// --- 背景图片上传配置 (保持不变) ---
+// 确保目录存在
+if (!fs.existsSync(BACKGROUND_DIR)) {
+  fs.mkdirSync(BACKGROUND_DIR, { recursive: true });
+}
+
+// --- 背景图片上传配置 ---
 const backgroundStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../data/background/');
-    // 确保目录存在
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
+    cb(null, BACKGROUND_DIR);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -109,7 +112,7 @@ export const uploadPageBackgroundController = async (
     if (req.file) {
       // 防止路径遍历：确保临时文件路径不会逃逸到 background 目录之外
       const resolvedFilePath = path.resolve(req.file.path);
-      const allowedDir = path.resolve(path.join(__dirname, '../../data/background/'));
+      const allowedDir = BACKGROUND_DIR;
       if (resolvedFilePath.startsWith(allowedDir + path.sep) || resolvedFilePath === allowedDir) {
         if (fs.existsSync(req.file.path)) {
           fs.unlink(req.file.path, (err) => {
@@ -148,7 +151,7 @@ export const uploadTerminalBackgroundController = async (
     if (req.file) {
       // 防止路径遍历：确保临时文件路径不会逃逸到 background 目录之外
       const resolvedFilePath = path.resolve(req.file.path);
-      const allowedDir = path.resolve(path.join(__dirname, '../../data/background/'));
+      const allowedDir = BACKGROUND_DIR;
       if (resolvedFilePath.startsWith(allowedDir + path.sep) || resolvedFilePath === allowedDir) {
         if (fs.existsSync(req.file.path)) {
           fs.unlink(req.file.path, (err) => {
@@ -185,10 +188,10 @@ export const getBackgroundFileController = async (
 
   try {
     // 构建文件的绝对路径 (基于 multer 的保存位置)
-    const absolutePath = path.join(__dirname, '../../data/background/', filename);
+    const absolutePath = path.join(BACKGROUND_DIR, filename);
 
     // 防止路径遍历：确保解析后的路径不会逃逸到 background 目录之外
-    const resolvedBase = path.resolve(path.join(__dirname, '../../data/background/'));
+    const resolvedBase = path.resolve(BACKGROUND_DIR);
     const resolvedPath = path.resolve(absolutePath);
     if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
       res.status(400).json({ message: '无效的文件名' });

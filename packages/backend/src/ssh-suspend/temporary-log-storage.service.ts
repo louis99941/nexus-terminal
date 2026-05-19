@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { logger } from '../utils/logger';
+import { SSH_LOG_DIR } from '../config/paths';
 
 // 类型守卫：检查是否为带有 code 属性的 Node.js 系统错误
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
@@ -10,7 +11,7 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 const MAX_LOG_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
 /** 环形缓冲保留大小：日志超限时保留尾部 80MB，丢弃头部旧数据 */
 const RING_BUFFER_RETAIN_BYTES = 80 * 1024 * 1024;
-const LOG_DIRECTORY = './data/temp_suspended_ssh_logs/';
+const LOG_DIRECTORY = SSH_LOG_DIR;
 
 /**
  * 会话元数据接口，用于持久化 'disconnected_by_backend' 状态的会话信息

@@ -1,17 +1,16 @@
 import sqlite3 from 'sqlite3';
-import path from 'path';
 import fs from 'fs';
 import { runMigrations } from './migrations'; // +++ Import runMigrations +++
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { DB_DIR, DB_PATH } from '../config/paths';
 
 // SQLite 性能优化常量
 const SQLITE_CACHE_SIZE_KB = 64_000; // 64MB 内存缓存（负值表示 KB）
 const SQLITE_MMAP_SIZE_BYTES = 268_435_456; // 256MB 内存映射 I/O
 
-const dbDir = path.join(__dirname, '..', '..', 'data');
-const dbFilename = 'nexus-terminal.db';
-const dbPath = path.join(dbDir, dbFilename);
+const dbDir = DB_DIR;
+const dbPath = DB_PATH;
 
 if (!fs.existsSync(dbDir)) {
   try {

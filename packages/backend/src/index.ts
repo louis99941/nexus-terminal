@@ -63,8 +63,8 @@ if (rootConfigResult.error && (rootConfigResult.error as NodeJS.ErrnoException).
 }
 
 // 2. 加载 data/.env 文件 (定义密钥等)
-// 注意: 这个路径是相对于编译后的 dist/src/index.js
-const dataEnvPathGlobal = path.resolve(__dirname, '../data/.env'); // Renamed to avoid conflict if 'dataEnvPath' is used later
+import { DATA_ENV_PATH, UPLOADS_DIR, SESSIONS_DIR } from './config/paths';
+const dataEnvPathGlobal = DATA_ENV_PATH;
 const dataConfigResultGlobal = dotenv.config({ path: dataEnvPathGlobal }); // Renamed
 
 if (
@@ -190,12 +190,9 @@ const apiLimiter = createApiLimiter();
 const settingsLimiter = createSettingsLimiter();
 
 // --- 静态文件服务 ---
-const uploadsPath = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsPath)) {
-  // 确保 uploads 目录存在
-  fs.mkdirSync(uploadsPath, { recursive: true });
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
-// app.use('/uploads', express.static(uploadsPath)); // 不再需要，文件通过 API 提供
 
 // 扩展 Express Request 类型
 declare module 'express-session' {
@@ -260,10 +257,8 @@ const initializeRuntimeLogLevel = async () => {
 const startServer = () => {
   // --- 会话中间件配置 ---
   const FileStore = sessionFileStore(session);
-  // 修改路径以匹配 Docker volume 挂载点 /app/data
-  const sessionsPath = path.join('/app/data', 'sessions');
-  if (!fs.existsSync(sessionsPath)) {
-    fs.mkdirSync(sessionsPath, { recursive: true });
+  if (!fs.existsSync(SESSIONS_DIR)) {
+    fs.mkdirSync(SESSIONS_DIR, { recursive: true });
   }
 
   const isProd = process.env.NODE_ENV === 'production';
@@ -272,7 +267,7 @@ const startServer = () => {
 
   const sessionMiddleware = session({
     store: new FileStore({
-      path: sessionsPath,
+      path: SESSIONS_DIR,
       ttl: thirtyDaysInSeconds, // 30 天
       // logFn: console.log // 可选：启用详细日志
     }),

@@ -10,9 +10,9 @@ import { logger } from '../utils/logger';
 import { validateUrlNotPrivate } from '../utils/url';
 
 // 预设 HTML 主题的存储路径 (作为只读预设)
-const PRESET_HTML_THEMES_DIR = path.join(__dirname, '../../html-presets/');
+import { PRESET_HTML_THEMES_DIR, CUSTOM_HTML_THEMES_DIR, BACKGROUND_DIR } from '../config/paths';
 
-const USER_CUSTOM_HTML_THEMES_DIR = path.join(__dirname, '../../data/custom_html_theme/');
+const USER_CUSTOM_HTML_THEMES_DIR = CUSTOM_HTML_THEMES_DIR;
 
 const getNodeErrorCode = (error: unknown): string | undefined => {
   if (typeof error !== 'object' || error === null || !('code' in error)) {
@@ -251,22 +251,21 @@ export const removePageBackground = async (): Promise<boolean> => {
   const filePath = currentSettings.pageBackgroundImage;
 
   if (filePath) {
-    // 构建文件的绝对路径
-    // 注意：这里的路径拼接逻辑需要与上传时的逻辑一致
-    // 假设 filePath 是相对于项目根目录的 /uploads/backgrounds/xxx
-    const absolutePath = path.join(__dirname, '../../', filePath); // 调整相对路径层级
-
-    try {
-      await fs.unlink(absolutePath);
-      logger.info(`[AppearanceService] 已删除页面背景文件: ${absolutePath}`);
-    } catch (error: unknown) {
-      // 如果文件不存在或其他删除错误，记录日志但继续执行以清空数据库记录
-      if (getNodeErrorCode(error) === 'ENOENT') {
-        logger.warn(`[AppearanceService] 尝试删除页面背景文件但未找到: ${absolutePath}`);
-      } else {
-        logger.error(`[AppearanceService] 删除页面背景文件时出错 (${absolutePath}):`, error);
-        // 可以选择抛出错误，或者仅记录并继续
-        // throw new Error(`删除页面背景文件失败: ${getErrorMessage(error)}`);
+    const absolutePath = path.join(process.cwd(), filePath);
+    // 防止路径遍历：确保删除的文件在背景图片目录内
+    const resolvedPath = path.resolve(absolutePath);
+    if (!resolvedPath.startsWith(BACKGROUND_DIR + path.sep) && resolvedPath !== BACKGROUND_DIR) {
+      logger.warn(`[AppearanceService] 路径安全检查：尝试删除背景目录外的文件: ${resolvedPath}`);
+    } else {
+      try {
+        await fs.unlink(absolutePath);
+        logger.info(`[AppearanceService] 已删除页面背景文件: ${absolutePath}`);
+      } catch (error: unknown) {
+        if (getNodeErrorCode(error) === 'ENOENT') {
+          logger.warn(`[AppearanceService] 尝试删除页面背景文件但未找到: ${absolutePath}`);
+        } else {
+          logger.error(`[AppearanceService] 删除页面背景文件时出错 (${absolutePath}):`, error);
+        }
       }
     }
   } else {
@@ -288,17 +287,21 @@ export const removeTerminalBackground = async (): Promise<boolean> => {
   const filePath = currentSettings.terminalBackgroundImage;
 
   if (filePath) {
-    const absolutePath = path.join(__dirname, '../../', filePath); // 调整相对路径层级
-
-    try {
-      await fs.unlink(absolutePath);
-      logger.info(`[AppearanceService] 已删除终端背景文件: ${absolutePath}`);
-    } catch (error: unknown) {
-      if (getNodeErrorCode(error) === 'ENOENT') {
-        logger.warn(`[AppearanceService] 尝试删除终端背景文件但未找到: ${absolutePath}`);
-      } else {
-        logger.error(`[AppearanceService] 删除终端背景文件时出错 (${absolutePath}):`, error);
-        // throw new Error(`删除终端背景文件失败: ${getErrorMessage(error)}`);
+    const absolutePath = path.join(process.cwd(), filePath);
+    // 防止路径遍历：确保删除的文件在背景图片目录内
+    const resolvedPath = path.resolve(absolutePath);
+    if (!resolvedPath.startsWith(BACKGROUND_DIR + path.sep) && resolvedPath !== BACKGROUND_DIR) {
+      logger.warn(`[AppearanceService] 路径安全检查：尝试删除背景目录外的文件: ${resolvedPath}`);
+    } else {
+      try {
+        await fs.unlink(absolutePath);
+        logger.info(`[AppearanceService] 已删除终端背景文件: ${absolutePath}`);
+      } catch (error: unknown) {
+        if (getNodeErrorCode(error) === 'ENOENT') {
+          logger.warn(`[AppearanceService] 尝试删除终端背景文件但未找到: ${absolutePath}`);
+        } else {
+          logger.error(`[AppearanceService] 删除终端背景文件时出错 (${absolutePath}):`, error);
+        }
       }
     }
   } else {

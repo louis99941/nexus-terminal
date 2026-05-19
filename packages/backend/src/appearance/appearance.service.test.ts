@@ -122,7 +122,7 @@ describe('appearance.service', () => {
     const { service, fs, appearanceRepository } = await loadService();
     (appearanceRepository.getAppearanceSettings as any).mockResolvedValueOnce({
       _id: 'global_appearance',
-      terminalBackgroundImage: 'uploads/bg.png',
+      terminalBackgroundImage: 'data/background/bg.png',
       terminalBackgroundOverlayOpacity: 0.5,
     });
     (fs.unlink as any).mockRejectedValueOnce({ code: 'ENOENT' });

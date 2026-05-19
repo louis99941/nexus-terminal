@@ -67,6 +67,27 @@ vi.mock('./docker.handler', () => ({
   startDockerStatusPolling: vi.fn(),
 }));
 
+// Mock output-batcher: 同步发送，避免 16ms 定时器导致测试中的时序问题
+vi.mock('../output-batcher', () => {
+  return {
+    getOrCreateBatcher: vi.fn(
+      (_ws: unknown, _sessionId: string, onSend?: (data: string) => void) => {
+        return {
+          write: (data: string) => {
+            if (onSend) onSend(Buffer.from(data, 'utf8').toString('base64'));
+          },
+          flush: vi.fn(),
+          destroy: vi.fn(),
+          getBufferLength: () => 0,
+        };
+      }
+    ),
+    destroyBatcher: vi.fn(),
+    flushBatcher: vi.fn(),
+    cleanupAllBatchers: vi.fn(),
+  };
+});
+
 // Mock SSH Client
 class MockSshClient extends EventEmitter {
   end = vi.fn();

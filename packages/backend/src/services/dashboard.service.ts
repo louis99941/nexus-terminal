@@ -6,6 +6,7 @@ import { clientStates } from '../websocket/state';
 import { getDbInstance, getDb as getDbRow, allDb } from '../database/connection';
 import { AuditLogActionType } from '../types/audit.types';
 import { logger } from '../utils/logger';
+import { DATA_DIR, DB_PATH } from '../config/paths';
 
 /**
  * 存储统计缓存 - 避免频繁同步遍历目录阻塞事件循环
@@ -454,7 +455,7 @@ export const getStorageStats = async (): Promise<{
     };
   }
 
-  const dataDir = path.resolve(__dirname, '../../data');
+  const dataDir = DATA_DIR;
 
   let recordingsSize = 0;
   let uploadsSize = 0;
@@ -473,7 +474,7 @@ export const getStorageStats = async (): Promise<{
   }
 
   // 计算数据库大小
-  const dbPath = path.join(dataDir, 'nexus-terminal.db');
+  const dbPath = DB_PATH;
   if (fs.existsSync(dbPath)) {
     databaseSize = fs.statSync(dbPath).size;
   }
@@ -567,7 +568,7 @@ export const getSystemResources = async (): Promise<{
     memTotal > 0 ? Math.max(0, Math.min(100, Math.round((memUsed / memTotal) * 100))) : 0;
 
   // Disk：使用 statfs 获取真实文件系统空间（以 data 目录所在分区为准）
-  const dataDir = path.resolve(__dirname, '../../data');
+  const dataDir = DATA_DIR;
   let diskUsed = 0;
   let diskTotal = 0;
   type StatFsLike = { blocks: number; bsize: number; bfree: number };
