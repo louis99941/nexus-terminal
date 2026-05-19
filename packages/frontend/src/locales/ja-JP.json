@@ -599,8 +599,7 @@
         "newFolder": "フォルダー名を入力"
       },
       "chmodHelp": "8進数形式で権限を入力してください (例: 755 または 0755)。"
-    },
-    "changeLineEndingTooltip": "改行コード形式を変更"
+    }
   },
   "statusMonitor": {
     "title": "サーバー状態",

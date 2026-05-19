@@ -81,7 +81,7 @@ export const useSessionStore = defineStore('session', () => {
     sessionId: string,
     tabId: string,
     newLineEnding: 'lf' | 'crlf' | 'cr'
-  ) => editorActions.changeLineEndingInSession(sessionId, tabId, newLineEnding);
+  ) => editorActions.changeLineEndingInSession(sessionId, tabId, newLineEnding, { t });
   const closeOtherTabsInSession = (sessionId: string, targetTabId: string) =>
     editorActions.closeOtherTabsInSession(sessionId, targetTabId);
   const closeTabsToTheRightInSession = (sessionId: string, targetTabId: string) =>

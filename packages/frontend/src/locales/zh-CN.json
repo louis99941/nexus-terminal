@@ -599,8 +599,7 @@
         "newFolder": "输入文件夹名称"
       },
       "chmodHelp": "请输入八进制格式的权限 (例如 755 或 0755)。"
-    },
-    "changeLineEndingTooltip": "更改换行符格式"
+    }
   },
   "statusMonitor": {
     "title": "服务器状态",

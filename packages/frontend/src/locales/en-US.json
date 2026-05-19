@@ -599,8 +599,7 @@
         "newFolder": "Enter folder name"
       },
       "chmodHelp": "Enter permissions in octal format (e.g., 755 or 0755)."
-    },
-    "changeLineEndingTooltip": "Change line ending format"
+    }
   },
   "statusMonitor": {
     "title": "Server Status",
