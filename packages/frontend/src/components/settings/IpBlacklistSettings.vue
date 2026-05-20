@@ -181,10 +181,6 @@
           {{ blacklistDeleteError }}
         </p>
       </div>
-      <!-- Toggle Error -->
-      <p v-if="ipBlacklistToggleError" class="mt-3 text-sm text-error">
-        {{ ipBlacklistToggleError }}
-      </p>
       <!-- End v-if="ipBlacklistEnabled" -->
       <!-- Message when disabled -->
       <div

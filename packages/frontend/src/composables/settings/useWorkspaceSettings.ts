@@ -292,6 +292,7 @@ export function useWorkspaceSettings() {
       terminalAutoWrapSuccess.value = true;
     } catch (error: unknown) {
       log.error('更新终端自动换行设置失败:', error);
+      terminalAutoWrapEnabled.value = terminalAutoWrapEnabledBoolean.value;
       terminalAutoWrapMessage.value = extractErrorMessage(
         error,
         t('settings.workspace.terminalAutoWrapError', '保存终端自动换行设置失败。')
@@ -487,6 +488,7 @@ export function useWorkspaceSettings() {
       statusMonitorShowIpSuccess.value = true;
     } catch (error: unknown) {
       log.error('Failed to update status monitor IP display setting:', error);
+      statusMonitorShowIpEnabled.value = statusMonitorShowIpBoolean.value;
       statusMonitorShowIpMessage.value = extractErrorMessage(
         error,
         t(
@@ -517,6 +519,7 @@ export function useWorkspaceSettings() {
       terminalOutputEnhancerSuccess.value = true;
     } catch (error: unknown) {
       log.error('更新终端输出增强器设置失败:', error);
+      terminalOutputEnhancerEnabled.value = terminalOutputEnhancerEnabledBoolean.value;
       terminalOutputEnhancerMessage.value = extractErrorMessage(
         error,
         t('settings.terminalOutputEnhancer.error.saveFailed')

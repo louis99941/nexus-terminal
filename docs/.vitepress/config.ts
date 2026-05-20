@@ -154,7 +154,8 @@ export default defineConfig({
     },
 
     footer: {
-      message: 'IP 地理位置数据由 <a href="https://iplocate.io" target="_blank" rel="noopener">IPLocate</a> 提供',
+      message:
+        'IP 地理位置数据由 <a href="https://iplocate.io" target="_blank" rel="noopener">IPLocate</a> 提供',
       copyright: 'Copyright © 2024-2026 Silentely',
     },
 
