@@ -48,6 +48,7 @@ scripts/*
 !scripts/sync-locales.js
 !scripts/check-tech-debt.js
 !scripts/check-smart-quotes.js
+!scripts/auto-changelog.js
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
