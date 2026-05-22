@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# 当提交包含 VERSION 且版本号变更时，自动从提交信息生成 changelog 条目并 amend
+node scripts/auto-changelog.js

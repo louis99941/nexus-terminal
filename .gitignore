@@ -178,10 +178,7 @@ dist-scripts/
 electron-app/node_modules/
 electron-app/dist_electron/
 
-# Husky git hooks
-.husky/*
-!.husky/pre-commit
-!.husky/commit-msg
+# Husky git hooks（仅忽略内部缓存目录，其余 hook 全部跟踪）
 .husky/_/
 .ace-tool/
 .omx/

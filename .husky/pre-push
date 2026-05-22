@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+set -e
+
+# pre-push 质量门禁：仅运行 typecheck（pre-commit 的 lint-staged 已覆盖 lint/prettier/debt:check）
+# 全量 quality:check 留给 CI 执行
+if [ "${SKIP_PRE_PUSH:-0}" != "1" ]; then
+  echo "[pre-push] 运行类型检查..."
+  npm run -s typecheck:frontend
+  npm run -s typecheck:backend
+  npm run -s typecheck:remote-gateway
+  echo "[pre-push] 类型检查通过 ✓"
+else
+  echo "[pre-push] 已设置 SKIP_PRE_PUSH=1，跳过类型检查。"
+fi
