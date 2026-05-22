@@ -337,7 +337,7 @@ const formatDuration = (seconds: number | null | undefined): string => {
             format="YYYY-MM-DD HH:mm"
             :clearable="false"
             @change="handleTimeRangeChange"
-            class="w-[260px] md:w-[320px]"
+            class="w-full md:w-[320px] min-w-0"
             popper-class="dashboard-date-picker-popper"
           />
         </div>

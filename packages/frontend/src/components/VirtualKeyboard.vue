@@ -98,7 +98,7 @@ interface KeyDef {
   isModifier?: boolean;
 }
 
-// Row 1: Ctrl, Alt, Tab, Esc, ↑, ↓, ←, →
+// Row 1: Ctrl, Alt, Tab, Esc, ↑, ↓, ←, →, Enter, Space
 const row1Keys: KeyDef[] = [
   { label: 'Ctrl', isModifier: true },
   { label: 'Alt', isModifier: true },
@@ -108,6 +108,8 @@ const row1Keys: KeyDef[] = [
   { label: '↓', sequence: '\x1b[B' },
   { label: '←', sequence: '\x1b[D' },
   { label: '→', sequence: '\x1b[C' },
+  { label: '↵', sequence: '\r' },
+  { label: '⎵', sequence: ' ' },
 ];
 
 // Row 2: F1-F8
