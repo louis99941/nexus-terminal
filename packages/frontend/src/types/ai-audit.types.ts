@@ -29,6 +29,7 @@ export interface AuditReport {
   id: number;
   user_id: number;
   report_type: ReportType;
+  status: ReportStatus;
   time_range_start: number;
   time_range_end: number;
   summary: string;
