@@ -22,7 +22,7 @@ const SENSITIVE_FIELD_PATTERNS = [
   /session/i,
   /apikey/i,
   /api[_-]?key/i,
-  /key/i,
+  /\bkey\b/i,
   /username/i,
   /credit[_-]?card/i,
   /card[_-]?number/i,

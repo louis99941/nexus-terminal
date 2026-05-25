@@ -46,6 +46,7 @@ export interface EnvironmentConfig {
   LOG_REDACT?: 'true' | 'false';
   LOG_TZ?: string;
   TZ?: string;
+  ENABLE_REQUEST_LOG?: boolean;
 
   // AI/NL2CMD 调试配置
   NL2CMD_TIMING_LOG?: '0' | '1';
@@ -288,6 +289,11 @@ const ENV_SCHEMA: Record<keyof EnvironmentConfig, EnvVarSchema> = {
   LOG_TZ: {
     required: false,
     type: 'string',
+  },
+  ENABLE_REQUEST_LOG: {
+    required: false,
+    type: 'boolean',
+    default: true,
   },
   TZ: {
     required: false,

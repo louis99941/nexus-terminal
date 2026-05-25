@@ -1,6 +1,7 @@
 /**
  * 请求级日志中间件
  * 为每个请求生成 requestId 并注入 req，所有后续日志自动携带
+ * 通过 ENABLE_REQUEST_LOG 环境变量控制是否输出请求访问日志
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -15,14 +16,23 @@ declare global {
   }
 }
 
+// 是否启用请求访问日志，默认启用
+const ENABLE_REQUEST_LOG = process.env.ENABLE_REQUEST_LOG !== 'false';
+
 // 跳过日志的高频低价值端点前缀
 const SKIP_PATH_PREFIXES = ['/api/v1/health', '/api/v1/metrics'];
 
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const requestId = crypto.randomBytes(8).toString('hex');
-  const startTime = Date.now();
-
   req.requestId = requestId;
+
+  // 未启用请求日志时仅注入 requestId，不输出日志
+  if (!ENABLE_REQUEST_LOG) {
+    next();
+    return;
+  }
+
+  const startTime = Date.now();
 
   // 跳过健康检查等高频低价值端点（前缀匹配）
   const skip = SKIP_PATH_PREFIXES.some((prefix) => req.path.startsWith(prefix));

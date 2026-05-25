@@ -323,6 +323,7 @@ npm start
 | `LOG_PRETTY`        | -           | 日志格式化开关（true=pino-pretty 彩色，false=JSON），dev 模式默认开启 |
 | `LOG_REDACT`        | true        | 日志脱敏开关（false 可关闭敏感信息脱敏）                              |
 | `LOG_TZ`            | -           | 日志时间戳时区（优先级高于 TZ）                                       |
+| `ENABLE_REQUEST_LOG`| true        | 启用请求访问日志（false 关闭"请求开始/完成"日志，减少容器日志量）     |
 
 ### 安全配置常量（`src/config/security.config.ts`）
 

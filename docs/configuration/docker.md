@@ -99,6 +99,7 @@
 | `LOG_PRETTY`                 | -        | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启                    |
 | `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                                      |
 | `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                                              |
+| `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                         |
 | `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
 
 ### NL2CMD 调试配置

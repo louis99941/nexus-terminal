@@ -174,6 +174,7 @@ sudo ufw deny 3001/tcp    # 不对外暴露后端端口
 | `ENABLE_METRICS`    | boolean | `false`          | 启用 Prometheus      |
 | `ENABLE_GEO_LOOKUP` | boolean | `true`           | 启用 IP 地理位置查询 |
 | `LOG_LEVEL`         | string  | `info`           | 日志级别             |
+| `ENABLE_REQUEST_LOG`| boolean | `true`           | 启用请求访问日志     |
 
 ### Remote Gateway 环境变量
 
