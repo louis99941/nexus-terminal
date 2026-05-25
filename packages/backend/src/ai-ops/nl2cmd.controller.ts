@@ -195,7 +195,13 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
     // 清除旧的 Axios 客户端缓存（如果有配置变更）
     NL2CMDService.clearAxiosClientCache();
 
-    res.status(200).json({ success: true, message: 'AI 配置已保存' });
+    // 返回更新后的配置（mask apiKey）
+    const savedSettings = await NL2CMDService.getAISettings();
+    const masked = savedSettings
+      ? { ...savedSettings, apiKey: savedSettings.apiKey ? `${savedSettings.apiKey.substring(0, 8)}...` : '' }
+      : settings;
+
+    res.status(200).json({ success: true, settings: masked, message: 'AI 配置已保存' });
   } catch (error: unknown) {
     logger.error('[NL2CMD Controller] 保存 AI 配置失败:', error);
     res.status(500).json({ success: false, error: '保存 AI 配置失败', code: 'INTERNAL_ERROR' });

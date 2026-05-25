@@ -223,7 +223,7 @@
       <!-- 自定义请求体参数 -->
       <div>
         <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-foreground">自定义请求体参数</label>
+          <label class="text-sm font-medium text-foreground">自定义请求体</label>
           <button
             type="button"
             @click="addBodyRow"
@@ -463,10 +463,13 @@ function syncHeadersFromSettings() {
 // 将 headerList 同步回 extraHeaders 对象（根据每行的 action 决定操作）
 function syncHeadersToSettings() {
   const headers = new Map<string, string>();
-  // 先加载已有配置
-  const existing = localSettings.value.extraHeaders || {};
-  for (const [k, v] of Object.entries(existing)) {
-    headers.set(k, v);
+  // 仅当存在重命名/删除操作时才加载已有配置（用于查找旧 key）
+  const hasNonAdd = headerList.value.some((item) => item.action !== 'add');
+  if (hasNonAdd) {
+    const existing = localSettings.value.extraHeaders || {};
+    for (const [k, v] of Object.entries(existing)) {
+      headers.set(k, v);
+    }
   }
   // 按行处理 action
   for (const item of headerList.value) {
@@ -477,7 +480,6 @@ function syncHeadersToSettings() {
         headers.set(k, item.value);
         break;
       case 'rename': {
-        // 重命名：找到旧 key，删除旧的，用新 key + 旧 value 添加
         const oldValue = headers.get(k);
         if (oldValue !== undefined) {
           headers.delete(k);

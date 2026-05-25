@@ -188,6 +188,15 @@ describe('NL2CMD Controller', () => {
 
     it('应该成功保存配置', async () => {
       vi.mocked(NL2CMDService.saveAISettings).mockResolvedValue();
+      vi.mocked(NL2CMDService.getAISettings).mockResolvedValue({
+        enabled: true,
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        apiKey: 'sk-test12345678',
+        model: 'gpt-4',
+        openaiEndpoint: '/chat/completions',
+        rateLimitEnabled: true,
+      });
 
       const req = createMockRequest({
         body: {
@@ -205,7 +214,9 @@ describe('NL2CMD Controller', () => {
 
       expect(NL2CMDService.saveAISettings).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'AI 配置已保存' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, message: 'AI 配置已保存' })
+      );
     });
   });
 
