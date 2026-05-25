@@ -67,7 +67,7 @@ export function useTelnetTerminal() {
     });
     resizeObserver.observe(options.container);
     // 保存引用以便清理
-    (window as Record<string, unknown>).__telnetResizeObserver = resizeObserver;
+    (window as unknown as Record<string, unknown>).__telnetResizeObserver = resizeObserver;
 
     // 连接 WebSocket
     connectWebSocket(options);
@@ -208,12 +208,12 @@ export function useTelnetTerminal() {
     }
 
     // 清理 ResizeObserver
-    const resizeObserver = (window as Record<string, unknown>).__telnetResizeObserver as
+    const resizeObserver = (window as unknown as Record<string, unknown>).__telnetResizeObserver as
       | ResizeObserver
       | undefined;
     if (resizeObserver) {
       resizeObserver.disconnect();
-      delete (window as Record<string, unknown>).__telnetResizeObserver;
+      delete (window as unknown as Record<string, unknown>).__telnetResizeObserver;
     }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
