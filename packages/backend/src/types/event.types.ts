@@ -37,6 +37,10 @@ export enum AppEventType {
   SshShellFailure = 'SSH_SHELL_FAILURE',
   SshDisconnect = 'SSH_DISCONNECT',
   SshSessionSuspended = 'SSH_SESSION_SUSPENDED',
+  // Telnet 事件
+  TelnetConnectSuccess = 'TELNET_CONNECT_SUCCESS',
+  TelnetConnectFailure = 'TELNET_CONNECT_FAILURE',
+  TelnetDisconnect = 'TELNET_DISCONNECT',
   // Passkey 事件
   PasskeyRegistered = 'PASSKEY_REGISTERED',
   PasskeyAuthSuccess = 'PASSKEY_AUTH_SUCCESS',
@@ -145,6 +149,26 @@ export interface EventPayloadMap {
   [AppEventType.SshShellFailure]: { userId?: number; details: { reason: string } };
   [AppEventType.SshDisconnect]: { userId?: number; details?: { reason?: string } };
   [AppEventType.SshSessionSuspended]: { userId?: number; details?: Record<string, unknown> };
+
+  // Telnet 事件
+  [AppEventType.TelnetConnectSuccess]: {
+    userId?: number;
+    details: { connectionId: number; connectionName?: string; sessionId: string; ip?: string };
+  };
+  [AppEventType.TelnetConnectFailure]: {
+    userId?: number;
+    details: { connectionId: number; connectionName?: string; ip?: string; reason: string };
+  };
+  [AppEventType.TelnetDisconnect]: {
+    userId?: number;
+    details: {
+      connectionId: number;
+      connectionName?: string;
+      sessionId: string;
+      ip?: string;
+      durationSeconds?: number;
+    };
+  };
 
   // 批量任务事件
   [AppEventType.BatchTaskCreated]: {

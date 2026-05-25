@@ -93,7 +93,7 @@ export const createConnectionsTableSQL = `
 CREATE TABLE IF NOT EXISTS connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NULL, -- 允许 name 为空
-    type TEXT NOT NULL CHECK(type IN ('SSH', 'RDP', 'VNC')) DEFAULT 'SSH',
+    type TEXT NOT NULL CHECK(type IN ('SSH', 'RDP', 'VNC', 'Telnet')) DEFAULT 'SSH',
     host TEXT NOT NULL,
     port INTEGER NOT NULL,
     username TEXT NOT NULL,
@@ -399,4 +399,74 @@ export const createEventLogsIndexesSQL = [
   `CREATE INDEX IF NOT EXISTS idx_event_logs_event_type ON event_logs(event_type);`,
   `CREATE INDEX IF NOT EXISTS idx_event_logs_created_at ON event_logs(created_at DESC);`,
   `CREATE INDEX IF NOT EXISTS idx_event_logs_user_id ON event_logs(user_id);`,
+];
+
+// ========== AI 审计模块 ==========
+
+// 审计报告表
+export const createAuditReportsTableSQL = `
+CREATE TABLE IF NOT EXISTS audit_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    report_type TEXT NOT NULL CHECK(report_type IN ('command_analysis', 'login_analysis', 'full_audit')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed', 'failed')),
+    time_range_start INTEGER NOT NULL,
+    time_range_end INTEGER NOT NULL,
+    summary TEXT NOT NULL DEFAULT '{}',
+    anomalies_json TEXT NULL,
+    ai_analysis TEXT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+`;
+
+// 审计报告索引
+export const createAuditReportsIndexesSQL = [
+  `CREATE INDEX IF NOT EXISTS idx_audit_reports_user ON audit_reports(user_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_reports_type_time ON audit_reports(report_type, created_at DESC);`,
+];
+
+// 异常检测记录表
+export const createAuditAnomaliesTableSQL = `
+CREATE TABLE IF NOT EXISTS audit_anomalies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id INTEGER NULL,
+    rule_id TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK(severity IN ('critical', 'high', 'medium', 'low', 'info')),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    evidence_json TEXT NULL,
+    detected_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (report_id) REFERENCES audit_reports(id) ON DELETE SET NULL
+);
+`;
+
+// 异常检测索引
+export const createAuditAnomaliesIndexesSQL = [
+  `CREATE INDEX IF NOT EXISTS idx_audit_anomalies_report ON audit_anomalies(report_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_anomalies_severity ON audit_anomalies(severity);`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_anomalies_detected ON audit_anomalies(detected_at DESC);`,
+];
+
+// AI 分析任务表
+export const createAiAuditTasksTableSQL = `
+CREATE TABLE IF NOT EXISTS ai_audit_tasks (
+    id TEXT PRIMARY KEY NOT NULL,
+    user_id INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+    report_type TEXT NOT NULL,
+    progress REAL NOT NULL DEFAULT 0,
+    result_json TEXT NULL,
+    error TEXT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+`;
+
+// AI 审计任务索引
+export const createAiAuditTasksIndexesSQL = [
+  `CREATE INDEX IF NOT EXISTS idx_ai_audit_tasks_user ON ai_audit_tasks(user_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_ai_audit_tasks_status ON ai_audit_tasks(status);`,
 ];

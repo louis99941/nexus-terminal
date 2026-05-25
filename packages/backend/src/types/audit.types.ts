@@ -55,6 +55,14 @@ export type AuditLogActionType =
   //   - SSH_SESSION_SUSPENDED: { userId?: number, username?: string, connectionId: number, connectionName?: string, sessionId: string, ip?: string }
   | 'SSH_SESSION_SUSPENDED'
 
+  // Telnet Actions (via WebSocket)
+  //   - TELNET_CONNECT_SUCCESS: { userId?: number, username?: string, connectionId: number, connectionName: string, sessionId: string, ip?: string }
+  | 'TELNET_CONNECT_SUCCESS'
+  //   - TELNET_CONNECT_FAILURE: { userId?: number, username?: string, connectionId: number, connectionName?: string, ip?: string, reason: string }
+  | 'TELNET_CONNECT_FAILURE'
+  //   - TELNET_DISCONNECT: { userId?: number, username?: string, connectionId: number, connectionName?: string, sessionId: string, ip?: string, durationSeconds?: number }
+  | 'TELNET_DISCONNECT'
+
   // File Transfer (SFTP / transfers)
   //   - FILE_UPLOAD:   { userId?: number, username?: string, connectionId?: number, sessionId?: string, path?: string, size?: number }
   | 'FILE_UPLOAD'

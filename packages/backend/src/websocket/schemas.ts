@@ -67,6 +67,39 @@ export const dockerGetStatsSchema = z.object({
   }),
 });
 
+// --- Telnet 基本操作 Schema ---
+
+export const telnetConnectSchema = z.object({
+  type: z.literal('telnet:connect'),
+  payload: z.object({
+    connectionId: z.number().int().positive(),
+  }),
+});
+
+export const telnetInputSchema = z.object({
+  type: z.literal('telnet:input'),
+  payload: z.object({
+    sessionId: z.string().min(1).max(128),
+    data: z.string().max(65536), // base64 编码的输入数据
+  }),
+});
+
+export const telnetResizeSchema = z.object({
+  type: z.literal('telnet:resize'),
+  payload: z.object({
+    sessionId: z.string().min(1).max(128),
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
+  }),
+});
+
+export const telnetDisconnectSchema = z.object({
+  type: z.literal('telnet:disconnect'),
+  payload: z.object({
+    sessionId: z.string().min(1).max(128),
+  }),
+});
+
 // --- SFTP 基本操作 Schema ---
 
 // 为每个 SFTP 操作定义专用 payload schema，替换原来的 z.any()
@@ -303,6 +336,12 @@ export const messageSchemaRegistry = {
   'ssh:input': sshInputSchema,
   'ssh:resize': sshResizeSchema,
   'ssh:exec_silent': sshExecSilentSchema,
+
+  // Telnet 基本操作
+  'telnet:connect': telnetConnectSchema,
+  'telnet:input': telnetInputSchema,
+  'telnet:resize': telnetResizeSchema,
+  'telnet:disconnect': telnetDisconnectSchema,
 
   // Docker 操作
   'docker:get_status': dockerGetStatusSchema,

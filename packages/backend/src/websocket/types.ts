@@ -13,6 +13,7 @@ export interface AuthenticatedWebSocket extends WebSocket {
   username?: string;
   sessionId?: string;
   isMultiplex?: boolean; // 是否为多路复用连接
+  clientIpAddress?: string; // 客户端 IP 地址
 }
 
 // 中心化的客户端状态接口 (统一版本)
@@ -33,6 +34,8 @@ export interface ClientState {
   isMarkedForSuspend?: boolean; // 标记此会话是否已被用户请求挂起（等待断开连接）
   suspendLogPath?: string; // 如果标记挂起，则存储日志路径 (基于原始 sessionId)
   transportWs?: AuthenticatedWebSocket; // 多路复用模式下指向共享的物理连接
+  /** Telnet 专用字段 - 通过动态属性扩展 */
+  [key: string]: unknown; // 允许 telnetService、telnetSessionId 等扩展字段
 }
 
 export interface PortInfo {

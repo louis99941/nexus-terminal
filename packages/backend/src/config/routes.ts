@@ -31,6 +31,7 @@ import passkeyRoutes from '../passkey/passkey.routes';
 import dashboardRoutes from '../services/dashboard.routes';
 import metricsRoutes from '../metrics/metrics.routes';
 import backupRoutes from '../backup/backup.routes';
+import { aiAuditRoutes } from '../ai-audit/ai-audit.routes';
 import { errorHandler, notFoundHandler } from '../middleware/error.middleware';
 import { requestLogger } from '../middleware/request-logger.middleware';
 
@@ -74,6 +75,7 @@ export const registerRoutes = (
   app.use('/api/v1/passkey', apiLimiter, passkeyRoutes);
   app.use('/api/v1/batch', apiLimiter, batchRoutes);
   app.use('/api/v1/ai', apiLimiter, aiRoutes);
+  app.use('/api/v1/ai-audit', apiLimiter, aiAuditRoutes);
   app.use('/api/v1/dashboard', apiLimiter, dashboardRoutes);
   app.use('/api/v1/backup', apiLimiter, backupRoutes);
 

@@ -59,6 +59,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'AuditLogs',
     component: () => import('../views/AuditLogView.vue'),
   },
+  // AI 审计分析页面
+  {
+    path: '/ai-audit',
+    name: 'AiAudit',
+    component: () => import('../views/AiAuditView.vue'),
+  },
   // 初始设置页面
   {
     path: '/setup',

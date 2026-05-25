@@ -77,7 +77,7 @@ function main() {
 
   // 解析 conventional commit 格式: <emoji> <type>(<scope>): <description>
   const match = commitMsg.match(
-    /^[\p{Emoji_Presentation}\p{Extended_Pictographic}️‍⃣\s]+\s+(\w+)(?:\(([^)]+)\))?!?:\s*(.+)$/u,
+    /^[\p{Emoji_Presentation}\p{Extended_Pictographic}️‍⃣\s]+\s+(\w+)(?:\(([^)]+)\))?!?:\s*(.+)$/u
   );
   const type = match ? match[1] : 'chore';
   const scope = match ? match[2] : '';
