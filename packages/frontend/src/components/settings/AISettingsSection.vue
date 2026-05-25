@@ -528,9 +528,13 @@ function syncBodyFromSettings() {
 
 function syncBodyToSettings() {
   const body = new Map<string, unknown>();
-  const existing = localSettings.value.extraBody || {};
-  for (const [k, v] of Object.entries(existing)) {
-    body.set(k, v);
+  // 仅当存在重命名/删除操作时才加载已有配置（用于查找旧 key）
+  const hasNonAdd = bodyList.value.some((item) => item.action !== 'add');
+  if (hasNonAdd) {
+    const existing = localSettings.value.extraBody || {};
+    for (const [k, v] of Object.entries(existing)) {
+      body.set(k, v);
+    }
   }
   for (const item of bodyList.value) {
     const k = item.key.trim();
@@ -681,6 +685,11 @@ async function handleSave() {
 
     syncHeadersToSettings();
     syncBodyToSettings();
+    console.log('[AI Settings] handleSave:', {
+      hasExtraHeaders: !!localSettings.value.extraHeaders,
+      hasExtraBody: !!localSettings.value.extraBody,
+      extraBody: localSettings.value.extraBody,
+    });
     await aiSettingsStore.saveSettings(localSettings.value);
     setStatus('AI 配置已保存', true);
   } catch (error: unknown) {

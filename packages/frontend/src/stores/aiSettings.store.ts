@@ -57,6 +57,12 @@ export const useAISettingsStore = defineStore('aiSettings', () => {
   async function saveSettings(newSettings: AISettings): Promise<void> {
     isLoading.value = true;
     try {
+      log.info('[AI Settings Store] Saving:', {
+        hasExtraHeaders: !!newSettings.extraHeaders,
+        extraHeadersKeys: newSettings.extraHeaders ? Object.keys(newSettings.extraHeaders) : [],
+        hasExtraBody: !!newSettings.extraBody,
+        extraBodyKeys: newSettings.extraBody ? Object.keys(newSettings.extraBody) : [],
+      });
       const response = await apiClient.post<{
         success: boolean;
         settings?: AISettings;
