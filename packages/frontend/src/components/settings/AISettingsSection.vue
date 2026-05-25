@@ -134,31 +134,13 @@
       <div>
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-foreground">自定义请求头</label>
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              @click="addHeader"
-              class="px-2 py-1 text-xs text-primary hover:text-primary/80 hover:bg-primary/5 rounded cursor-pointer transition-colors"
-            >
-              + 新增
-            </button>
-            <button
-              type="button"
-              @click="overrideHeader"
-              :disabled="headerList.length === 0"
-              class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              覆盖
-            </button>
-            <button
-              type="button"
-              @click="clearAllHeaders"
-              :disabled="headerList.length === 0"
-              class="px-2 py-1 text-xs text-muted-foreground hover:text-error hover:bg-error/5 rounded cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              删除
-            </button>
-          </div>
+          <button
+            type="button"
+            @click="addHeaderRow"
+            class="text-xs text-primary hover:text-primary/80 cursor-pointer"
+          >
+            + 新增一行
+          </button>
         </div>
         <p class="text-xs text-muted-foreground mt-1 mb-3">
           为 API 请求添加自定义 Header，用于兼容不同 Provider 的特殊要求（如 Mistral 的 <code>max_tokens</code> 参数）
@@ -169,16 +151,39 @@
           v-if="!headerList.length"
           class="text-xs text-muted-foreground py-3 px-4 bg-muted/30 rounded-md border border-border/50 text-center"
         >
-          暂无自定义请求头，点击「+ 新增」添加
+          暂无自定义请求头，点击「+ 新增一行」添加
+        </div>
+
+        <!-- 表头 -->
+        <div v-if="headerList.length" class="flex items-center gap-2 mb-1 px-1">
+          <span class="w-24 text-xs text-muted-foreground font-medium">选项</span>
+          <span class="flex-1 text-xs text-muted-foreground font-medium">Header 名称</span>
+          <span class="flex-1 text-xs text-muted-foreground font-medium">Header 值</span>
+          <span class="w-7"></span>
         </div>
 
         <!-- Header 列表 -->
-        <div v-else class="space-y-2">
+        <div v-if="headerList.length" class="space-y-2">
           <div
             v-for="(item, index) in headerList"
             :key="index"
             class="flex items-center gap-2"
           >
+            <!-- 选项下拉框：新增 / 覆盖 / 删除 -->
+            <select
+              v-model="item.action"
+              class="w-24 px-2 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none cursor-pointer"
+              style="
+                background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e&quot;);
+                background-position: right 0.35rem center;
+                background-size: 12px 9px;
+                padding-right: 1.5rem;
+              "
+            >
+              <option value="add">新增</option>
+              <option value="override">覆盖</option>
+              <option value="delete">删除</option>
+            </select>
             <input
               v-model="item.key"
               placeholder="Header 名称"
@@ -187,22 +192,25 @@
             <input
               v-model="item.value"
               placeholder="Header 值"
-              class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono"
+              :disabled="item.action === 'delete'"
+              class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono disabled:opacity-40 disabled:cursor-not-allowed"
             />
             <button
               type="button"
-              @click="removeHeader(index)"
+              @click="removeHeaderRow(index)"
               class="shrink-0 w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-error rounded-md hover:bg-error/10 transition-colors cursor-pointer"
-              title="删除此条"
+              title="移除此行"
             >
               ×
             </button>
           </div>
         </div>
 
-        <!-- 覆盖操作提示 -->
+        <!-- 操作说明 -->
         <p v-if="headerList.length > 0" class="text-xs text-muted-foreground mt-2">
-          提示：直接编辑输入框即可修改已有 Header（覆盖模式），点击「×」可单独删除某条
+          · <strong>新增</strong>：添加新的 Header（同名会自动覆盖旧值）<br/>
+          · <strong>覆盖</strong>：修改已有 Header 的值（按名称匹配）<br/>
+          · <strong>删除</strong>：移除指定的 Header
         </p>
       </div>
 
@@ -345,53 +353,57 @@ const statusMessage = ref('');
 const statusSuccess = ref(false);
 
 // 自定义请求头列表（从 extraHeaders Record 转换为可编辑数组）
-const headerList = ref<Array<{ key: string; value: string }>>([]);
+type HeaderAction = 'add' | 'override' | 'delete';
+const headerList = ref<Array<{ action: HeaderAction; key: string; value: string }>>([]);
 
 // 将 extraHeaders 对象同步到 headerList
 function syncHeadersFromSettings() {
   const headers = localSettings.value.extraHeaders || {};
-  headerList.value = Object.entries(headers).map(([key, value]) => ({ key, value }));
+  headerList.value = Object.entries(headers).map(([key, value]) => ({
+    action: 'add' as HeaderAction,
+    key,
+    value,
+  }));
 }
 
-// 将 headerList 同步回 extraHeaders 对象（自动合并重复 key，后者覆盖前者）
+// 将 headerList 同步回 extraHeaders 对象（根据每行的 action 决定操作）
 function syncHeadersToSettings() {
-  const deduplicated = deduplicateHeaders();
-  // 回写去重结果到 headerList
-  headerList.value = deduplicated;
-  const headers: Record<string, string> = {};
-  for (const item of deduplicated) {
-    headers[item.key] = item.value;
+  const headers = new Map<string, string>();
+  // 先加载已有配置
+  const existing = localSettings.value.extraHeaders || {};
+  for (const [k, v] of Object.entries(existing)) {
+    headers.set(k, v);
   }
-  localSettings.value.extraHeaders = Object.keys(headers).length > 0 ? headers : undefined;
-}
-
-function addHeader() {
-  headerList.value.push({ key: '', value: '' });
-}
-
-function overrideHeader() {
-  // 覆盖模式：新增一条，若后续填写的 key 与已有重复则自动覆盖旧值
-  headerList.value.push({ key: '', value: '' });
-}
-
-function clearAllHeaders() {
-  headerList.value = [];
-}
-
-function removeHeader(index: number) {
-  headerList.value.splice(index, 1);
-}
-
-// 同步前合并重复 key（后者覆盖前者）
-function deduplicateHeaders(): Array<{ key: string; value: string }> {
-  const map = new Map<string, string>();
+  // 按行处理 action
   for (const item of headerList.value) {
     const k = item.key.trim();
-    if (k) {
-      map.set(k, item.value);
+    if (!k) continue;
+    switch (item.action) {
+      case 'add':
+      case 'override':
+        headers.set(k, item.value);
+        break;
+      case 'delete':
+        headers.delete(k);
+        break;
     }
   }
-  return Array.from(map.entries()).map(([key, value]) => ({ key, value }));
+  const result = Object.fromEntries(headers);
+  localSettings.value.extraHeaders = Object.keys(result).length > 0 ? result : undefined;
+  // 回写去重后的列表
+  headerList.value = Array.from(headers.entries()).map(([key, value]) => ({
+    action: 'add' as HeaderAction,
+    key,
+    value,
+  }));
+}
+
+function addHeaderRow() {
+  headerList.value.push({ action: 'add', key: '', value: '' });
+}
+
+function removeHeaderRow(index: number) {
+  headerList.value.splice(index, 1);
 }
 
 // 设置状态消息并自动清除
