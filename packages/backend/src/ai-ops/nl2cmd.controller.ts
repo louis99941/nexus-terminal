@@ -190,6 +190,11 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
         : undefined,
     };
 
+    logger.info('[NL2CMD] Saving AI settings:', {
+      hasExtraHeaders: !!extraHeaders,
+      hasExtraBody: !!extraBody,
+      extraBodyKeys: extraBody && typeof extraBody === 'object' ? Object.keys(extraBody) : [],
+    });
     await NL2CMDService.saveAISettings(settings);
 
     // 清除旧的 Axios 客户端缓存（如果有配置变更）
