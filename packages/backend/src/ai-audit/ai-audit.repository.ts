@@ -221,9 +221,9 @@ export class AiAuditRepository {
   }
 
   /**
-   * 获取异常统计
+   * 获取异常统计（按用户过滤）
    */
-  async getAnomalyStats(): Promise<{
+  async getAnomalyStats(userId: number): Promise<{
     total: number;
     bySeverity: Record<string, number>;
     recentCount: number;
@@ -232,19 +232,28 @@ export class AiAuditRepository {
 
     const totalRow = await getDbRow<{ count: number }>(
       db,
-      'SELECT COUNT(*) as count FROM audit_anomalies'
+      `SELECT COUNT(*) as count FROM audit_anomalies a
+       JOIN audit_reports r ON a.report_id = r.id
+       WHERE r.user_id = ?`,
+      [userId]
     );
 
     const bySeverityRows = await allDb<{ severity: string; count: number }>(
       db,
-      'SELECT severity, COUNT(*) as count FROM audit_anomalies GROUP BY severity'
+      `SELECT a.severity, COUNT(*) as count FROM audit_anomalies a
+       JOIN audit_reports r ON a.report_id = r.id
+       WHERE r.user_id = ?
+       GROUP BY a.severity`,
+      [userId]
     );
 
     const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
     const recentRow = await getDbRow<{ count: number }>(
       db,
-      'SELECT COUNT(*) as count FROM audit_anomalies WHERE detected_at >= ?',
-      [oneDayAgo]
+      `SELECT COUNT(*) as count FROM audit_anomalies a
+       JOIN audit_reports r ON a.report_id = r.id
+       WHERE r.user_id = ? AND a.detected_at >= ?`,
+      [userId, oneDayAgo]
     );
 
     const severityMap: Record<string, number> = {};

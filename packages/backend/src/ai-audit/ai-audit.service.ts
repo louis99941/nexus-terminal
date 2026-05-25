@@ -261,10 +261,10 @@ export class AiAuditService {
   }
 
   /**
-   * 获取异常统计
+   * 获取异常统计（按用户过滤）
    */
-  async getAnomalyStats(): Promise<AnomalyStats> {
-    const stats = await this.repository.getAnomalyStats();
+  async getAnomalyStats(userId: number): Promise<AnomalyStats> {
+    const stats = await this.repository.getAnomalyStats(userId);
     return {
       total: stats.total,
       bySeverity: stats.bySeverity as Record<string, number>,

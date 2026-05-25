@@ -144,12 +144,18 @@ export class AiAuditController {
   }
 
   /**
-   * 获取异常统计
+   * 获取异常统计（按用户过滤）
    * GET /api/v1/ai-audit/anomalies/stats
    */
-  async getAnomalyStats(_req: Request, res: Response): Promise<void> {
+  async getAnomalyStats(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await this.service.getAnomalyStats();
+      const userId = this.getUserId(req);
+      if (!userId) {
+        res.status(401).json({ error: '未授权' });
+        return;
+      }
+
+      const stats = await this.service.getAnomalyStats(userId);
       res.json(stats);
     } catch (err) {
       logger.error({ error: err }, '获取异常统计失败');

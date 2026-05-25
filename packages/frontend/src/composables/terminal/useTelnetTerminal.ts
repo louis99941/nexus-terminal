@@ -169,8 +169,10 @@ export function useTelnetTerminal() {
       return;
     }
 
-    // base64 编码
-    const encoded = btoa(data);
+    // UTF-8 编码后 base64（支持中文/日文等 Unicode 字符）
+    const encoder = new TextEncoder();
+    const uint8Array = encoder.encode(data);
+    const encoded = btoa(String.fromCharCode(...uint8Array));
     ws.send(
       JSON.stringify({
         type: 'telnet:input',
