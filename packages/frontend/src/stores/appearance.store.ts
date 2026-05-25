@@ -24,6 +24,9 @@ import { createBackgroundStore, safeJsonParse } from './appearance-background.st
 import { createHtmlPresetsStore } from './appearance-html-presets.store';
 import { log } from '@/utils/log';
 
+// 终端渲染模式类型（内联定义，避免循环依赖）
+export type RenderMode = 'auto' | 'webgl' | 'canvas' | 'dom';
+
 // 重新导出 safeJsonParse 供外部使用（如 StyleCustomizerUiTab.vue）
 export { safeJsonParse };
 
@@ -37,6 +40,10 @@ export const useAppearanceStore = defineStore('appearance', () => {
   const appearanceSettings = ref<Partial<AppearanceSettings>>({});
   const initialAppearanceDataLoaded = ref(false);
   const allTerminalThemes = ref<TerminalTheme[]>([]);
+
+  // --- 渲染与性能状态 ---
+  const terminalRenderMode = ref<RenderMode>('auto');
+  const terminalShowFps = ref(false);
 
   // --- 内部 updateAppearanceSettings（供子 Store 调用） ---
   async function _updateAppearanceSettings(updates: Record<string, unknown>) {
@@ -88,6 +95,14 @@ export const useAppearanceStore = defineStore('appearance', () => {
     return typeof size === 'number' && size > 0 ? size : 14;
   });
 
+  // --- 渲染模式与 FPS ---
+  const VALID_RENDER_MODES: RenderMode[] = ['auto', 'webgl', 'canvas', 'dom'];
+  const isRenderMode = (value: unknown): value is RenderMode =>
+    typeof value === 'string' && VALID_RENDER_MODES.includes(value as RenderMode);
+
+  const currentRenderMode = computed<RenderMode>(() => terminalRenderMode.value);
+  const isFpsEnabled = computed<boolean>(() => terminalShowFps.value);
+
   // --- 核心 Action: 加载所有外观数据 ---
   async function loadInitialAppearanceData() {
     isLoading.value = true;
@@ -100,6 +115,17 @@ export const useAppearanceStore = defineStore('appearance', () => {
       appearanceSettings.value = settingsResponse.data;
       allTerminalThemes.value = themesResponse.data;
       initialAppearanceDataLoaded.value = true;
+
+      // 从后端加载渲染模式与 FPS 设置（带白名单校验）
+      const settings = settingsResponse.data;
+      if (isRenderMode(settings.terminalRenderMode)) {
+        terminalRenderMode.value = settings.terminalRenderMode;
+      } else if (settings.terminalRenderMode) {
+        log.warn('[AppearanceStore] 非法渲染模式值，回退到 auto:', settings.terminalRenderMode);
+      }
+      if (settings.terminalShowFps !== undefined) {
+        terminalShowFps.value = String(settings.terminalShowFps) === 'true';
+      }
 
       // 初始化远程预设 URL
       htmlPresetsStore.initRemoteUrl();
@@ -128,6 +154,36 @@ export const useAppearanceStore = defineStore('appearance', () => {
     } catch (err: unknown) {
       log.error('更新外观设置失败:', err);
       throw new Error(extractErrorMessage(err, '更新外观设置失败'));
+    }
+  }
+
+  // --- 渲染模式 Action ---
+  async function setRenderMode(mode: RenderMode) {
+    const prevMode = terminalRenderMode.value;
+    terminalRenderMode.value = mode;
+    try {
+      await updateAppearanceSettings({ terminalRenderMode: mode } as UpdateAppearanceDto);
+      log.info('[AppearanceStore] 终端渲染模式已切换:', mode);
+    } catch (err: unknown) {
+      // 回滚本地状态
+      terminalRenderMode.value = prevMode;
+      log.error('[AppearanceStore] 渲染模式切换失败，已回滚:', err);
+    }
+  }
+
+  // --- FPS 显示 Action ---
+  async function toggleFps() {
+    const prevValue = terminalShowFps.value;
+    terminalShowFps.value = !terminalShowFps.value;
+    try {
+      await updateAppearanceSettings({
+        terminalShowFps: terminalShowFps.value,
+      } as UpdateAppearanceDto);
+      log.info('[AppearanceStore] FPS 显示已切换:', terminalShowFps.value);
+    } catch (err: unknown) {
+      // 回滚本地状态
+      terminalShowFps.value = prevValue;
+      log.error('[AppearanceStore] FPS 显示切换失败，已回滚:', err);
     }
   }
 
@@ -160,6 +216,12 @@ export const useAppearanceStore = defineStore('appearance', () => {
     loadInitialAppearanceData,
     updateAppearanceSettings,
     toggleStyleCustomizer,
+
+    // 渲染模式与 FPS
+    currentRenderMode,
+    isFpsEnabled,
+    setRenderMode,
+    toggleFps,
 
     // 终端主题（来自 themeStore）
     isPreviewingTerminalTheme: themeStore.isPreviewingTerminalTheme,

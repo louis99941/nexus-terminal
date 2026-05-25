@@ -113,6 +113,12 @@ const mapRowsToAppearanceSettings = (rows: DbAppearanceSettingsRow[]): Appearanc
         settings.terminalTextShadowColor = row.value;
         terminalTextShadowColorFound = true;
         break;
+      case 'terminalRenderMode':
+        settings.terminalRenderMode = row.value;
+        break;
+      case 'terminalShowFps':
+        settings.terminalShowFps = row.value === 'true';
+        break;
     }
   }
 
@@ -194,6 +200,8 @@ const getDefaultAppearanceSettings = (): Omit<AppearanceSettings, '_id'> => {
     terminalTextShadowOffsetY: 2,
     terminalTextShadowBlur: 0,
     terminalTextShadowColor: '#000000',
+    terminalRenderMode: 'auto', // 默认渲染模式
+    terminalShowFps: false, // 默认关闭 FPS 显示
     updatedAt: Date.now(), // 提供默认时间戳
   };
 };
@@ -235,6 +243,8 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
     { key: 'terminalTextShadowOffsetY', value: defaults.terminalTextShadowOffsetY },
     { key: 'terminalTextShadowBlur', value: defaults.terminalTextShadowBlur },
     { key: 'terminalTextShadowColor', value: defaults.terminalTextShadowColor },
+    { key: 'terminalRenderMode', value: defaults.terminalRenderMode },
+    { key: 'terminalShowFps', value: defaults.terminalShowFps },
   ];
 
   try {

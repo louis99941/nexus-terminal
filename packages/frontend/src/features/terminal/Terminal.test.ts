@@ -113,6 +113,8 @@ const {
     terminalTextShadowBlur: { value: 0, __v_isRef: true as const },
     terminalTextShadowColor: { value: '#000', __v_isRef: true as const },
     initialAppearanceDataLoaded: { value: true, __v_isRef: true as const },
+    currentRenderMode: { value: 'auto', __v_isRef: true as const },
+    isFpsEnabled: { value: false, __v_isRef: true as const },
   },
   mockSettingsState: {
     autoCopyOnSelectBoolean: { value: false, __v_isRef: true as const },
@@ -139,6 +141,32 @@ vi.mock('../../composables/terminal/useTerminalFit', () => ({
     fitAndEmitResizeNow: mockFitAndEmitResizeNow,
     setupResizeObserver: mockSetupResizeObserver,
   }),
+}));
+
+vi.mock('../../composables/terminal/useTerminalRenderer', () => ({
+  useTerminalRenderer: () => ({
+    renderMode: { value: 'auto', __v_isRef: true as const },
+    fps: { value: 0, __v_isRef: true as const },
+    contextState: { value: 'active', __v_isRef: true as const },
+    contextLossCount: { value: 0, __v_isRef: true as const },
+    frameTime: { value: 0, __v_isRef: true as const },
+    setRenderMode: vi.fn(),
+    initRenderer: vi.fn(),
+    startMonitoring: vi.fn(),
+    stopMonitoring: vi.fn(),
+    getMetrics: vi.fn().mockReturnValue({
+      renderMode: 'auto',
+      activeRenderer: 'webgl',
+      fps: 0,
+      frameTime: 0,
+      contextState: 'active',
+      contextLossCount: 0,
+    }),
+  }),
+}));
+
+vi.mock('./components/PerformanceMonitor.vue', () => ({
+  default: { name: 'PerformanceMonitor', template: '<div />' },
 }));
 
 vi.mock('../../composables/terminal/useTerminalSocket', () => ({

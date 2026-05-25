@@ -18,7 +18,6 @@ import { useSessionStore } from '../../stores/session.store';
 import { storeToRefs } from 'pinia';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { SearchAddon, type ISearchOptions } from '@xterm/addon-search';
-import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
 import {
   useWorkspaceEventEmitter,
@@ -35,7 +34,9 @@ const { t } = useI18n();
 // Import extracted composables
 import { useTerminalFit } from '../../composables/terminal/useTerminalFit';
 import { useTerminalSocket } from '../../composables/terminal/useTerminalSocket';
+import { useTerminalRenderer } from '../../composables/terminal/useTerminalRenderer';
 import { OutputEnhancerAddon } from './addons/output-enhancer';
+import PerformanceMonitor from './components/PerformanceMonitor.vue';
 import { log } from '@/utils/log';
 
 // 定义 props 和 emits
@@ -57,7 +58,6 @@ const textareaKeydownHandler = ref<((event: KeyboardEvent) => void) | null>(null
 let searchAddon: SearchAddon | null = null;
 let outputEnhancerAddon: OutputEnhancerAddon | null = null;
 let selectionListenerDisposable: IDisposable | null = null;
-let webglAddonInstance: WebglAddon | null = null; // 保存 WebGL addon 引用以便检查状态
 
 const isActiveRef = ref(props.isActive);
 watch(
@@ -87,6 +87,14 @@ const { fitAddon, fitAndEmitResizeNow, setupResizeObserver } = useTerminalFit(
 
 const { setupInputHandler } = useTerminalSocket(terminalInstance, props.sessionId, streamRef);
 
+const { contextState, setRenderMode, initRenderer, startMonitoring, stopMonitoring, getMetrics } =
+  useTerminalRenderer(terminalInstance, props.sessionId);
+
+// 性能监控面板显示状态 — 由 appearance store 的 isFpsEnabled 驱动
+const togglePerformanceMonitor = () => {
+  appearanceStore.toggleFps();
+};
+
 let initialPinchDistance = 0;
 let currentFontSizeOnPinchStart = 0;
 
@@ -105,6 +113,8 @@ const {
   terminalTextShadowBlur,
   terminalTextShadowColor,
   initialAppearanceDataLoaded,
+  currentRenderMode,
+  isFpsEnabled,
 } = storeToRefs(appearanceStore);
 
 const isTerminalDomReady = ref(false);
@@ -373,27 +383,15 @@ onMounted(() => {
       outputEnhancerAddon = null; // 降级：不使用输出增强功能
     }
 
-    try {
-      webglAddonInstance = new WebglAddon();
-      webglAddonInstance.onContextLoss(() => {
-        log.warn(`[Terminal ${props.sessionId}] WebGL context lost. Falling back to DOM renderer.`);
-        if (webglAddonInstance) {
-          webglAddonInstance.dispose();
-          webglAddonInstance = null; // 清除引用，标记上下文已丢失
-        }
-      });
-      term.loadAddon(webglAddonInstance);
-      log.info(`[Terminal ${props.sessionId}] WebGL renderer enabled.`);
-    } catch (error: unknown) {
-      log.warn(
-        `[Terminal ${props.sessionId}] WebGL addon failed to load, falling back to canvas/dom renderer:`,
-        error
-      );
-      webglAddonInstance = null;
-    }
+    // 使用 composable 初始化渲染器（自动选择 WebGL/Canvas/DOM）
+    initRenderer();
 
     term.open(terminalRef.value);
     isTerminalDomReady.value = true;
+    // 仅在用户启用 FPS 显示时启动采样，避免无用 RAF 循环
+    if (isFpsEnabled.value) {
+      startMonitoring();
+    }
     log.info(`[Terminal ${props.sessionId}] Xterm open() called.`);
 
     applyTerminalWrapMode();
@@ -446,11 +444,11 @@ onMounted(() => {
             term.options.theme = newTheme;
             // 只有当 WebGL 渲染器可用且上下文未丢失时才手动刷新
             // 否则让 xterm 自己处理重绘（Canvas/DOM 渲染器）
-            if (webglAddonInstance) {
-              // WebGL 渲染器存在，使用 nextTick 延迟刷新以确保状态稳定
+            if (contextState.value === 'active') {
+              // WebGL 渲染器活跃，使用 nextTick 延迟刷新以确保状态稳定
               nextTick(() => {
                 try {
-                  if (term && webglAddonInstance) {
+                  if (term && contextState.value === 'active') {
                     term.refresh(0, term.rows - 1);
                   }
                 } catch (refreshError: unknown) {
@@ -458,15 +456,6 @@ onMounted(() => {
                     `[Terminal ${props.sessionId}] WebGL refresh failed, WebGL context may be lost:`,
                     refreshError
                   );
-                  // WebGL 上下文可能已丢失，清理引用
-                  if (webglAddonInstance) {
-                    try {
-                      webglAddonInstance.dispose();
-                    } catch {
-                      // 忽略 dispose 错误
-                    }
-                    webglAddonInstance = null;
-                  }
                 }
               });
             }
@@ -563,6 +552,21 @@ onMounted(() => {
       applyTerminalWrapMode();
     });
 
+    // --- 渲染模式响应：外观设置变化时切换渲染器 ---
+    watch(currentRenderMode, (newMode) => {
+      setRenderMode(newMode);
+      log.info(`[Terminal ${props.sessionId}] 渲染模式已切换为: ${newMode}`);
+    });
+
+    // --- FPS 监控响应：设置变化时启停采样 ---
+    watch(isFpsEnabled, (enabled) => {
+      if (enabled) {
+        startMonitoring();
+      } else {
+        stopMonitoring();
+      }
+    });
+
     // --- Wheel Zoom ---
     if (terminalRef.value) {
       terminalRef.value.addEventListener('wheel', handleWheelZoom);
@@ -579,15 +583,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  // 先清理 WebGL addon（在 terminal dispose 之前）
-  if (webglAddonInstance) {
-    try {
-      webglAddonInstance.dispose();
-    } catch {
-      // 忽略 dispose 错误
-    }
-    webglAddonInstance = null;
-  }
+  // 停止 FPS 监控（composable 内部也会通过 onBeforeUnmount 清理 WebGL addon）
+  stopMonitoring();
 
   // 清理 textarea keydown 监听器（dispose 前执行，因为 dispose 后 textarea 引用丢失）
   if (textareaKeydownHandler.value && terminalInstance.value?.textarea) {
@@ -720,6 +717,7 @@ watchEffect(() => {
     aria-live="polite"
   >
     <div ref="terminalRef" class="terminal-inner-container"></div>
+    <PerformanceMonitor :metrics="getMetrics()" :visible="isFpsEnabled" />
   </div>
 </template>
 

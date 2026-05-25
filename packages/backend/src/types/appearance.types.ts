@@ -38,6 +38,8 @@ export interface AppearanceSettings {
   terminalTextShadowOffsetY?: number;
   terminalTextShadowBlur?: number;
   terminalTextShadowColor?: string;
+  terminalRenderMode?: string; // 终端渲染模式：auto/webgl/canvas/dom
+  terminalShowFps?: boolean; // 是否显示 FPS 监控
   updatedAt?: number;
 }
 
