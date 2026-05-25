@@ -17,10 +17,6 @@ export interface AIProviderConfig {
   model: string;
   // OpenAI 特有配置
   openaiEndpoint?: OpenAIEndpoint;
-  // 自定义请求头（用于兼容不同 Provider 的特殊要求）
-  extraHeaders?: Record<string, string>;
-  // 自定义请求体参数（用于覆盖或新增请求体字段）
-  extraBody?: Record<string, unknown>;
 }
 
 // NL2CMD 请求
@@ -50,7 +46,6 @@ export interface OpenAIChatRequest {
   }>;
   temperature?: number;
   max_tokens?: number;
-  max_completion_tokens?: number;
   stream?: boolean; // 流式响应开关
   stream_options?: { include_usage: boolean }; // 流式响应时返回 token 用量
   response_format?: { type: 'json_object' }; // 结构化输出
@@ -147,6 +142,4 @@ export interface AISettings {
   model: string;
   openaiEndpoint?: OpenAIEndpoint;
   rateLimitEnabled?: boolean; // 是否启用速率限制（默认 true）
-  extraHeaders?: Record<string, string>; // 自定义请求头（用于兼容不同 Provider 的特殊要求）
-  extraBody?: Record<string, unknown>; // 自定义请求体参数（用于覆盖或新增请求体字段）
 }

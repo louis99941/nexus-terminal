@@ -135,7 +135,7 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  const { enabled, provider, baseUrl, apiKey, model, openaiEndpoint, rateLimitEnabled, extraHeaders, extraBody } = req.body;
+  const { enabled, provider, baseUrl, apiKey, model, openaiEndpoint, rateLimitEnabled } = req.body;
 
   // 参数验证
   if (typeof enabled !== 'boolean') {
@@ -182,19 +182,8 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
       model,
       openaiEndpoint: provider === 'openai' ? openaiEndpoint || '/chat/completions' : undefined,
       rateLimitEnabled: rateLimitEnabled !== false,
-      extraHeaders: extraHeaders && typeof extraHeaders === 'object' && !Array.isArray(extraHeaders)
-        ? extraHeaders as Record<string, string>
-        : undefined,
-      extraBody: extraBody && typeof extraBody === 'object' && !Array.isArray(extraBody)
-        ? extraBody as Record<string, unknown>
-        : undefined,
     };
 
-    logger.info('[NL2CMD] Saving AI settings:', {
-      hasExtraHeaders: !!extraHeaders,
-      hasExtraBody: !!extraBody,
-      extraBodyKeys: extraBody && typeof extraBody === 'object' ? Object.keys(extraBody) : [],
-    });
     await NL2CMDService.saveAISettings(settings);
 
     // 清除旧的 Axios 客户端缓存（如果有配置变更）
@@ -303,7 +292,7 @@ export const testAIConnection = async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  const { provider, baseUrl, apiKey, model, openaiEndpoint, extraHeaders, extraBody } = req.body;
+  const { provider, baseUrl, apiKey, model, openaiEndpoint } = req.body;
   const traceId = createTraceId();
   const start = Date.now();
   res.setHeader('x-request-id', traceId);
@@ -349,12 +338,6 @@ export const testAIConnection = async (req: Request, res: Response): Promise<voi
       apiKey: finalApiKey,
       model,
       openaiEndpoint: provider === 'openai' ? openaiEndpoint || '/chat/completions' : undefined,
-      extraHeaders: extraHeaders && typeof extraHeaders === 'object' && !Array.isArray(extraHeaders)
-        ? extraHeaders as Record<string, string>
-        : undefined,
-      extraBody: extraBody && typeof extraBody === 'object' && !Array.isArray(extraBody)
-        ? extraBody as Record<string, unknown>
-        : undefined,
     };
 
     const success = await NL2CMDService.testAIConnection(config, traceId);

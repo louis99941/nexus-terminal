@@ -136,7 +136,7 @@ describe('AI Settings Store', () => {
         model: 'gpt-4',
       });
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ success: true });
       expect(apiClient.post).toHaveBeenCalledWith('/ai/test', expect.any(Object), {
         timeout: AI_REQUEST_TIMEOUT_MS,
       });
@@ -154,7 +154,7 @@ describe('AI Settings Store', () => {
         model: 'model',
       });
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ success: false, errorDetail: 'Error: Connection failed' });
     });
 
     it('应该在测试期间设置 isTesting 状态', async () => {

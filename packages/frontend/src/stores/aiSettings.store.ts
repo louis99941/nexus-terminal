@@ -57,12 +57,6 @@ export const useAISettingsStore = defineStore('aiSettings', () => {
   async function saveSettings(newSettings: AISettings): Promise<void> {
     isLoading.value = true;
     try {
-      log.info('[AI Settings Store] Saving:', {
-        hasExtraHeaders: !!newSettings.extraHeaders,
-        extraHeadersKeys: newSettings.extraHeaders ? Object.keys(newSettings.extraHeaders) : [],
-        hasExtraBody: !!newSettings.extraBody,
-        extraBodyKeys: newSettings.extraBody ? Object.keys(newSettings.extraBody) : [],
-      });
       const response = await apiClient.post<{
         success: boolean;
         settings?: AISettings;
@@ -84,16 +78,19 @@ export const useAISettingsStore = defineStore('aiSettings', () => {
   /**
    * 测试 AI 连接
    */
-  async function testConnection(testSettings: AISettings): Promise<boolean> {
+  async function testConnection(testSettings: AISettings): Promise<{ success: boolean; errorDetail?: string }> {
     isTesting.value = true;
     try {
       const response = await apiClient.post<AITestResponse>('/ai/test', testSettings, {
         timeout: AI_REQUEST_TIMEOUT_MS,
       });
-      return response.data.success;
+      return { success: response.data.success };
     } catch (error: unknown) {
       log.error('[AI Settings Store] 测试连接失败:', error);
-      return false;
+      // 提取后端返回的错误详情
+      const axiosError = error as { response?: { data?: { error?: string; detail?: string } } };
+      const detail = axiosError?.response?.data?.error || axiosError?.response?.data?.detail || String(error);
+      return { success: false, errorDetail: detail };
     } finally {
       isTesting.value = false;
     }

@@ -148,10 +148,9 @@ describe('NL2CMD Service', () => {
       expect(requestBody).toEqual(
         expect.objectContaining({
           model: 'gpt-4o-mini',
-          max_completion_tokens: expect.any(Number),
+          max_tokens: expect.any(Number),
         })
       );
-      expect((requestBody as { max_tokens?: unknown }).max_tokens).toBeUndefined();
 
       expect(result.success).toBe(true);
       expect(result.command).toBe('ls -la');

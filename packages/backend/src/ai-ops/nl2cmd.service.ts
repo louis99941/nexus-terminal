@@ -55,19 +55,14 @@ const AXIOS_CACHE_MAX_SIZE = 16;
 /**
  * 获取或创建 Axios 客户端（单例复用）
  */
-function getCacheKey(baseUrl: string, apiKey: string, prefix?: string, extraHeaders?: Record<string, string>): string {
+function getCacheKey(baseUrl: string, apiKey: string, prefix?: string): string {
   // 使用完整 apiKey 的 hex digest 避免前缀碰撞
   const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
-  // extraHeaders 变化时生成不同的缓存键
-  const headersHash = extraHeaders
-    ? crypto.createHash('sha256').update(JSON.stringify(Object.entries(extraHeaders).sort())).digest('hex').slice(0, 8)
-    : '';
-  const base = prefix ? `${prefix}:${baseUrl}::${keyHash}` : `${baseUrl}::${keyHash}`;
-  return headersHash ? `${base}::h${headersHash}` : base;
+  return prefix ? `${prefix}:${baseUrl}::${keyHash}` : `${baseUrl}::${keyHash}`;
 }
 
-function getAxiosClient(baseUrl: string, apiKey: string, extraHeaders?: Record<string, string>): AxiosInstance {
-  const cacheKey = getCacheKey(baseUrl, apiKey, undefined, extraHeaders);
+function getAxiosClient(baseUrl: string, apiKey: string): AxiosInstance {
+  const cacheKey = getCacheKey(baseUrl, apiKey);
 
   let client = axiosClientCache.get(cacheKey);
   if (!client) {
@@ -76,7 +71,6 @@ function getAxiosClient(baseUrl: string, apiKey: string, extraHeaders?: Record<s
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
-        ...extraHeaders,
       },
       timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
     });
@@ -108,13 +102,6 @@ export async function getAISettings(): Promise<AISettings | null> {
     if (config) {
       config.enabled = !!config.enabled;
     }
-
-    logger.info('[NL2CMD] Loaded AI settings:', {
-      hasExtraHeaders: !!config.extraHeaders,
-      extraHeadersKeys: config.extraHeaders ? Object.keys(config.extraHeaders) : [],
-      hasExtraBody: !!config.extraBody,
-      extraBodyKeys: config.extraBody ? Object.keys(config.extraBody) : [],
-    });
 
     // 解密 API Key
     if (config.apiKey) {
@@ -225,15 +212,6 @@ function buildNL2CMDPrompt(request: NL2CMDRequest): string {
 }
 
 /**
- * 将 extraBody 合并到请求体中（后者覆盖前者）
- */
-function applyExtraBody(body: Record<string, unknown>, extraBody?: Record<string, unknown>): void {
-  if (extraBody && typeof extraBody === 'object') {
-    Object.assign(body, extraBody);
-  }
-}
-
-/**
  * 检测命令是否危险
  */
 function detectDangerousCommand(command: string): string | undefined {
@@ -265,7 +243,7 @@ async function callOpenAIChatCompletions(
   stream: boolean = false,
   endpointPath: string = '/chat/completions'
 ): Promise<ProviderResult> {
-  const client = getAxiosClient(config.baseUrl, config.apiKey, config.extraHeaders);
+  const client = getAxiosClient(config.baseUrl, config.apiKey);
 
   const requestBody: OpenAIChatRequest = {
     model: config.model,
@@ -280,12 +258,8 @@ async function callOpenAIChatCompletions(
       },
     ],
     temperature: NL2CMD_CONFIG.TEMPERATURE,
-    // OpenAI 官方：Chat Completions 推荐使用 max_completion_tokens（max_tokens 已标记 deprecated）
-    max_completion_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
+    max_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
   };
-
-  // 合并自定义请求体参数（如 Mistral 需要 max_tokens 替代 max_completion_tokens）
-  applyExtraBody(requestBody as unknown as Record<string, unknown>, config.extraBody);
 
   if (stream) {
     requestBody.stream = true;
@@ -456,8 +430,6 @@ export async function generateCommandStream(
       apiKey: settings.apiKey,
       model: settings.model,
       openaiEndpoint: settings.openaiEndpoint,
-      extraHeaders: settings.extraHeaders,
-      extraBody: settings.extraBody,
     };
     const prompt = buildNL2CMDPrompt(request);
     await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommandStream');
@@ -467,7 +439,7 @@ export async function generateCommandStream(
 
     if (config.provider === 'openai' && !(config.openaiEndpoint || '').includes('responses')) {
       // 真 streaming：OpenAI Chat Completions
-      const client = getAxiosClient(config.baseUrl, config.apiKey, config.extraHeaders);
+      const client = getAxiosClient(config.baseUrl, config.apiKey);
       const requestBody: OpenAIChatRequest = {
         model: config.model,
         messages: [
@@ -478,7 +450,7 @@ export async function generateCommandStream(
           { role: 'user', content: prompt },
         ],
         temperature: NL2CMD_CONFIG.TEMPERATURE,
-        max_completion_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
+        max_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
         stream: true,
         stream_options: { include_usage: true },
       };
@@ -555,7 +527,7 @@ async function callOpenAIResponses(
   prompt: string,
   endpointPath: string = '/responses'
 ): Promise<ProviderResult> {
-  const client = getAxiosClient(config.baseUrl, config.apiKey, config.extraHeaders);
+  const client = getAxiosClient(config.baseUrl, config.apiKey);
 
   const requestBody: OpenAIResponsesRequest = {
     model: config.model,
@@ -563,9 +535,6 @@ async function callOpenAIResponses(
     temperature: NL2CMD_CONFIG.TEMPERATURE,
     max_output_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
   };
-
-  // 合并自定义请求体参数
-  applyExtraBody(requestBody as unknown as Record<string, unknown>, config.extraBody);
 
   return retryWithBackoff(async () => {
     const response = await client.post<OpenAIResponsesResponse>(endpointPath, requestBody);
@@ -643,7 +612,7 @@ function getClaudeClient(config: AIProviderConfig): AxiosInstance {
   // 兼容旧版 baseUrl（不含 /v1）：自动补全
   const normalizedBaseUrl =
     config.baseUrl.replace(/\/$/, '') + (config.baseUrl.includes('/v1') ? '' : '/v1');
-  const cacheKey = getCacheKey(normalizedBaseUrl, config.apiKey, 'claude', config.extraHeaders);
+  const cacheKey = getCacheKey(normalizedBaseUrl, config.apiKey, 'claude');
   let client = axiosClientCache.get(cacheKey);
   if (client) {
     // LRU：命中时刷新访问顺序
@@ -659,7 +628,6 @@ function getClaudeClient(config: AIProviderConfig): AxiosInstance {
         'x-api-key': config.apiKey,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
-        ...config.extraHeaders,
       },
       timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
     });
@@ -682,9 +650,6 @@ async function callClaude(config: AIProviderConfig, prompt: string): Promise<Pro
     system: '你是一个专业的命令行助手，专门帮助用户将自然语言转换为精确的命令行指令。',
     messages: [{ role: 'user', content: prompt }],
   };
-
-  // 合并自定义请求体参数
-  applyExtraBody(requestBody as unknown as Record<string, unknown>, config.extraBody);
 
   return retryWithBackoff(async () => {
     const response = await client.post<ClaudeResponse>('/messages', requestBody);
@@ -831,8 +796,6 @@ export async function generateCommand(
       apiKey: settings.apiKey,
       model: settings.model,
       openaiEndpoint: settings.openaiEndpoint,
-      extraHeaders: settings.extraHeaders,
-      extraBody: settings.extraBody,
     };
 
     const prompt = buildNL2CMDPrompt(request);
