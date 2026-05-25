@@ -55,14 +55,19 @@ const AXIOS_CACHE_MAX_SIZE = 16;
 /**
  * 获取或创建 Axios 客户端（单例复用）
  */
-function getCacheKey(baseUrl: string, apiKey: string, prefix?: string): string {
+function getCacheKey(baseUrl: string, apiKey: string, prefix?: string, extraHeaders?: Record<string, string>): string {
   // 使用完整 apiKey 的 hex digest 避免前缀碰撞
   const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
-  return prefix ? `${prefix}:${baseUrl}::${keyHash}` : `${baseUrl}::${keyHash}`;
+  // extraHeaders 变化时生成不同的缓存键
+  const headersHash = extraHeaders
+    ? crypto.createHash('sha256').update(JSON.stringify(Object.entries(extraHeaders).sort())).digest('hex').slice(0, 8)
+    : '';
+  const base = prefix ? `${prefix}:${baseUrl}::${keyHash}` : `${baseUrl}::${keyHash}`;
+  return headersHash ? `${base}::h${headersHash}` : base;
 }
 
-function getAxiosClient(baseUrl: string, apiKey: string): AxiosInstance {
-  const cacheKey = getCacheKey(baseUrl, apiKey);
+function getAxiosClient(baseUrl: string, apiKey: string, extraHeaders?: Record<string, string>): AxiosInstance {
+  const cacheKey = getCacheKey(baseUrl, apiKey, undefined, extraHeaders);
 
   let client = axiosClientCache.get(cacheKey);
   if (!client) {
@@ -71,6 +76,7 @@ function getAxiosClient(baseUrl: string, apiKey: string): AxiosInstance {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
+        ...extraHeaders,
       },
       timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
     });
@@ -243,7 +249,7 @@ async function callOpenAIChatCompletions(
   stream: boolean = false,
   endpointPath: string = '/chat/completions'
 ): Promise<ProviderResult> {
-  const client = getAxiosClient(config.baseUrl, config.apiKey);
+  const client = getAxiosClient(config.baseUrl, config.apiKey, config.extraHeaders);
 
   const requestBody: OpenAIChatRequest = {
     model: config.model,
@@ -431,6 +437,7 @@ export async function generateCommandStream(
       apiKey: settings.apiKey,
       model: settings.model,
       openaiEndpoint: settings.openaiEndpoint,
+      extraHeaders: settings.extraHeaders,
     };
     const prompt = buildNL2CMDPrompt(request);
     await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommandStream');
@@ -440,7 +447,7 @@ export async function generateCommandStream(
 
     if (config.provider === 'openai' && !(config.openaiEndpoint || '').includes('responses')) {
       // 真 streaming：OpenAI Chat Completions
-      const client = getAxiosClient(config.baseUrl, config.apiKey);
+      const client = getAxiosClient(config.baseUrl, config.apiKey, config.extraHeaders);
       const requestBody: OpenAIChatRequest = {
         model: config.model,
         messages: [
@@ -528,7 +535,7 @@ async function callOpenAIResponses(
   prompt: string,
   endpointPath: string = '/responses'
 ): Promise<ProviderResult> {
-  const client = getAxiosClient(config.baseUrl, config.apiKey);
+  const client = getAxiosClient(config.baseUrl, config.apiKey, config.extraHeaders);
 
   const requestBody: OpenAIResponsesRequest = {
     model: config.model,
@@ -613,7 +620,7 @@ function getClaudeClient(config: AIProviderConfig): AxiosInstance {
   // 兼容旧版 baseUrl（不含 /v1）：自动补全
   const normalizedBaseUrl =
     config.baseUrl.replace(/\/$/, '') + (config.baseUrl.includes('/v1') ? '' : '/v1');
-  const cacheKey = getCacheKey(normalizedBaseUrl, config.apiKey, 'claude');
+  const cacheKey = getCacheKey(normalizedBaseUrl, config.apiKey, 'claude', config.extraHeaders);
   let client = axiosClientCache.get(cacheKey);
   if (client) {
     // LRU：命中时刷新访问顺序
@@ -629,6 +636,7 @@ function getClaudeClient(config: AIProviderConfig): AxiosInstance {
         'x-api-key': config.apiKey,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
+        ...config.extraHeaders,
       },
       timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
     });
@@ -797,6 +805,7 @@ export async function generateCommand(
       apiKey: settings.apiKey,
       model: settings.model,
       openaiEndpoint: settings.openaiEndpoint,
+      extraHeaders: settings.extraHeaders,
     };
 
     const prompt = buildNL2CMDPrompt(request);

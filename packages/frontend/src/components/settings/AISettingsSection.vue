@@ -130,6 +130,61 @@
 
       <hr class="border-border/50" />
 
+      <!-- 自定义请求头 -->
+      <div>
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-foreground">自定义请求头</label>
+          <button
+            type="button"
+            @click="addHeader"
+            class="text-xs text-primary hover:text-primary/80 cursor-pointer"
+          >
+            + 新增
+          </button>
+        </div>
+        <p class="text-xs text-muted-foreground mt-1 mb-3">
+          为 API 请求添加自定义 Header，用于兼容不同 Provider 的特殊要求（如 Mistral 的 <code>max_tokens</code> 参数）
+        </p>
+
+        <!-- 空状态 -->
+        <div
+          v-if="!headerList.length"
+          class="text-xs text-muted-foreground py-3 px-4 bg-muted/30 rounded-md border border-border/50 text-center"
+        >
+          暂无自定义请求头，点击「+ 新增」添加
+        </div>
+
+        <!-- Header 列表 -->
+        <div v-else class="space-y-2">
+          <div
+            v-for="(item, index) in headerList"
+            :key="index"
+            class="flex items-center gap-2"
+          >
+            <input
+              v-model="item.key"
+              placeholder="Header 名称"
+              class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono"
+            />
+            <input
+              v-model="item.value"
+              placeholder="Header 值"
+              class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono"
+            />
+            <button
+              type="button"
+              @click="removeHeader(index)"
+              class="shrink-0 w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-error rounded-md hover:bg-error/10 transition-colors cursor-pointer"
+              title="删除"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <hr class="border-border/50" />
+
       <!-- 速率限制开关 -->
       <div>
         <div class="flex items-center">
@@ -259,11 +314,41 @@ const localSettings = ref<AISettings>({
   model: AI_PROVIDER_DEFAULTS.openai.model,
   openaiEndpoint: AI_PROVIDER_DEFAULTS.openai.endpoint,
   rateLimitEnabled: true,
+  extraHeaders: undefined,
 });
 
 const showPassword = ref(false);
 const statusMessage = ref('');
 const statusSuccess = ref(false);
+
+// 自定义请求头列表（从 extraHeaders Record 转换为可编辑数组）
+const headerList = ref<Array<{ key: string; value: string }>>([]);
+
+// 将 extraHeaders 对象同步到 headerList
+function syncHeadersFromSettings() {
+  const headers = localSettings.value.extraHeaders || {};
+  headerList.value = Object.entries(headers).map(([key, value]) => ({ key, value }));
+}
+
+// 将 headerList 同步回 extraHeaders 对象
+function syncHeadersToSettings() {
+  const headers: Record<string, string> = {};
+  for (const item of headerList.value) {
+    const k = item.key.trim();
+    if (k) {
+      headers[k] = item.value;
+    }
+  }
+  localSettings.value.extraHeaders = Object.keys(headers).length > 0 ? headers : undefined;
+}
+
+function addHeader() {
+  headerList.value.push({ key: '', value: '' });
+}
+
+function removeHeader(index: number) {
+  headerList.value.splice(index, 1);
+}
 
 // 设置状态消息并自动清除
 function setStatus(message: string, isSuccess: boolean) {
@@ -279,6 +364,7 @@ onMounted(async () => {
   try {
     await aiSettingsStore.loadSettings();
     localSettings.value = { ...aiSettingsStore.settings };
+    syncHeadersFromSettings();
   } catch (error: unknown) {
     setStatus('加载 AI 配置失败', false);
   }
@@ -289,6 +375,7 @@ watch(
   () => aiSettingsStore.settings,
   (newSettings) => {
     localSettings.value = { ...newSettings };
+    syncHeadersFromSettings();
   },
   { deep: true }
 );
@@ -359,6 +446,7 @@ async function handleSave() {
       return;
     }
 
+    syncHeadersToSettings();
     await aiSettingsStore.saveSettings(localSettings.value);
     setStatus('AI 配置已保存', true);
   } catch (error: unknown) {
@@ -375,6 +463,7 @@ async function handleTest() {
       return;
     }
 
+    syncHeadersToSettings();
     const success = await aiSettingsStore.testConnection(localSettings.value);
     if (success) {
       setStatus('连接测试成功！AI 服务可用', true);
@@ -389,6 +478,7 @@ async function handleTest() {
 // 重置配置
 function handleReset() {
   localSettings.value = { ...aiSettingsStore.settings };
+  syncHeadersFromSettings();
   setStatus('已恢复为上次保存的配置', true);
 }
 </script>
