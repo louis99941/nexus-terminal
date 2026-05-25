@@ -56,6 +56,13 @@ import {
   handleSftpUploadChunk,
   handleSftpUploadCancel,
 } from './handlers/sftp.handler';
+// Telnet handlers
+import {
+  handleTelnetConnect,
+  handleTelnetInput,
+  handleTelnetResize,
+  handleTelnetDisconnect,
+} from '../telnet/telnet.handler';
 import { logger } from '../utils/logger';
 
 type ConnectionRequestMeta = {
@@ -215,6 +222,25 @@ export function initializeConnectionHandler(
               break;
             case 'ssh:exec_silent':
               handleSshExecSilent(ws, payload, requestId);
+              break;
+
+            // Telnet Cases
+            case 'telnet:connect':
+              await handleTelnetConnect(ws, payload as Parameters<typeof handleTelnetConnect>[1], {
+                clientIpAddress: ws.clientIpAddress,
+              });
+              break;
+            case 'telnet:input':
+              handleTelnetInput(ws, payload as Parameters<typeof handleTelnetInput>[1]);
+              break;
+            case 'telnet:resize':
+              handleTelnetResize(ws, payload as Parameters<typeof handleTelnetResize>[1]);
+              break;
+            case 'telnet:disconnect':
+              await handleTelnetDisconnect(
+                ws,
+                payload as Parameters<typeof handleTelnetDisconnect>[1]
+              );
               break;
 
             // Docker Cases
