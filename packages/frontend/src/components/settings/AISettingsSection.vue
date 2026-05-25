@@ -284,7 +284,7 @@
             />
             <input
               v-model="item.value"
-              placeholder="参数值"
+              :placeholder="item.action === 'rename' ? '新参数名称' : '参数值'"
               :disabled="item.action === 'delete'"
               class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono disabled:opacity-40 disabled:cursor-not-allowed"
             />
@@ -536,16 +536,18 @@ function syncBodyToSettings() {
       body.set(k, v);
     }
   }
+  console.log('[syncBodyToSettings] hasNonAdd:', hasNonAdd, 'existing keys:', Array.from(body.keys()));
   for (const item of bodyList.value) {
     const k = item.key.trim();
     if (!k) continue;
+    console.log('[syncBodyToSettings] processing:', { action: item.action, key: k, value: item.value });
     switch (item.action) {
       case 'add':
         body.set(k, parseBodyValue(item.value));
         break;
       case 'rename': {
-        // 重命名：key=旧名, value=新名, 保留原始值
         const oldValue = body.get(k);
+        console.log('[syncBodyToSettings] rename:', { oldKey: k, oldValue, newKey: item.value });
         if (oldValue !== undefined) {
           body.delete(k);
           const newKey = item.value.trim();
@@ -561,6 +563,7 @@ function syncBodyToSettings() {
     }
   }
   const result = Object.fromEntries(body);
+  console.log('[syncBodyToSettings] result:', result);
   localSettings.value.extraBody = Object.keys(result).length > 0 ? result : undefined;
   bodyList.value = Array.from(body.entries()).map(([key, value]) => ({
     action: 'add' as BodyAction,
