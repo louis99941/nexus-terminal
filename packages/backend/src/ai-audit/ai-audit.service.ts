@@ -154,21 +154,30 @@ export class AiAuditService {
   }
 
   /**
-   * 获取登录事件
+   * 获取登录事件（按用户过滤）
    */
   private async getLoginEvents(
     timeRangeStart: number,
-    timeRangeEnd: number
+    timeRangeEnd: number,
+    userId?: number
   ): Promise<Array<{ ip: string; success: boolean; timestamp: number }>> {
     const { getDbInstance, allDb } = await import('../database/connection.js');
     const db = await getDbInstance();
 
+    let query = `SELECT action_type, details, timestamp FROM audit_logs
+       WHERE action_type IN ('LOGIN_SUCCESS', 'LOGIN_FAILURE')
+       AND timestamp >= ? AND timestamp <= ?`;
+    const params: unknown[] = [timeRangeStart, timeRangeEnd];
+
+    if (userId) {
+      query += ' AND user_id = ?';
+      params.push(userId);
+    }
+
     const rows = await allDb<{ action_type: string; details: string; timestamp: number }>(
       db,
-      `SELECT action_type, details, timestamp FROM audit_logs
-       WHERE action_type IN ('LOGIN_SUCCESS', 'LOGIN_FAILURE')
-       AND timestamp >= ? AND timestamp <= ?`,
-      [timeRangeStart, timeRangeEnd]
+      query,
+      params
     );
 
     return rows.map((row) => {
@@ -188,7 +197,7 @@ export class AiAuditService {
   }
 
   /**
-   * 获取命令列表
+   * 获取命令列表（单用户场景无需过滤）
    */
   private async getCommands(
     timeRangeStart: number,
@@ -206,22 +215,27 @@ export class AiAuditService {
   }
 
   /**
-   * 获取连接事件
+   * 获取连接事件（按用户过滤）
    */
   private async getConnectionEvents(
     timeRangeStart: number,
-    timeRangeEnd: number
+    timeRangeEnd: number,
+    userId?: number
   ): Promise<Array<{ type: string; timestamp: number }>> {
     const { getDbInstance, allDb } = await import('../database/connection.js');
     const db = await getDbInstance();
 
-    const rows = await allDb<{ action_type: string; timestamp: number }>(
-      db,
-      `SELECT action_type, timestamp FROM audit_logs
+    let query = `SELECT action_type, timestamp FROM audit_logs
        WHERE action_type IN ('SSH_CONNECT_SUCCESS', 'SSH_CONNECT_FAILURE', 'SSH_DISCONNECT')
-       AND timestamp >= ? AND timestamp <= ?`,
-      [timeRangeStart, timeRangeEnd]
-    );
+       AND timestamp >= ? AND timestamp <= ?`;
+    const params: unknown[] = [timeRangeStart, timeRangeEnd];
+
+    if (userId) {
+      query += ' AND user_id = ?';
+      params.push(userId);
+    }
+
+    const rows = await allDb<{ action_type: string; timestamp: number }>(db, query, params);
 
     return rows.map((row) => ({
       type: row.action_type,

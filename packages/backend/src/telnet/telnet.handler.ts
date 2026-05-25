@@ -162,11 +162,12 @@ export async function handleTelnetConnect(
 
     clientStates.set(sessionId, clientState as ClientState);
 
-    // 注册数据接收回调
+    // 注册数据接收回调（传递 UTF-8 字符串，由 outputBatcher 统一 base64 编码）
     telnetService.onData((data: Buffer) => {
       try {
-        const base64Data = data.toString('base64');
-        outputBatcher.write(base64Data);
+        // 转换为 UTF-8 字符串，由 outputBatcher 统一编码
+        const utf8String = data.toString('utf-8');
+        outputBatcher.write(utf8String);
       } catch (err) {
         logger.error({ error: err }, 'Telnet 数据处理失败');
       }

@@ -276,10 +276,18 @@ const totalReports = computed(() => auditStore.totalReports);
 const totalAnomalies = computed(() => auditStore.totalAnomalies);
 const isLoading = computed(() => auditStore.isLoading);
 
-const criticalCount = computed(
-  () => anomalies.value.filter((a) => a.severity === 'critical' || a.severity === 'high').length
-);
+const criticalCount = computed(() => {
+  const stats = auditStore.anomalyStats;
+  if (stats) {
+    return (stats.bySeverity?.critical || 0) + (stats.bySeverity?.high || 0);
+  }
+  return anomalies.value.filter((a) => a.severity === 'critical' || a.severity === 'high').length;
+});
 const recentAnomalyCount = computed(() => {
+  const stats = auditStore.anomalyStats;
+  if (stats) {
+    return stats.recentCount || 0;
+  }
   const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
   return anomalies.value.filter((a) => a.detected_at >= oneDayAgo).length;
 });

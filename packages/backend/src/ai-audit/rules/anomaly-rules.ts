@@ -197,8 +197,9 @@ function detectUnusualHours(
 
   const suspiciousEvents = events.filter((e) => {
     if (e.timestamp < timeRangeStart || e.timestamp > timeRangeEnd) return false;
+    // 使用 UTC 小时，避免服务器时区差异导致误报
     const date = new Date(e.timestamp * 1000);
-    const hour = date.getHours();
+    const hour = date.getUTCHours();
     return suspiciousHours.includes(hour);
   });
 

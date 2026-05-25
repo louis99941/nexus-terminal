@@ -178,11 +178,12 @@ export function useTelnetTerminal() {
     // UTF-8 编码后 base64（支持中文/日文等 Unicode 字符）
     const encoder = new TextEncoder();
     const uint8Array = encoder.encode(data);
-    // 分块转换避免 RangeError
+    // 使用分块编码确保正确性（每块 3 字节对齐）
+    const chunkSize = 3 * 1024; // 3 的倍数，避免 padding 问题
     let encoded = '';
-    const chunkSize = 8192;
     for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
+      const end = Math.min(i + chunkSize, uint8Array.length);
+      const chunk = uint8Array.slice(i, end);
       encoded += btoa(String.fromCharCode(...chunk));
     }
     ws.send(
