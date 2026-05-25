@@ -134,13 +134,31 @@
       <div>
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-foreground">自定义请求头</label>
-          <button
-            type="button"
-            @click="addHeader"
-            class="text-xs text-primary hover:text-primary/80 cursor-pointer"
-          >
-            + 新增
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              @click="addHeader"
+              class="px-2 py-1 text-xs text-primary hover:text-primary/80 hover:bg-primary/5 rounded cursor-pointer transition-colors"
+            >
+              + 新增
+            </button>
+            <button
+              type="button"
+              @click="overrideHeader"
+              :disabled="headerList.length === 0"
+              class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              覆盖
+            </button>
+            <button
+              type="button"
+              @click="clearAllHeaders"
+              :disabled="headerList.length === 0"
+              class="px-2 py-1 text-xs text-muted-foreground hover:text-error hover:bg-error/5 rounded cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              删除
+            </button>
+          </div>
         </div>
         <p class="text-xs text-muted-foreground mt-1 mb-3">
           为 API 请求添加自定义 Header，用于兼容不同 Provider 的特殊要求（如 Mistral 的 <code>max_tokens</code> 参数）
@@ -175,12 +193,17 @@
               type="button"
               @click="removeHeader(index)"
               class="shrink-0 w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-error rounded-md hover:bg-error/10 transition-colors cursor-pointer"
-              title="删除"
+              title="删除此条"
             >
               ×
             </button>
           </div>
         </div>
+
+        <!-- 覆盖操作提示 -->
+        <p v-if="headerList.length > 0" class="text-xs text-muted-foreground mt-2">
+          提示：直接编辑输入框即可修改已有 Header（覆盖模式），点击「×」可单独删除某条
+        </p>
       </div>
 
       <hr class="border-border/50" />
@@ -330,14 +353,14 @@ function syncHeadersFromSettings() {
   headerList.value = Object.entries(headers).map(([key, value]) => ({ key, value }));
 }
 
-// 将 headerList 同步回 extraHeaders 对象
+// 将 headerList 同步回 extraHeaders 对象（自动合并重复 key，后者覆盖前者）
 function syncHeadersToSettings() {
+  const deduplicated = deduplicateHeaders();
+  // 回写去重结果到 headerList
+  headerList.value = deduplicated;
   const headers: Record<string, string> = {};
-  for (const item of headerList.value) {
-    const k = item.key.trim();
-    if (k) {
-      headers[k] = item.value;
-    }
+  for (const item of deduplicated) {
+    headers[item.key] = item.value;
   }
   localSettings.value.extraHeaders = Object.keys(headers).length > 0 ? headers : undefined;
 }
@@ -346,8 +369,29 @@ function addHeader() {
   headerList.value.push({ key: '', value: '' });
 }
 
+function overrideHeader() {
+  // 覆盖模式：新增一条，若后续填写的 key 与已有重复则自动覆盖旧值
+  headerList.value.push({ key: '', value: '' });
+}
+
+function clearAllHeaders() {
+  headerList.value = [];
+}
+
 function removeHeader(index: number) {
   headerList.value.splice(index, 1);
+}
+
+// 同步前合并重复 key（后者覆盖前者）
+function deduplicateHeaders(): Array<{ key: string; value: string }> {
+  const map = new Map<string, string>();
+  for (const item of headerList.value) {
+    const k = item.key.trim();
+    if (k) {
+      map.set(k, item.value);
+    }
+  }
+  return Array.from(map.entries()).map(([key, value]) => ({ key, value }));
 }
 
 // 设置状态消息并自动清除
