@@ -241,4 +241,36 @@ export const tableDefinitions: TableDefinition[] = [
       logger.debug('[DB Init] 事件日志表索引创建完成。');
     },
   },
+
+  // AI 审计模块
+  {
+    name: 'audit_reports',
+    sql: schemaSql.createAuditReportsTableSQL,
+    init: async (db: Database) => {
+      for (const indexSql of schemaSql.createAuditReportsIndexesSQL) {
+        await runDb(db, indexSql);
+      }
+      logger.debug('[DB Init] 审计报告表索引创建完成。');
+    },
+  },
+  {
+    name: 'audit_anomalies',
+    sql: schemaSql.createAuditAnomaliesTableSQL,
+    init: async (db: Database) => {
+      for (const indexSql of schemaSql.createAuditAnomaliesIndexesSQL) {
+        await runDb(db, indexSql);
+      }
+      logger.debug('[DB Init] 异常检测表索引创建完成。');
+    },
+  },
+  {
+    name: 'ai_audit_tasks',
+    sql: schemaSql.createAiAuditTasksTableSQL,
+    init: async (db: Database) => {
+      for (const indexSql of schemaSql.createAiAuditTasksIndexesSQL) {
+        await runDb(db, indexSql);
+      }
+      logger.debug('[DB Init] AI 审计任务表索引创建完成。');
+    },
+  },
 ];
