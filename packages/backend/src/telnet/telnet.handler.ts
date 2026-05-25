@@ -78,10 +78,9 @@ export async function handleTelnetConnect(
     }
 
     // 解密密码
-    let decryptedPassword: string | undefined;
     if (fullConnection.encrypted_password) {
       try {
-        decryptedPassword = decrypt(fullConnection.encrypted_password);
+        decrypt(fullConnection.encrypted_password);
       } catch (err) {
         logger.error({ error: err }, 'Telnet 密码解密失败');
         ws.send(

@@ -3,11 +3,9 @@
  */
 
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
-import { logger } from '../utils/logger';
 import type {
   AuditReport,
   AuditAnomaly,
-  AiAuditTask,
   ReportType,
   ReportStatus,
   AnomalySeverity,
@@ -157,7 +155,6 @@ export class AiAuditRepository {
       evidenceJson?: string;
     }>
   ): Promise<void> {
-    const { getDbInstance, runDb } = await import('../database/connection.js');
     const db = await getDbInstance();
 
     // 使用事务保护批量插入

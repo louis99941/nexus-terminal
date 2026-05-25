@@ -6,7 +6,6 @@
 
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { AI_REQUEST_TIMEOUT_MS } from '../../utils/apiClient';
 import type { NL2CMDRequest } from '../../types/nl2cmd.types';
 import { useAISettingsStore } from '../../stores/aiSettings.store';
 import { useAIStore } from '../../stores/ai.store';
@@ -173,7 +172,7 @@ export function useNL2CMDStream() {
             try {
               const chunk: StreamChunk = JSON.parse(data);
               handleStreamChunk(chunk);
-            } catch (e) {
+            } catch {
               log.debug('[NL2CMD Stream] 解析数据块失败:', data);
             }
           }

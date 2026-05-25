@@ -45,11 +45,19 @@ export class TelnetService {
         this.state = 'connected';
         logger.info({ host, port }, 'Telnet 连接已建立');
 
-        resolve({
-          success: true,
-          socket: this.socket!,
-          negotiator: this.negotiator,
-        });
+        const socket = this.socket;
+        if (socket) {
+          resolve({
+            success: true,
+            socket,
+            negotiator: this.negotiator,
+          });
+        } else {
+          resolve({
+            success: false,
+            error: 'Socket 创建失败',
+          });
+        }
       });
 
       this.socket.setTimeout(timeout);

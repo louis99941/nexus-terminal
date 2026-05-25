@@ -6,10 +6,8 @@
 import { logger } from '../utils/logger';
 import { AiAuditRepository } from './ai-audit.repository';
 import { runDetectionRules } from './rules/anomaly-rules';
-import { getPromptBuilder } from './prompts/audit-prompts';
 import type {
   ReportType,
-  ReportStatus,
   AnomalyRuleId,
   AnomalySeverity,
   CreateReportRequest,
@@ -17,7 +15,6 @@ import type {
   GetReportsQuery,
   GetAnomaliesQuery,
   AnomalyStats,
-  AuditDataSummary,
 } from './ai-audit.types';
 
 export class AiAuditService {

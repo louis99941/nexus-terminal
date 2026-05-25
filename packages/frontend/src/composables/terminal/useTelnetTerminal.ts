@@ -7,7 +7,6 @@ import { ref, onUnmounted } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { useSessionStore } from '../../stores/session.store';
 import { log } from '@/utils/log';
 
 export interface TelnetTerminalOptions {
@@ -18,8 +17,6 @@ export interface TelnetTerminalOptions {
 }
 
 export function useTelnetTerminal() {
-  const sessionStore = useSessionStore();
-
   // State
   const terminal = ref<Terminal | null>(null);
   const fitAddon = ref<FitAddon | null>(null);
@@ -100,7 +97,7 @@ export function useTelnetTerminal() {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        handleWebSocketMessage(message, options);
+        handleWebSocketMessage(message);
       } catch (err) {
         log.error('[Telnet] 消息解析失败:', err);
       }
@@ -126,10 +123,7 @@ export function useTelnetTerminal() {
   /**
    * 处理 WebSocket 消息
    */
-  function handleWebSocketMessage(
-    message: { type: string; payload?: unknown },
-    options: TelnetTerminalOptions
-  ) {
+  function handleWebSocketMessage(message: { type: string; payload?: unknown }) {
     switch (message.type) {
       case 'telnet:connected':
         isConnected.value = true;

@@ -4,13 +4,7 @@
  */
 
 import { logger } from '../../utils/logger';
-import type {
-  AnomalyRuleId,
-  AnomalySeverity,
-  DetectionRule,
-  RuleDetectionResult,
-  AuditAnomaly,
-} from '../ai-audit.types';
+import type { DetectionRule, RuleDetectionResult } from '../ai-audit.types';
 
 // 检测规则定义
 export const DETECTION_RULES: DetectionRule[] = [
