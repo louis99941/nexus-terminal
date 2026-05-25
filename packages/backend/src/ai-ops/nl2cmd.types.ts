@@ -19,6 +19,8 @@ export interface AIProviderConfig {
   openaiEndpoint?: OpenAIEndpoint;
   // 自定义请求头（用于兼容不同 Provider 的特殊要求）
   extraHeaders?: Record<string, string>;
+  // 自定义请求体参数（用于覆盖或新增请求体字段）
+  extraBody?: Record<string, unknown>;
 }
 
 // NL2CMD 请求
@@ -146,4 +148,5 @@ export interface AISettings {
   openaiEndpoint?: OpenAIEndpoint;
   rateLimitEnabled?: boolean; // 是否启用速率限制（默认 true）
   extraHeaders?: Record<string, string>; // 自定义请求头（用于兼容不同 Provider 的特殊要求）
+  extraBody?: Record<string, unknown>; // 自定义请求体参数（用于覆盖或新增请求体字段）
 }

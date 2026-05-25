@@ -218,6 +218,15 @@ function buildNL2CMDPrompt(request: NL2CMDRequest): string {
 }
 
 /**
+ * 将 extraBody 合并到请求体中（后者覆盖前者）
+ */
+function applyExtraBody(body: Record<string, unknown>, extraBody?: Record<string, unknown>): void {
+  if (extraBody && typeof extraBody === 'object') {
+    Object.assign(body, extraBody);
+  }
+}
+
+/**
  * 检测命令是否危险
  */
 function detectDangerousCommand(command: string): string | undefined {
@@ -267,6 +276,9 @@ async function callOpenAIChatCompletions(
     // OpenAI 官方：Chat Completions 推荐使用 max_completion_tokens（max_tokens 已标记 deprecated）
     max_completion_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
   };
+
+  // 合并自定义请求体参数（如 Mistral 需要 max_tokens 替代 max_completion_tokens）
+  applyExtraBody(requestBody as unknown as Record<string, unknown>, config.extraBody);
 
   if (stream) {
     requestBody.stream = true;
@@ -438,6 +450,7 @@ export async function generateCommandStream(
       model: settings.model,
       openaiEndpoint: settings.openaiEndpoint,
       extraHeaders: settings.extraHeaders,
+      extraBody: settings.extraBody,
     };
     const prompt = buildNL2CMDPrompt(request);
     await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommandStream');
@@ -543,6 +556,9 @@ async function callOpenAIResponses(
     temperature: NL2CMD_CONFIG.TEMPERATURE,
     max_output_tokens: NL2CMD_CONFIG.MAX_OUTPUT_TOKENS,
   };
+
+  // 合并自定义请求体参数
+  applyExtraBody(requestBody as unknown as Record<string, unknown>, config.extraBody);
 
   return retryWithBackoff(async () => {
     const response = await client.post<OpenAIResponsesResponse>(endpointPath, requestBody);
@@ -659,6 +675,9 @@ async function callClaude(config: AIProviderConfig, prompt: string): Promise<Pro
     system: '你是一个专业的命令行助手，专门帮助用户将自然语言转换为精确的命令行指令。',
     messages: [{ role: 'user', content: prompt }],
   };
+
+  // 合并自定义请求体参数
+  applyExtraBody(requestBody as unknown as Record<string, unknown>, config.extraBody);
 
   return retryWithBackoff(async () => {
     const response = await client.post<ClaudeResponse>('/messages', requestBody);
@@ -806,6 +825,7 @@ export async function generateCommand(
       model: settings.model,
       openaiEndpoint: settings.openaiEndpoint,
       extraHeaders: settings.extraHeaders,
+      extraBody: settings.extraBody,
     };
 
     const prompt = buildNL2CMDPrompt(request);

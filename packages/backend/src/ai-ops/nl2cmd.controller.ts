@@ -135,7 +135,7 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  const { enabled, provider, baseUrl, apiKey, model, openaiEndpoint, rateLimitEnabled, extraHeaders } = req.body;
+  const { enabled, provider, baseUrl, apiKey, model, openaiEndpoint, rateLimitEnabled, extraHeaders, extraBody } = req.body;
 
   // 参数验证
   if (typeof enabled !== 'boolean') {
@@ -184,6 +184,9 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
       rateLimitEnabled: rateLimitEnabled !== false,
       extraHeaders: extraHeaders && typeof extraHeaders === 'object' && !Array.isArray(extraHeaders)
         ? extraHeaders as Record<string, string>
+        : undefined,
+      extraBody: extraBody && typeof extraBody === 'object' && !Array.isArray(extraBody)
+        ? extraBody as Record<string, unknown>
         : undefined,
     };
 
@@ -289,7 +292,7 @@ export const testAIConnection = async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  const { provider, baseUrl, apiKey, model, openaiEndpoint, extraHeaders } = req.body;
+  const { provider, baseUrl, apiKey, model, openaiEndpoint, extraHeaders, extraBody } = req.body;
   const traceId = createTraceId();
   const start = Date.now();
   res.setHeader('x-request-id', traceId);
@@ -337,6 +340,9 @@ export const testAIConnection = async (req: Request, res: Response): Promise<voi
       openaiEndpoint: provider === 'openai' ? openaiEndpoint || '/chat/completions' : undefined,
       extraHeaders: extraHeaders && typeof extraHeaders === 'object' && !Array.isArray(extraHeaders)
         ? extraHeaders as Record<string, string>
+        : undefined,
+      extraBody: extraBody && typeof extraBody === 'object' && !Array.isArray(extraBody)
+        ? extraBody as Record<string, unknown>
         : undefined,
     };
 

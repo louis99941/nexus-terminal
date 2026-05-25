@@ -143,7 +143,7 @@
           </button>
         </div>
         <p class="text-xs text-muted-foreground mt-1 mb-3">
-          为 API 请求添加自定义 Header，用于兼容不同 Provider 的特殊要求（如 Mistral 的 <code>max_tokens</code> 参数）
+          为 API 请求添加自定义 Header，用于兼容不同 Provider 的特殊要求
         </p>
 
         <!-- 空状态 -->
@@ -185,7 +185,7 @@
               "
             >
               <option value="add">新增</option>
-              <option value="override">覆盖</option>
+              <option value="rename">重命名</option>
               <option value="delete">删除</option>
             </select>
             <input
@@ -212,9 +212,98 @@
 
         <!-- 操作说明 -->
         <p v-if="headerList.length > 0" class="text-xs text-muted-foreground mt-2">
-          · <strong>新增</strong>：添加新的 Header（同名会自动覆盖旧值）<br/>
-          · <strong>覆盖</strong>：修改已有 Header 的值（按名称匹配）<br/>
-          · <strong>删除</strong>：移除指定的 Header
+          · <strong>新增</strong>：添加新的 Header<br/>
+          · <strong>重命名</strong>：在「Header 名称」填旧名称，「Header 值」填新名称，值保持不变<br/>
+          · <strong>删除</strong>：在「Header 名称」填要删除的 Header 名称
+        </p>
+      </div>
+
+      <hr class="border-border/50" />
+
+      <!-- 自定义请求体参数 -->
+      <div>
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-foreground">自定义请求体参数</label>
+          <button
+            type="button"
+            @click="addBodyRow"
+            class="text-xs text-primary hover:text-primary/80 cursor-pointer"
+          >
+            + 新增一行
+          </button>
+        </div>
+        <p class="text-xs text-muted-foreground mt-1 mb-3">
+          覆盖或新增 API 请求体中的字段（如将 <code>max_completion_tokens</code> 替换为 <code>max_tokens</code>）
+        </p>
+
+        <!-- 空状态 -->
+        <div
+          v-if="!bodyList.length"
+          class="text-xs text-muted-foreground py-3 px-4 bg-muted/30 rounded-md border border-border/50 text-center"
+        >
+          暂无自定义请求体参数，点击「+ 新增一行」添加
+        </div>
+
+        <!-- 表头 -->
+        <div v-if="bodyList.length" class="flex items-center gap-2 mb-1 px-1">
+          <span class="w-24 text-xs text-muted-foreground font-medium">选项</span>
+          <span class="flex-1 text-xs text-muted-foreground font-medium">参数名称</span>
+          <span class="flex-1 text-xs text-muted-foreground font-medium">参数值</span>
+          <span class="w-7"></span>
+        </div>
+
+        <!-- Body 参数列表 -->
+        <div v-if="bodyList.length" class="space-y-2">
+          <div
+            v-for="(item, index) in bodyList"
+            :key="index"
+            class="flex items-center gap-2"
+          >
+            <select
+              v-model="item.action"
+              class="w-24 px-2 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+              style="
+                background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e&quot;);
+                background-position: right 0.4rem center;
+                background-repeat: no-repeat;
+                background-size: 14px 10px;
+                padding-right: 1.6rem;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+              "
+            >
+              <option value="add">新增</option>
+              <option value="rename">重命名</option>
+              <option value="delete">删除</option>
+            </select>
+            <input
+              v-model="item.key"
+              placeholder="参数名称"
+              class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono"
+            />
+            <input
+              v-model="item.value"
+              placeholder="参数值"
+              :disabled="item.action === 'delete'"
+              class="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground font-mono disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              @click="removeBodyRow(index)"
+              class="shrink-0 w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-error rounded-md hover:bg-error/10 transition-colors cursor-pointer"
+              title="移除此行"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <!-- 操作说明 -->
+        <p v-if="bodyList.length > 0" class="text-xs text-muted-foreground mt-2">
+          · <strong>新增</strong>：添加或覆盖请求体字段（数字/布尔值自动识别类型）<br/>
+          · <strong>重命名</strong>：在「参数名称」填旧名称，「参数值」填新名称<br/>
+          · <strong>删除</strong>：在「参数名称」填要删除的字段名
         </p>
       </div>
 
@@ -350,6 +439,7 @@ const localSettings = ref<AISettings>({
   openaiEndpoint: AI_PROVIDER_DEFAULTS.openai.endpoint,
   rateLimitEnabled: true,
   extraHeaders: undefined,
+  extraBody: undefined,
 });
 
 const showPassword = ref(false);
@@ -357,7 +447,7 @@ const statusMessage = ref('');
 const statusSuccess = ref(false);
 
 // 自定义请求头列表（从 extraHeaders Record 转换为可编辑数组）
-type HeaderAction = 'add' | 'override' | 'delete';
+type HeaderAction = 'add' | 'rename' | 'delete';
 const headerList = ref<Array<{ action: HeaderAction; key: string; value: string }>>([]);
 
 // 将 extraHeaders 对象同步到 headerList
@@ -384,9 +474,20 @@ function syncHeadersToSettings() {
     if (!k) continue;
     switch (item.action) {
       case 'add':
-      case 'override':
         headers.set(k, item.value);
         break;
+      case 'rename': {
+        // 重命名：找到旧 key，删除旧的，用新 key + 旧 value 添加
+        const oldValue = headers.get(k);
+        if (oldValue !== undefined) {
+          headers.delete(k);
+          const newKey = item.value.trim();
+          if (newKey) {
+            headers.set(newKey, oldValue);
+          }
+        }
+        break;
+      }
       case 'delete':
         headers.delete(k);
         break;
@@ -410,6 +511,74 @@ function removeHeaderRow(index: number) {
   headerList.value.splice(index, 1);
 }
 
+// === 自定义请求体参数 ===
+type BodyAction = 'add' | 'rename' | 'delete';
+const bodyList = ref<Array<{ action: BodyAction; key: string; value: string }>>([]);
+
+function syncBodyFromSettings() {
+  const body = localSettings.value.extraBody || {};
+  bodyList.value = Object.entries(body).map(([key, value]) => ({
+    action: 'add' as BodyAction,
+    key,
+    value: typeof value === 'string' ? value : JSON.stringify(value),
+  }));
+}
+
+function syncBodyToSettings() {
+  const body = new Map<string, unknown>();
+  const existing = localSettings.value.extraBody || {};
+  for (const [k, v] of Object.entries(existing)) {
+    body.set(k, v);
+  }
+  for (const item of bodyList.value) {
+    const k = item.key.trim();
+    if (!k) continue;
+    switch (item.action) {
+      case 'add':
+        body.set(k, parseBodyValue(item.value));
+        break;
+      case 'rename': {
+        const oldValue = body.get(k);
+        if (oldValue !== undefined) {
+          body.delete(k);
+          const newKey = item.value.trim();
+          if (newKey) {
+            body.set(newKey, oldValue);
+          }
+        }
+        break;
+      }
+      case 'delete':
+        body.delete(k);
+        break;
+    }
+  }
+  const result = Object.fromEntries(body);
+  localSettings.value.extraBody = Object.keys(result).length > 0 ? result : undefined;
+  bodyList.value = Array.from(body.entries()).map(([key, value]) => ({
+    action: 'add' as BodyAction,
+    key,
+    value: typeof value === 'string' ? value : JSON.stringify(value),
+  }));
+}
+
+function parseBodyValue(val: string): unknown {
+  if (val === 'true') return true;
+  if (val === 'false') return false;
+  if (val === 'null') return null;
+  const num = Number(val);
+  if (!isNaN(num) && val.trim() !== '') return num;
+  return val;
+}
+
+function addBodyRow() {
+  bodyList.value.push({ action: 'add', key: '', value: '' });
+}
+
+function removeBodyRow(index: number) {
+  bodyList.value.splice(index, 1);
+}
+
 // 设置状态消息并自动清除
 function setStatus(message: string, isSuccess: boolean) {
   statusMessage.value = message;
@@ -425,6 +594,7 @@ onMounted(async () => {
     await aiSettingsStore.loadSettings();
     localSettings.value = { ...aiSettingsStore.settings };
     syncHeadersFromSettings();
+    syncBodyFromSettings();
   } catch (error: unknown) {
     setStatus('加载 AI 配置失败', false);
   }
@@ -436,6 +606,7 @@ watch(
   (newSettings) => {
     localSettings.value = { ...newSettings };
     syncHeadersFromSettings();
+    syncBodyFromSettings();
   },
   { deep: true }
 );
@@ -507,6 +678,7 @@ async function handleSave() {
     }
 
     syncHeadersToSettings();
+    syncBodyToSettings();
     await aiSettingsStore.saveSettings(localSettings.value);
     setStatus('AI 配置已保存', true);
   } catch (error: unknown) {
@@ -524,6 +696,7 @@ async function handleTest() {
     }
 
     syncHeadersToSettings();
+    syncBodyToSettings();
     const success = await aiSettingsStore.testConnection(localSettings.value);
     if (success) {
       setStatus('连接测试成功！AI 服务可用', true);
@@ -539,6 +712,7 @@ async function handleTest() {
 function handleReset() {
   localSettings.value = { ...aiSettingsStore.settings };
   syncHeadersFromSettings();
+  syncBodyFromSettings();
   setStatus('已恢复为上次保存的配置', true);
 }
 </script>
