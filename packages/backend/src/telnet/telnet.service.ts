@@ -45,6 +45,12 @@ export class TelnetService {
         this.state = 'connected';
         logger.info({ host, port }, 'Telnet 连接已建立');
 
+        // 连接成功后清除连接超时，设置空闲超时（5分钟）
+        if (this.socket) {
+          this.socket.setTimeout(0); // 清除连接超时
+          this.socket.setTimeout(300000); // 设置 5 分钟空闲超时
+        }
+
         const socket = this.socket;
         if (socket) {
           resolve({
@@ -60,6 +66,7 @@ export class TelnetService {
         }
       });
 
+      // 设置连接超时（仅在连接阶段有效）
       this.socket.setTimeout(timeout);
 
       this.socket.on('timeout', () => {

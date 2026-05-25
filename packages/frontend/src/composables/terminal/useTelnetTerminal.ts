@@ -29,6 +29,7 @@ export function useTelnetTerminal() {
   let reconnectAttempts = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let resizeObserver: ResizeObserver | null = null;
+  let intentionalDisconnect = false; // 标记是否为主动断开
   const maxReconnectAttempts = 3;
 
   /**
@@ -106,8 +107,8 @@ export function useTelnetTerminal() {
       log.debug('[Telnet] WebSocket 已断开');
       isConnected.value = false;
 
-      // 尝试重连
-      if (reconnectAttempts < maxReconnectAttempts) {
+      // 仅在非主动断开时尝试重连
+      if (!intentionalDisconnect && reconnectAttempts < maxReconnectAttempts) {
         reconnectAttempts++;
         reconnectTimer = setTimeout(() => connectWebSocket(options), 1000 * reconnectAttempts);
       }
@@ -137,8 +138,13 @@ export function useTelnetTerminal() {
         // 终端输出数据
         if (terminal.value && message.payload) {
           const data = message.payload as string;
-          // base64 解码
-          const decoded = atob(data);
+          // UTF-8 解码（支持中文/日文等多字节字符）
+          const binaryString = atob(data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const decoded = new TextDecoder('utf-8').decode(bytes);
           terminal.value.write(decoded);
         }
         break;
@@ -172,7 +178,13 @@ export function useTelnetTerminal() {
     // UTF-8 编码后 base64（支持中文/日文等 Unicode 字符）
     const encoder = new TextEncoder();
     const uint8Array = encoder.encode(data);
-    const encoded = btoa(String.fromCharCode(...uint8Array));
+    // 分块转换避免 RangeError
+    let encoded = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      encoded += btoa(String.fromCharCode(...chunk));
+    }
     ws.send(
       JSON.stringify({
         type: 'telnet:input',
@@ -205,6 +217,9 @@ export function useTelnetTerminal() {
    * 断开连接
    */
   function disconnect() {
+    // 标记为主动断开，防止重连
+    intentionalDisconnect = true;
+
     // 清理重连定时器
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
