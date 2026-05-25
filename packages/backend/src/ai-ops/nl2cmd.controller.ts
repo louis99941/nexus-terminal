@@ -192,7 +192,10 @@ export const saveAISettings = async (req: Request, res: Response): Promise<void>
     // 返回更新后的配置（mask apiKey）
     const savedSettings = await NL2CMDService.getAISettings();
     const masked = savedSettings
-      ? { ...savedSettings, apiKey: savedSettings.apiKey ? `${savedSettings.apiKey.substring(0, 8)}...` : '' }
+      ? {
+          ...savedSettings,
+          apiKey: savedSettings.apiKey ? `${savedSettings.apiKey.substring(0, 8)}...` : '',
+        }
       : settings;
 
     res.status(200).json({ success: true, settings: masked, message: 'AI 配置已保存' });

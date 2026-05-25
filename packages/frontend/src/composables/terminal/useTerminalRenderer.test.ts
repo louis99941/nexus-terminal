@@ -301,7 +301,8 @@ describe('useTerminalRenderer 渲染器管理', () => {
       // 触发 context loss
       contextLossHandler?.();
 
-      expect(contextState.value).toBe('lost');
+      // auto 模式降级后 contextState 应为 unavailable（而非遗留 lost）
+      expect(contextState.value).toBe('unavailable');
       expect(activeRenderer.value).toBe('dom');
     });
 

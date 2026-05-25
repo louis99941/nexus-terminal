@@ -78,7 +78,9 @@ export const useAISettingsStore = defineStore('aiSettings', () => {
   /**
    * 测试 AI 连接
    */
-  async function testConnection(testSettings: AISettings): Promise<{ success: boolean; errorDetail?: string }> {
+  async function testConnection(
+    testSettings: AISettings
+  ): Promise<{ success: boolean; errorDetail?: string }> {
     isTesting.value = true;
     try {
       const response = await apiClient.post<AITestResponse>('/ai/test', testSettings, {
@@ -89,7 +91,8 @@ export const useAISettingsStore = defineStore('aiSettings', () => {
       log.error('[AI Settings Store] 测试连接失败:', error);
       // 提取后端返回的错误详情
       const axiosError = error as { response?: { data?: { error?: string; detail?: string } } };
-      const detail = axiosError?.response?.data?.error || axiosError?.response?.data?.detail || String(error);
+      const detail =
+        axiosError?.response?.data?.error || axiosError?.response?.data?.detail || String(error);
       return { success: false, errorDetail: detail };
     } finally {
       isTesting.value = false;

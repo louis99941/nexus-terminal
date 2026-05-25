@@ -129,6 +129,7 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
     if (renderMode.value === 'auto') {
       // auto 模式：降级为 DOM 渲染器，不再尝试恢复
       activeRenderer.value = 'dom';
+      contextState.value = 'unavailable';
       log.info(`[Terminal ${sessionId}] auto 模式：WebGL 上下文丢失后降级为 DOM 渲染器`);
     } else if (renderMode.value === 'webgl') {
       // webgl 强制模式：尝试重新加载
