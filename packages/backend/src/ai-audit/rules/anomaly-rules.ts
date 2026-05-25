@@ -265,6 +265,180 @@ function detectPrivilegeEscalation(
 }
 
 /**
+ * 检测命令频率异常
+ */
+function detectCommandFrequencySpike(
+  commands: Array<{ command: string; timestamp: number }>,
+  timeRangeStart: number,
+  timeRangeEnd: number
+): RuleDetectionResult {
+  const anomalies: RuleDetectionResult['anomalies'] = [];
+  const fiveMinutes = 300; // 5 分钟秒数
+
+  // 按 5 分钟窗口统计命令频率
+  const windowCounts = new Map<number, number>();
+  for (const cmd of commands) {
+    if (cmd.timestamp >= timeRangeStart && cmd.timestamp <= timeRangeEnd) {
+      const windowStart = Math.floor(cmd.timestamp / fiveMinutes) * fiveMinutes;
+      windowCounts.set(windowStart, (windowCounts.get(windowStart) || 0) + 1);
+    }
+  }
+
+  // 计算平均值
+  const counts = Array.from(windowCounts.values());
+  if (counts.length < 2) {
+    return { ruleId: 'command_frequency_spike', detected: false, anomalies: [] };
+  }
+  const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+
+  // 检测超过 3 倍均值的窗口
+  for (const [windowStart, count] of windowCounts) {
+    if (count > avg * 3 && count >= 10) {
+      anomalies.push({
+        rule_id: 'command_frequency_spike',
+        severity: 'high',
+        title: '命令频率异常',
+        description: `5 分钟内执行 ${count} 条命令，超过均值 ${Math.round(avg)} 的 3 倍`,
+        evidence_json: JSON.stringify({ windowStart, count, avg: Math.round(avg) }),
+      });
+      break; // 只报告一次
+    }
+  }
+
+  return {
+    ruleId: 'command_frequency_spike',
+    detected: anomalies.length > 0,
+    anomalies,
+  };
+}
+
+/**
+ * 检测连接频繁切换
+ */
+function detectConnectionChurn(
+  connectionEvents: Array<{ type: string; timestamp: number }>,
+  timeRangeStart: number,
+  timeRangeEnd: number
+): RuleDetectionResult {
+  const anomalies: RuleDetectionResult['anomalies'] = [];
+  const fiveMinutes = 300; // 5 分钟秒数
+
+  // 统计 5 分钟窗口内的连接事件数
+  const connectEvents = connectionEvents.filter(
+    (e) => e.timestamp >= timeRangeStart && e.timestamp <= timeRangeEnd
+  );
+
+  const windowCounts = new Map<number, number>();
+  for (const event of connectEvents) {
+    const windowStart = Math.floor(event.timestamp / fiveMinutes) * fiveMinutes;
+    windowCounts.set(windowStart, (windowCounts.get(windowStart) || 0) + 1);
+  }
+
+  // 检测频繁连接/断开
+  for (const [windowStart, count] of windowCounts) {
+    if (count >= 5) {
+      anomalies.push({
+        rule_id: 'connection_churn',
+        severity: 'medium',
+        title: '连接频繁切换',
+        description: `5 分钟内发生 ${count} 次连接事件`,
+        evidence_json: JSON.stringify({ windowStart, count }),
+      });
+      break;
+    }
+  }
+
+  return {
+    ruleId: 'connection_churn',
+    detected: anomalies.length > 0,
+    anomalies,
+  };
+}
+
+/**
+ * 检测连接失败聚集
+ */
+function detectFailedConnectionCluster(
+  connectionEvents: Array<{ type: string; timestamp: number }>,
+  timeRangeStart: number,
+  timeRangeEnd: number
+): RuleDetectionResult {
+  const anomalies: RuleDetectionResult['anomalies'] = [];
+  const oneHour = 3600; // 1 小时秒数
+
+  // 筛选连接失败事件
+  const failedEvents = connectionEvents.filter(
+    (e) =>
+      e.type === 'SSH_CONNECT_FAILURE' &&
+      e.timestamp >= timeRangeStart &&
+      e.timestamp <= timeRangeEnd
+  );
+
+  // 按小时窗口统计
+  const windowCounts = new Map<number, number>();
+  for (const event of failedEvents) {
+    const windowStart = Math.floor(event.timestamp / oneHour) * oneHour;
+    windowCounts.set(windowStart, (windowCounts.get(windowStart) || 0) + 1);
+  }
+
+  // 检测 1 小时内 >= 3 次失败
+  for (const [windowStart, count] of windowCounts) {
+    if (count >= 3) {
+      anomalies.push({
+        rule_id: 'failed_connection_cluster',
+        severity: 'high',
+        title: '连接失败聚集',
+        description: `1 小时内发生 ${count} 次连接失败`,
+        evidence_json: JSON.stringify({ windowStart, count }),
+      });
+      break;
+    }
+  }
+
+  return {
+    ruleId: 'failed_connection_cluster',
+    detected: anomalies.length > 0,
+    anomalies,
+  };
+}
+
+/**
+ * 检测首次连接
+ */
+function detectNewConnectionFirstUse(
+  connectionEvents: Array<{ type: string; timestamp: number }>,
+  timeRangeStart: number,
+  timeRangeEnd: number
+): RuleDetectionResult {
+  const anomalies: RuleDetectionResult['anomalies'] = [];
+
+  // 检测 SSH_CONNECT_SUCCESS 事件（首次连接）
+  const connectSuccessEvents = connectionEvents.filter(
+    (e) =>
+      e.type === 'SSH_CONNECT_SUCCESS' &&
+      e.timestamp >= timeRangeStart &&
+      e.timestamp <= timeRangeEnd
+  );
+
+  // 每个成功连接都可能是首次连接（简化实现）
+  if (connectSuccessEvents.length > 0) {
+    anomalies.push({
+      rule_id: 'new_connection_first_use',
+      severity: 'info',
+      title: '新连接',
+      description: `检测到 ${connectSuccessEvents.length} 次连接`,
+      evidence_json: JSON.stringify({ count: connectSuccessEvents.length }),
+    });
+  }
+
+  return {
+    ruleId: 'new_connection_first_use',
+    detected: anomalies.length > 0,
+    anomalies,
+  };
+}
+
+/**
  * 运行所有启用的规则检测
  */
 export async function runDetectionRules(data: {
@@ -300,7 +474,34 @@ export async function runDetectionRules(data: {
         case 'privilege_escalation':
           result = detectPrivilegeEscalation(data.commands);
           break;
-        // 其他规则暂时返回未检测到
+        case 'command_frequency_spike':
+          result = detectCommandFrequencySpike(
+            data.commands,
+            data.timeRangeStart,
+            data.timeRangeEnd
+          );
+          break;
+        case 'connection_churn':
+          result = detectConnectionChurn(
+            data.connectionEvents,
+            data.timeRangeStart,
+            data.timeRangeEnd
+          );
+          break;
+        case 'failed_connection_cluster':
+          result = detectFailedConnectionCluster(
+            data.connectionEvents,
+            data.timeRangeStart,
+            data.timeRangeEnd
+          );
+          break;
+        case 'new_connection_first_use':
+          result = detectNewConnectionFirstUse(
+            data.connectionEvents,
+            data.timeRangeStart,
+            data.timeRangeEnd
+          );
+          break;
         default:
           result = { ruleId: rule.id, detected: false, anomalies: [] };
       }

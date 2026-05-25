@@ -207,39 +207,46 @@ export class AiAuditRepository {
   }
 
   /**
-   * 获取异常列表
+   * 获取异常列表（按用户过滤）
    */
   async getAnomalies(params: {
+    userId?: number;
     page?: number;
     pageSize?: number;
     severity?: AnomalySeverity;
     acknowledged?: boolean;
   }): Promise<{ anomalies: AuditAnomaly[]; total: number }> {
     const db = await getDbInstance();
-    const { page = 1, pageSize = 20, severity, acknowledged } = params;
+    const { userId, page = 1, pageSize = 20, severity, acknowledged } = params;
 
     let whereClause = 'WHERE 1=1';
     const queryParams: unknown[] = [];
 
+    // 按用户过滤（通过关联的报告）
+    if (userId) {
+      whereClause += ' AND a.report_id IN (SELECT id FROM audit_reports WHERE user_id = ?)';
+      queryParams.push(userId);
+    }
+
     if (severity) {
-      whereClause += ' AND severity = ?';
+      whereClause += ' AND a.severity = ?';
       queryParams.push(severity);
     }
     if (acknowledged !== undefined) {
-      whereClause += ' AND acknowledged = ?';
+      whereClause += ' AND a.acknowledged = ?';
       queryParams.push(acknowledged ? 1 : 0);
     }
 
     const totalRow = await getDbRow<{ count: number }>(
       db,
-      `SELECT COUNT(*) as count FROM audit_anomalies ${whereClause}`,
+      `SELECT COUNT(*) as count FROM audit_anomalies a ${whereClause}`,
       queryParams
     );
 
     const offset = (page - 1) * pageSize;
     const anomalies = await allDb<AuditAnomaly>(
       db,
-      `SELECT * FROM audit_anomalies ${whereClause} ORDER BY detected_at DESC LIMIT ? OFFSET ?`,
+      `SELECT a.* FROM audit_anomalies a ${whereClause} ORDER BY a.detected_at DESC LIMIT ? OFFSET ?`,
       [...queryParams, pageSize, offset]
     );
 

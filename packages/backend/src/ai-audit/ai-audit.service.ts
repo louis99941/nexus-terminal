@@ -107,10 +107,23 @@ export class AiAuditService {
         );
       }
 
+      // 构建登录数据摘要（用于全量审计）
+      const loginSummaryForAI: AuditDataSummary = {
+        timeRange: { start: timeRangeStart, end: timeRangeEnd },
+        totalCommands: 0,
+        totalLogins: dataSummary.totalLogins,
+        failedLogins: dataSummary.failedLogins,
+        totalConnections: dataSummary.totalConnections,
+        uniqueIps: dataSummary.uniqueIps,
+        commandFrequency: {},
+        loginByHour: dataSummary.loginByHour,
+        topCommands: [],
+      };
+
       // 尝试调用外部 AI 进行深度分析
       let aiAnalysis: string | undefined;
       try {
-        aiAnalysis = await this.callExternalAI(reportType, dataSummary);
+        aiAnalysis = await this.callExternalAI(reportType, dataSummary, loginSummaryForAI);
       } catch (aiErr) {
         logger.warn({ reportId, error: aiErr }, '外部 AI 分析失败，使用本地分析');
       }

@@ -40,14 +40,16 @@ export class AiAuditController {
 
       const { reportType, timeRangeStart, timeRangeEnd } = req.body;
 
+      const validReportTypes = ['command_analysis', 'login_analysis', 'full_audit'];
       if (
         !reportType ||
+        !validReportTypes.includes(reportType) ||
         timeRangeStart == null ||
         timeRangeEnd == null ||
         !Number.isFinite(Number(timeRangeStart)) ||
         !Number.isFinite(Number(timeRangeEnd))
       ) {
-        res.status(400).json({ error: '缺少必要参数' });
+        res.status(400).json({ error: '缺少必要参数或参数无效' });
         return;
       }
 

@@ -298,15 +298,58 @@
               <h4 class="text-sm font-medium text-text-secondary mb-1">
                 {{ t('aiAudit.summary', '分析摘要') }}
               </h4>
-              <div class="p-3 bg-surface/50 rounded-lg text-sm">{{ selectedReport.summary }}</div>
+              <div class="p-3 bg-surface/50 rounded-lg text-sm">
+                <template v-if="parsedSummary">
+                  <div class="grid grid-cols-3 gap-4 mb-3">
+                    <div>
+                      <span class="text-text-secondary text-xs">安全评分</span>
+                      <div
+                        class="text-lg font-bold"
+                        :class="
+                          parsedSummary.overallScore >= 80
+                            ? 'text-success'
+                            : parsedSummary.overallScore >= 50
+                              ? 'text-warning'
+                              : 'text-error'
+                        "
+                      >
+                        {{ parsedSummary.overallScore }}/100
+                      </div>
+                    </div>
+                    <div>
+                      <span class="text-text-secondary text-xs">异常数量</span>
+                      <div class="text-lg font-bold">{{ parsedSummary.anomalyCount }}</div>
+                    </div>
+                    <div>
+                      <span class="text-text-secondary text-xs">总命令数</span>
+                      <div class="text-lg font-bold">
+                        {{ parsedSummary.dataSummary?.totalCommands || 0 }}
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  {{ selectedReport.summary }}
+                </template>
+              </div>
             </div>
-            <div v-if="selectedReport.anomalies_json">
+            <div v-if="parsedAnomalies && parsedAnomalies.length > 0">
               <h4 class="text-sm font-medium text-text-secondary mb-1">
                 {{ t('aiAudit.anomalies', '异常检测') }}
               </h4>
-              <pre class="p-3 bg-surface/50 rounded-lg text-xs overflow-x-auto">{{
-                selectedReport.anomalies_json
-              }}</pre>
+              <div class="space-y-2">
+                <div
+                  v-for="(anomaly, idx) in parsedAnomalies"
+                  :key="idx"
+                  class="p-2 bg-surface/50 rounded-lg text-sm"
+                >
+                  <span :class="getSeverityBadgeClass(anomaly.severity)">{{
+                    anomaly.severity
+                  }}</span>
+                  <span class="ml-2 font-medium">{{ anomaly.title }}</span>
+                  <p class="text-text-secondary text-xs mt-1">{{ anomaly.description }}</p>
+                </div>
+              </div>
             </div>
             <div v-if="selectedReport.ai_analysis">
               <h4 class="text-sm font-medium text-text-secondary mb-1">
@@ -492,6 +535,49 @@ async function handleAcknowledge(anomalyId: number) {
   await auditStore.acknowledgeAnomaly(anomalyId);
 }
 
+// 计算属性：解析 JSON 字符串
+const parsedSummary = computed(() => {
+  if (!selectedReport.value?.summary) return null;
+  try {
+    return JSON.parse(selectedReport.value.summary);
+  } catch {
+    return null;
+  }
+});
+
+const parsedAnomalies = computed(() => {
+  if (!selectedReport.value?.anomalies_json) return [];
+  try {
+    const parsed = JSON.parse(selectedReport.value.anomalies_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+});
+
+// 轮询报告状态
+let pollingTimer: ReturnType<typeof setInterval> | null = null;
+
+function startPolling() {
+  pollingTimer = setInterval(async () => {
+    const hasPending = auditStore.reports.some(
+      (r) => r.status === 'pending' || r.status === 'in_progress'
+    );
+    if (hasPending) {
+      await auditStore.fetchReports();
+    } else {
+      stopPolling();
+    }
+  }, 3000);
+}
+
+function stopPolling() {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   await Promise.all([
@@ -499,6 +585,13 @@ onMounted(async () => {
     auditStore.fetchAnomalies(),
     auditStore.fetchAnomalyStats(),
   ]);
+  startPolling();
+});
+
+// 清理轮询
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  stopPolling();
 });
 </script>
 
