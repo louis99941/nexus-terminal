@@ -1,6 +1,6 @@
 # 星枢终端（Nexus Terminal）
 
-> 现代化、功能丰富的 Web SSH / RDP / VNC 客户端，提供高度可定制的远程连接体验
+> 现代化、功能丰富的 Web SSH / RDP / VNC / Telnet 客户端，提供高度可定制的远程连接体验
 
 ---
 
@@ -8,12 +8,13 @@
 
 星枢终端致力于提供一个现代化、轻量级且功能完备的 Web 远程管理平台，支持：
 
-- **多协议连接**：SSH、SFTP、RDP、VNC
+- **多协议连接**：SSH、SFTP、RDP、VNC、Telnet
 - **多标签管理**：在单一浏览器窗口管理多个远程会话
 - **会话挂起与恢复**：网络断开后自动保持会话，随时恢复
 - **高度可定制**：终端主题、布局、背景动效、键盘映射
 - **审计与监控**：完整的用户行为日志、通知系统（Webhook/Email/Telegram）
 - **智能运维**：AI 智能助手、批量命令执行、系统健康分析
+- **AI 安全审计**：基于规则引擎的异常检测、审计报告生成、风险评分
 - **轻量化部署**：基于 Node.js 后端，资源占用低，支持 Docker 一键部署
 
 ---
@@ -72,11 +73,11 @@ sequenceDiagram
 
 ## 模块索引
 
-| 模块               | 路径                      | TS 文件 | 职责                                         | 文档                                                            |
-| ------------------ | ------------------------- | ------- | -------------------------------------------- | --------------------------------------------------------------- |
-| **backend**        | `packages/backend`        | 207     | SSH/SFTP 连接、认证、审计、通知、Docker 管理 | [backend/CLAUDE.md](./packages/backend/CLAUDE.md)               |
-| **frontend**       | `packages/frontend`       | 240     | 终端界面、文件管理器、连接管理、主题定制     | [frontend/CLAUDE.md](./packages/frontend/CLAUDE.md)             |
-| **remote-gateway** | `packages/remote-gateway` | 2       | RDP/VNC 连接代理                             | [remote-gateway/CLAUDE.md](./packages/remote-gateway/CLAUDE.md) |
+| 模块               | 路径                      | TS 文件 | 职责                                                         | 文档                                                            |
+| ------------------ | ------------------------- | ------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| **backend**        | `packages/backend`        | 207+    | SSH/Telnet/SFTP 连接、认证、审计、AI 审计、通知、Docker 管理 | [backend/CLAUDE.md](./packages/backend/CLAUDE.md)               |
+| **frontend**       | `packages/frontend`       | 240+    | 终端界面、文件管理器、连接管理、AI 审计界面、主题定制        | [frontend/CLAUDE.md](./packages/frontend/CLAUDE.md)             |
+| **remote-gateway** | `packages/remote-gateway` | 2       | RDP/VNC 连接代理                                             | [remote-gateway/CLAUDE.md](./packages/remote-gateway/CLAUDE.md) |
 
 ### 规划文档
 
