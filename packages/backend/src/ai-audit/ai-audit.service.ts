@@ -6,6 +6,9 @@
 import { logger } from '../utils/logger';
 import { AiAuditRepository } from './ai-audit.repository';
 import { runDetectionRules } from './rules/anomaly-rules';
+import { getPromptBuilder } from './prompts/audit-prompts';
+import { getAISettings } from '../ai-ops/nl2cmd.service';
+import type { AIProviderConfig } from '../ai-ops/nl2cmd.types';
 import type {
   ReportType,
   AnomalyRuleId,
@@ -15,7 +18,9 @@ import type {
   GetReportsQuery,
   GetAnomaliesQuery,
   AnomalyStats,
+  AuditDataSummary,
 } from './ai-audit.types';
+import axios from 'axios';
 
 export class AiAuditService {
   private repository: AiAuditRepository;
@@ -102,6 +107,14 @@ export class AiAuditService {
         );
       }
 
+      // 尝试调用外部 AI 进行深度分析
+      let aiAnalysis: string | undefined;
+      try {
+        aiAnalysis = await this.callExternalAI(reportType, dataSummary);
+      } catch (aiErr) {
+        logger.warn({ reportId, error: aiErr }, '外部 AI 分析失败，使用本地分析');
+      }
+
       // 生成摘要
       const summary = JSON.stringify({
         overallScore: this.calculateRiskScore(allAnomalies),
@@ -119,13 +132,90 @@ export class AiAuditService {
         'completed',
         summary,
         JSON.stringify(allAnomalies),
-        undefined // AI 分析暂时为空，可后续扩展
+        aiAnalysis
       );
 
       logger.info({ reportId, anomalyCount: allAnomalies.length }, '审计分析完成');
     } catch (err) {
       logger.error({ reportId, error: err }, '审计分析失败');
       await this.repository.updateReportStatus(reportId, 'failed');
+    }
+  }
+
+  /**
+   * 调用外部 AI 进行深度分析
+   */
+  private async callExternalAI(
+    reportType: ReportType,
+    dataSummary: AuditDataSummary,
+    loginSummary?: AuditDataSummary
+  ): Promise<string> {
+    const settings = await getAISettings();
+    if (!settings || !settings.enabled) {
+      throw new Error('AI 功能未启用');
+    }
+
+    const config: AIProviderConfig = {
+      provider: settings.provider,
+      baseUrl: settings.baseUrl,
+      apiKey: settings.apiKey,
+      model: settings.model,
+      openaiEndpoint: settings.openaiEndpoint,
+    };
+
+    // 构建 Prompt
+    const promptBuilder = getPromptBuilder(reportType);
+    const prompt = promptBuilder(dataSummary, loginSummary);
+
+    // 调用 AI Provider
+    const response = await this.callAIProvider(config, prompt);
+
+    return response;
+  }
+
+  /**
+   * 调用 AI Provider
+   */
+  private async callAIProvider(config: AIProviderConfig, prompt: string): Promise<string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (config.provider === 'claude') {
+      headers['x-api-key'] = config.apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+
+      const response = await axios.post(
+        `${config.baseUrl}/v1/messages`,
+        {
+          model: config.model,
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: prompt }],
+        },
+        { headers, timeout: 30000 }
+      );
+
+      return response.data.content?.[0]?.text || 'AI 分析完成';
+    } else {
+      // OpenAI 兼容
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+
+      const endpoint = config.openaiEndpoint || '/v1/chat/completions';
+      const response = await axios.post(
+        `${config.baseUrl}${endpoint}`,
+        {
+          model: config.model,
+          messages: [
+            { role: 'system', content: '你是一名资深安全审计专家。' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 4096,
+        },
+        { headers, timeout: 30000 }
+      );
+
+      return response.data.choices?.[0]?.message?.content || 'AI 分析完成';
     }
   }
 
