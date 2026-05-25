@@ -8,7 +8,7 @@ import { log } from '@/utils/log';
 export interface ConnectionInfo {
   id: number;
   name: string;
-  type: 'SSH' | 'RDP' | 'VNC';
+  type: 'SSH' | 'RDP' | 'VNC' | 'Telnet';
   host: string;
   port: number;
   username: string;
@@ -83,7 +83,7 @@ export const useConnectionsStore = defineStore('connections', () => {
    */
   async function addConnection(newConnectionData: {
     name: string;
-    type: 'SSH' | 'RDP' | 'VNC';
+    type: 'SSH' | 'RDP' | 'VNC' | 'Telnet';
     host: string;
     port: number;
     username: string;
@@ -130,7 +130,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     connectionId: number,
     updatedData: Partial<
       Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & {
-        type?: 'SSH' | 'RDP' | 'VNC';
+        type?: 'SSH' | 'RDP' | 'VNC' | 'Telnet';
         password?: string;
         private_key?: string;
         passphrase?: string;

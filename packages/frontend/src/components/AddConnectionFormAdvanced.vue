@@ -11,7 +11,7 @@ const props = defineProps({
   formData: {
     type: Object as PropType<{
       id?: number;
-      type: 'SSH' | 'RDP' | 'VNC';
+      type: 'SSH' | 'RDP' | 'VNC' | 'Telnet';
       proxy_id: number | null;
       jump_chain: Array<number | null> | null;
       proxy_type?: 'proxy' | 'jump' | null;

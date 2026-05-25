@@ -5,7 +5,7 @@ import SshKeySelector from './SshKeySelector.vue'; // Assuming SshKeySelector is
 // Define Props. formData is expected to be a reactive object from the parent composable.
 const props = defineProps<{
   formData: {
-    type: 'SSH' | 'RDP' | 'VNC';
+    type: 'SSH' | 'RDP' | 'VNC' | 'Telnet';
     username: string;
     auth_method: 'password' | 'key'; // SSH specific
     password?: string; // Optional because it might not be set or sent

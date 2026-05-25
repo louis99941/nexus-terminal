@@ -4,7 +4,7 @@
  */
 
 /** 连接类型 */
-export type ConnectionType = 'SSH' | 'RDP' | 'VNC';
+export type ConnectionType = 'SSH' | 'RDP' | 'VNC' | 'Telnet';
 
 /** 认证方式 */
 export type AuthMethod = 'password' | 'key';

@@ -87,6 +87,9 @@ export function createScriptModeSubmit(deps: ScriptModeDeps) {
       } else if (parsed.type === 'VNC') {
         defaultPort = 5900;
         defaultPortLabel = '5900';
+      } else if (parsed.type === 'Telnet') {
+        defaultPort = 23;
+        defaultPortLabel = '23';
       }
       const port = portStr ? parseInt(portStr, 10) : defaultPort;
 
@@ -188,7 +191,19 @@ export function createScriptModeSubmit(deps: ScriptModeDeps) {
       }
       delete connData.tag_names;
 
-      if (connData.type === 'SSH' && connData.auth_method === 'key' && connData.ssh_key_name) {
+      if (connData.type === 'Telnet') {
+        // Telnet 使用密码认证
+        if (!connData.password) {
+          uiNotificationsStore.showError(
+            t('connections.form.scriptErrorMissingPasswordForTelnet', { host: connData.host })
+          );
+          allConnectionsValid = false;
+        }
+      } else if (
+        connData.type === 'SSH' &&
+        connData.auth_method === 'key' &&
+        connData.ssh_key_name
+      ) {
         const foundKey = sshKeys.value.find((k) => k.name === connData.ssh_key_name);
         if (foundKey) {
           connData.ssh_key_id = foundKey.id;

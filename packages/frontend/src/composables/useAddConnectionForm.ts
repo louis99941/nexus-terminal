@@ -68,6 +68,9 @@ export function useAddConnectionForm(props: AddConnectionFormProps, emit: AddCon
     vncPassword: '',
     force_keyboard_interactive: false,
   };
+
+  // Telnet 类型时的默认端口
+  const telnetDefaultPort = 23;
   const formData = reactive({ ...initialFormData });
 
   const formError = ref<string | null>(null); // 表单级别的错误信息
@@ -116,7 +119,7 @@ export function useAddConnectionForm(props: AddConnectionFormProps, emit: AddCon
     (newVal) => {
       formError.value = null; // 清除错误
       if (newVal) {
-        formData.type = newVal.type as 'SSH' | 'RDP' | 'VNC';
+        formData.type = newVal.type as 'SSH' | 'RDP' | 'VNC' | 'Telnet';
         formData.name = newVal.name;
         formData.host = newVal.host;
         formData.port = newVal.port;
@@ -206,6 +209,11 @@ export function useAddConnectionForm(props: AddConnectionFormProps, emit: AddCon
           formData.port = 22;
       } else if (newType === 'VNC') {
         if (formData.port === 22 || formData.port === 3389) formData.port = 5900;
+        formData.auth_method = 'password';
+        formData.selected_ssh_key_id = null;
+      } else if (newType === 'Telnet') {
+        if (formData.port === 22 || formData.port === 3389 || formData.port === 5900)
+          formData.port = telnetDefaultPort;
         formData.auth_method = 'password';
         formData.selected_ssh_key_id = null;
       }

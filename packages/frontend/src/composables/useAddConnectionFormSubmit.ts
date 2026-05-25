@@ -241,6 +241,8 @@ export function createSubmitHandler(deps: SubmitDeps) {
             dataForThisIp.password = formData.password;
           } else if (formData.type === 'VNC') {
             dataForThisIp.password = formData.vncPassword;
+          } else if (formData.type === 'Telnet') {
+            dataForThisIp.password = formData.password;
           }
 
           if (dataForThisIp.type !== 'SSH' || dataForThisIp.auth_method !== 'key')

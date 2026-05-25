@@ -2,11 +2,18 @@
   <div class="p-4 md:p-6 bg-background text-foreground h-full flex flex-col">
     <!-- Full height flex container -->
     <div class="max-w-7xl mx-auto w-full flex flex-col h-full">
-      <h1
-        class="text-xl font-semibold text-foreground mb-4 pb-2 border-b border-border flex-shrink-0"
-      >
-        {{ $t('auditLog.title') }}
-      </h1>
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-border flex-shrink-0">
+        <h1 class="text-xl font-semibold text-foreground">
+          {{ $t('auditLog.title') }}
+        </h1>
+        <router-link
+          to="/ai-audit"
+          class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-sm font-medium flex items-center gap-2"
+        >
+          <i class="fas fa-shield-alt"></i>
+          {{ $t('aiAudit.title', 'AI 安全审计') }}
+        </router-link>
+      </div>
 
       <!-- Filtering Controls -->
       <div
