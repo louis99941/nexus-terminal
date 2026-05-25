@@ -403,31 +403,48 @@ function detectFailedConnectionCluster(
 }
 
 /**
- * 检测首次连接
+ * 检测首次连接（按 IP 去重，只报告首次出现的来源）
  */
 function detectNewConnectionFirstUse(
-  connectionEvents: Array<{ type: string; timestamp: number }>,
+  loginEvents: Array<{ ip: string; success: boolean; timestamp: number }>,
   timeRangeStart: number,
   timeRangeEnd: number
 ): RuleDetectionResult {
   const anomalies: RuleDetectionResult['anomalies'] = [];
 
-  // 检测 SSH_CONNECT_SUCCESS 事件（首次连接）
-  const connectSuccessEvents = connectionEvents.filter(
-    (e) =>
-      e.type === 'SSH_CONNECT_SUCCESS' &&
-      e.timestamp >= timeRangeStart &&
-      e.timestamp <= timeRangeEnd
+  // 只看成功的登录事件
+  const successfulLogins = loginEvents.filter(
+    (e) => e.success && e.timestamp >= timeRangeStart && e.timestamp <= timeRangeEnd
   );
 
-  // 每个成功连接都可能是首次连接（简化实现）
-  if (connectSuccessEvents.length > 0) {
+  if (successfulLogins.length === 0) {
+    return { ruleId: 'new_connection_first_use', detected: false, anomalies: [] };
+  }
+
+  // 按 IP 去重，只保留每个 IP 的首次出现
+  const firstSeenByIp = new Map<string, number>();
+  for (const event of successfulLogins) {
+    if (!firstSeenByIp.has(event.ip)) {
+      firstSeenByIp.set(event.ip, event.timestamp);
+    }
+  }
+
+  // 只报告首次出现的 IP（简化实现：每个 IP 首次出现即为"新连接"）
+  if (firstSeenByIp.size > 0) {
+    const ipList = Array.from(firstSeenByIp.entries())
+      .sort((a, b) => a[1] - b[1])
+      .map(([ip]) => ip);
+
     anomalies.push({
       rule_id: 'new_connection_first_use',
       severity: 'info',
-      title: '新连接',
-      description: `检测到 ${connectSuccessEvents.length} 次连接`,
-      evidence_json: JSON.stringify({ count: connectSuccessEvents.length }),
+      title: '新来源连接',
+      description: `检测到 ${ipList.length} 个不同来源的连接：${ipList.join(', ')}`,
+      evidence_json: JSON.stringify({
+        uniqueIps: ipList.length,
+        ips: ipList,
+        totalLogins: successfulLogins.length,
+      }),
     });
   }
 
@@ -497,7 +514,7 @@ export async function runDetectionRules(data: {
           break;
         case 'new_connection_first_use':
           result = detectNewConnectionFirstUse(
-            data.connectionEvents,
+            data.loginEvents,
             data.timeRangeStart,
             data.timeRangeEnd
           );

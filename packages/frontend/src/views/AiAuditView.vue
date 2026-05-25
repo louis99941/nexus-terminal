@@ -302,7 +302,7 @@
                 <template v-if="parsedSummary">
                   <div class="grid grid-cols-3 gap-4 mb-3">
                     <div>
-                      <span class="text-text-secondary text-xs">安全评分</span>
+                      <span class="text-text-secondary text-xs">数据覆盖度</span>
                       <div
                         class="text-lg font-bold"
                         :class="
@@ -313,19 +313,28 @@
                               : 'text-error'
                         "
                       >
-                        {{ parsedSummary.overallScore }}/100
+                        {{ parsedSummary.overallScore }}%
                       </div>
                     </div>
                     <div>
-                      <span class="text-text-secondary text-xs">异常数量</span>
+                      <span class="text-text-secondary text-xs">检出异常</span>
                       <div class="text-lg font-bold">{{ parsedSummary.anomalyCount }}</div>
                     </div>
                     <div>
-                      <span class="text-text-secondary text-xs">总命令数</span>
+                      <span class="text-text-secondary text-xs">命令总数</span>
                       <div class="text-lg font-bold">
                         {{ parsedSummary.dataSummary?.totalCommands || 0 }}
                       </div>
                     </div>
+                  </div>
+                  <div
+                    v-if="parsedSummary.dataSummary"
+                    class="grid grid-cols-2 gap-3 pt-2 border-t border-border/50 text-xs text-text-secondary"
+                  >
+                    <span>登录次数: {{ parsedSummary.dataSummary.totalLogins || 0 }}</span>
+                    <span>失败登录: {{ parsedSummary.dataSummary.failedLogins || 0 }}</span>
+                    <span>连接次数: {{ parsedSummary.dataSummary.totalConnections || 0 }}</span>
+                    <span>独立 IP: {{ parsedSummary.dataSummary.uniqueIps || 0 }}</span>
                   </div>
                 </template>
                 <template v-else>
@@ -355,7 +364,90 @@
               <h4 class="text-sm font-medium text-text-secondary mb-1">
                 {{ t('aiAudit.aiAnalysis', 'AI 分析') }}
               </h4>
-              <div class="p-3 bg-surface/50 rounded-lg text-sm whitespace-pre-wrap">
+              <div v-if="parsedAiAnalysis" class="p-3 bg-surface/50 rounded-lg text-sm space-y-3">
+                <!-- AI 安全评分 -->
+                <div v-if="parsedAiAnalysis.overallScore != null" class="flex items-center gap-2">
+                  <span class="text-text-secondary text-xs">AI 安全评分</span>
+                  <span
+                    class="text-base font-bold"
+                    :class="
+                      parsedAiAnalysis.overallScore >= 80
+                        ? 'text-success'
+                        : parsedAiAnalysis.overallScore >= 50
+                          ? 'text-warning'
+                          : 'text-error'
+                    "
+                  >
+                    {{ parsedAiAnalysis.overallScore }}/100
+                  </span>
+                </div>
+                <!-- 关键发现 -->
+                <div v-if="parsedAiAnalysis.keyFindings?.length">
+                  <div class="text-xs font-medium text-text-secondary mb-1">关键发现</div>
+                  <div class="space-y-1.5">
+                    <div
+                      v-for="(finding, idx) in parsedAiAnalysis.keyFindings"
+                      :key="idx"
+                      class="flex items-start gap-2"
+                    >
+                      <span
+                        class="mt-0.5 shrink-0 inline-block w-1.5 h-1.5 rounded-full"
+                        :class="
+                          finding.severity === 'high'
+                            ? 'bg-error'
+                            : finding.severity === 'medium'
+                              ? 'bg-warning'
+                              : 'bg-success'
+                        "
+                      ></span>
+                      <div>
+                        <span class="font-medium">{{ finding.title }}</span>
+                        <span class="text-text-secondary ml-1">—</span>
+                        <span class="text-text-secondary">{{ finding.description }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- 建议 -->
+                <div v-if="parsedAiAnalysis.recommendations?.length">
+                  <div class="text-xs font-medium text-text-secondary mb-1">改进建议</div>
+                  <ol class="list-decimal list-inside space-y-0.5 text-text-secondary text-xs">
+                    <li v-for="(rec, idx) in parsedAiAnalysis.recommendations" :key="idx">
+                      {{ rec }}
+                    </li>
+                  </ol>
+                </div>
+                <!-- 合规检查 -->
+                <div v-if="parsedAiAnalysis.complianceChecks?.length">
+                  <div class="text-xs font-medium text-text-secondary mb-1">合规检查</div>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="(check, idx) in parsedAiAnalysis.complianceChecks"
+                      :key="idx"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs"
+                      :class="
+                        check.status === 'pass'
+                          ? 'bg-success/10 text-success'
+                          : check.status === 'fail'
+                            ? 'bg-error/10 text-error'
+                            : 'bg-warning/10 text-warning'
+                      "
+                    >
+                      <i
+                        :class="
+                          check.status === 'pass'
+                            ? 'fas fa-check-circle'
+                            : check.status === 'fail'
+                              ? 'fas fa-times-circle'
+                              : 'fas fa-exclamation-circle'
+                        "
+                      ></i>
+                      {{ check.item }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="p-3 bg-surface/50 rounded-lg text-sm whitespace-pre-wrap">
                 {{ selectedReport.ai_analysis }}
               </div>
             </div>
@@ -552,6 +644,23 @@ const parsedAnomalies = computed(() => {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+});
+
+interface AiAnalysis {
+  overallScore?: number;
+  keyFindings?: Array<{ title: string; description: string; severity: string }>;
+  recommendations?: string[];
+  complianceChecks?: Array<{ item: string; status: string }>;
+}
+
+const parsedAiAnalysis = computed<AiAnalysis | null>(() => {
+  if (!selectedReport.value?.ai_analysis) return null;
+  try {
+    const parsed = JSON.parse(selectedReport.value.ai_analysis);
+    return typeof parsed === 'object' && parsed !== null ? parsed : null;
+  } catch {
+    return null;
   }
 });
 
