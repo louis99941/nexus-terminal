@@ -20,6 +20,7 @@ import type { TelnetService as TelnetServiceType } from './telnet.service';
 interface TelnetClientState extends ClientState {
   telnetService?: TelnetServiceType;
   telnetSessionId?: string;
+  sshClient: ClientState['sshClient'];
 }
 
 interface TelnetConnectPayload {
@@ -77,21 +78,7 @@ export async function handleTelnetConnect(
       return;
     }
 
-    // 解密密码
-    if (fullConnection.encrypted_password) {
-      try {
-        decrypt(fullConnection.encrypted_password);
-      } catch (err) {
-        logger.error({ error: err }, 'Telnet 密码解密失败');
-        ws.send(
-          JSON.stringify({
-            type: 'telnet:error',
-            payload: { message: '密码解密失败' },
-          })
-        );
-        return;
-      }
-    }
+    // Telnet 是交互式登录，密码在连接后手动输入，无需解密
 
     // 创建 Telnet 服务
     const telnetService = new TelnetService({
@@ -263,12 +250,18 @@ export async function handleTelnetConnect(
 /**
  * 处理 Telnet 输入数据
  */
-export function handleTelnetInput(_ws: AuthenticatedWebSocket, payload: TelnetInputPayload): void {
+export function handleTelnetInput(ws: AuthenticatedWebSocket, payload: TelnetInputPayload): void {
   const { sessionId, data } = payload;
 
   const clientState = clientStates.get(sessionId) as TelnetClientState | undefined;
   if (!clientState) {
     logger.warn({ sessionId }, 'Telnet 会话不存在');
+    return;
+  }
+
+  // 校验会话归属
+  if (clientState.ws !== ws) {
+    logger.warn({ sessionId }, 'Telnet 会话归属不匹配');
     return;
   }
 
@@ -279,8 +272,8 @@ export function handleTelnetInput(_ws: AuthenticatedWebSocket, payload: TelnetIn
   }
 
   try {
-    // 解码 base64 数据
-    const decodedData = Buffer.from(data, 'base64').toString('utf-8');
+    // 解码 base64 数据为原始 Buffer
+    const decodedData = Buffer.from(data, 'base64');
     telnetService.write(decodedData);
   } catch (err) {
     logger.error({ sessionId, error: err }, 'Telnet 输入处理失败');
@@ -290,15 +283,18 @@ export function handleTelnetInput(_ws: AuthenticatedWebSocket, payload: TelnetIn
 /**
  * 处理 Telnet 窗口大小调整
  */
-export function handleTelnetResize(
-  _ws: AuthenticatedWebSocket,
-  payload: TelnetResizePayload
-): void {
+export function handleTelnetResize(ws: AuthenticatedWebSocket, payload: TelnetResizePayload): void {
   const { sessionId, cols, rows } = payload;
 
   const clientState = clientStates.get(sessionId) as TelnetClientState | undefined;
   if (!clientState) {
     logger.warn({ sessionId }, 'Telnet 会话不存在');
+    return;
+  }
+
+  // 校验会话归属
+  if (clientState.ws !== ws) {
+    logger.warn({ sessionId }, 'Telnet 会话归属不匹配');
     return;
   }
 

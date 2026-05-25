@@ -229,7 +229,7 @@ function detectPrivilegeEscalation(
   commands: Array<{ command: string; timestamp: number }>
 ): RuleDetectionResult {
   const anomalies: RuleDetectionResult['anomalies'] = [];
-  const tenMinutes = 600000; // 10 分钟毫秒数
+  const tenMinutes = 600; // 10 分钟秒数（与数据库时间戳单位一致）
 
   // 找出所有权限提升命令
   const escalationCommands = commands.filter(({ command }) =>

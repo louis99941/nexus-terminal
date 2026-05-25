@@ -164,6 +164,9 @@ export const useAiAuditStore = defineStore('aiAudit', () => {
     currentReport.value = null;
     anomalies.value = [];
     anomalyStats.value = null;
+    totalReports.value = 0;
+    totalAnomalies.value = 0;
+    isLoading.value = false;
     error.value = null;
   }
 

@@ -409,6 +409,7 @@ CREATE TABLE IF NOT EXISTS audit_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     report_type TEXT NOT NULL CHECK(report_type IN ('command_analysis', 'login_analysis', 'full_audit')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'completed', 'failed')),
     time_range_start INTEGER NOT NULL,
     time_range_end INTEGER NOT NULL,
     summary TEXT NOT NULL DEFAULT '{}',

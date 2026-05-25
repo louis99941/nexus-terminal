@@ -277,7 +277,7 @@ const totalAnomalies = computed(() => auditStore.totalAnomalies);
 const isLoading = computed(() => auditStore.isLoading);
 
 const criticalCount = computed(
-  () => anomalies.value.filter((a) => a.severity === 'critical').length
+  () => anomalies.value.filter((a) => a.severity === 'critical' || a.severity === 'high').length
 );
 const recentAnomalyCount = computed(() => {
   const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;

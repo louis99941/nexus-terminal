@@ -40,7 +40,13 @@ export class AiAuditController {
 
       const { reportType, timeRangeStart, timeRangeEnd } = req.body;
 
-      if (!reportType || !timeRangeStart || !timeRangeEnd) {
+      if (
+        !reportType ||
+        timeRangeStart == null ||
+        timeRangeEnd == null ||
+        !Number.isFinite(Number(timeRangeStart)) ||
+        !Number.isFinite(Number(timeRangeEnd))
+      ) {
         res.status(400).json({ error: '缺少必要参数' });
         return;
       }
@@ -115,11 +121,18 @@ export class AiAuditController {
    */
   async getAnomalies(req: Request, res: Response): Promise<void> {
     try {
+      let acknowledged: boolean | undefined;
+      if (req.query.acknowledged === 'true') {
+        acknowledged = true;
+      } else if (req.query.acknowledged === 'false') {
+        acknowledged = false;
+      }
+
       const query: GetAnomaliesQuery = {
         page: req.query.page ? Number(req.query.page) : 1,
         pageSize: req.query.pageSize ? Number(req.query.pageSize) : 20,
         severity: req.query.severity as GetAnomaliesQuery['severity'],
-        acknowledged: req.query.acknowledged === 'true' ? true : undefined,
+        acknowledged,
       };
 
       const result = await this.service.getAnomalies(query);

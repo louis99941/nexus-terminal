@@ -28,6 +28,7 @@ export function useTelnetTerminal() {
   let ws: WebSocket | null = null;
   let reconnectAttempts = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let resizeObserver: ResizeObserver | null = null;
   const maxReconnectAttempts = 3;
 
   /**
@@ -59,12 +60,10 @@ export function useTelnetTerminal() {
     fitAddon.value = fit;
 
     // 监听窗口大小变化
-    const resizeObserver = new ResizeObserver(() => {
+    resizeObserver = new ResizeObserver(() => {
       fit.fit();
     });
     resizeObserver.observe(options.container);
-    // 保存引用以便清理
-    (window as unknown as Record<string, unknown>).__telnetResizeObserver = resizeObserver;
 
     // 连接 WebSocket
     connectWebSocket(options);
@@ -165,6 +164,11 @@ export function useTelnetTerminal() {
       return;
     }
 
+    if (!sessionId.value) {
+      log.warn('[Telnet] sessionId 未就绪，忽略输入');
+      return;
+    }
+
     // base64 编码
     const encoded = btoa(data);
     ws.send(
@@ -180,6 +184,10 @@ export function useTelnetTerminal() {
    */
   function sendResize(cols: number, rows: number) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    if (!sessionId.value) {
       return;
     }
 
@@ -202,12 +210,9 @@ export function useTelnetTerminal() {
     }
 
     // 清理 ResizeObserver
-    const resizeObserver = (window as unknown as Record<string, unknown>).__telnetResizeObserver as
-      | ResizeObserver
-      | undefined;
     if (resizeObserver) {
       resizeObserver.disconnect();
-      delete (window as unknown as Record<string, unknown>).__telnetResizeObserver;
+      resizeObserver = null;
     }
 
     if (ws && ws.readyState === WebSocket.OPEN) {

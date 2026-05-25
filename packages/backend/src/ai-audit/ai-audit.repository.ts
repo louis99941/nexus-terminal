@@ -44,8 +44,8 @@ export class AiAuditRepository {
     aiAnalysis?: string
   ): Promise<void> {
     const db = await getDbInstance();
-    const updates: string[] = [];
-    const params: unknown[] = [];
+    const updates: string[] = ['status = ?'];
+    const params: unknown[] = [status];
 
     // 只在显式提供时更新 summary
     if (summary !== undefined) {
@@ -61,10 +61,8 @@ export class AiAuditRepository {
       params.push(aiAnalysis);
     }
 
-    if (updates.length > 0) {
-      params.push(reportId);
-      await runDb(db, `UPDATE audit_reports SET ${updates.join(', ')} WHERE id = ?`, params);
-    }
+    params.push(reportId);
+    await runDb(db, `UPDATE audit_reports SET ${updates.join(', ')} WHERE id = ?`, params);
   }
 
   /**
