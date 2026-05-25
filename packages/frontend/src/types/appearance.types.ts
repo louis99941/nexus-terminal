@@ -30,6 +30,10 @@ export interface AppearanceSettings {
   terminalTextShadowOffsetY?: number;
   terminalTextShadowBlur?: number;
   terminalTextShadowColor?: string;
+
+  // 渲染模式与性能
+  terminalRenderMode?: 'auto' | 'webgl' | 'canvas' | 'dom';
+  terminalShowFps?: boolean;
 }
 
 // 前端用于更新外观设置的数据结构 (对应 API 请求体)

@@ -320,6 +320,8 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
     terminalAutoWrapEnabled: 'true', // 终端自动换行默认启用
     sshSuspendKeepAliveSeconds: '0', // 挂起会话保活时长（秒），0 表示永久
     terminalEnableRightClickPaste: 'true', // 终端右键粘贴默认值
+    terminalRenderMode: 'auto', // 终端渲染模式（auto/webgl/canvas/dom）
+    terminalShowFps: 'false', // 是否显示 FPS（字符串布尔值）
   };
   const nowSeconds = Math.floor(Date.now() / 1000);
   const sqlInsertOrIgnore = `INSERT OR IGNORE INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)`;
