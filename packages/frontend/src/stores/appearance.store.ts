@@ -123,8 +123,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
       } else if (settings.terminalRenderMode) {
         log.warn('[AppearanceStore] 非法渲染模式值，回退到 auto:', settings.terminalRenderMode);
       }
-      if (typeof settings.terminalShowFps === 'boolean') {
-        terminalShowFps.value = settings.terminalShowFps;
+      if (settings.terminalShowFps !== undefined) {
+        terminalShowFps.value = String(settings.terminalShowFps) === 'true';
       }
 
       // 初始化远程预设 URL

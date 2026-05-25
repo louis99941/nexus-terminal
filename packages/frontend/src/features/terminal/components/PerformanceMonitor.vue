@@ -47,6 +47,8 @@ const contextDotColor = computed(() => {
       return 'bg-yellow-400';
     case 'unavailable':
       return 'bg-red-400';
+    default:
+      return 'bg-gray-400';
   }
 });
 </script>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { ref } from 'vue';
 
 vi.mock('@/utils/log', () => ({
@@ -49,7 +49,7 @@ function makeTerminal(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('useTerminalRenderer', () => {
+describe('useTerminalRenderer 渲染器管理', () => {
   beforeAll(() => {
     vi.stubGlobal('requestAnimationFrame', mockRequestAnimationFrame);
     vi.stubGlobal('cancelAnimationFrame', mockCancelAnimationFrame);
@@ -272,7 +272,7 @@ describe('useTerminalRenderer', () => {
 
   // ========== Context Loss ==========
 
-  describe('Context Loss', () => {
+  describe('上下文丢失处理', () => {
     it('context loss 后记录次数', async () => {
       const { useTerminalRenderer } = await import('./useTerminalRenderer');
       const term = makeTerminal();
@@ -322,28 +322,37 @@ describe('useTerminalRenderer', () => {
       expect(contextState.value).toBe('active');
     });
 
-    it('webgl 模式恢复失败后降级为 dom', async () => {
+    it('webgl 模式 context loss 后恢复失败时降级为 dom', async () => {
       const { useTerminalRenderer } = await import('./useTerminalRenderer');
-      const term = makeTerminal({
-        loadAddon: vi.fn().mockImplementation(() => {
+      // 首次加载成功，恢复时失败
+      const loadAddon = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          // 初次加载成功
+        })
+        .mockImplementationOnce(() => {
+          // context loss 后恢复失败
           throw new Error('fail');
-        }),
-      });
+        });
+      const term = makeTerminal({ loadAddon });
       const terminal = ref(term as any);
       const { setRenderMode, activeRenderer, contextState } = useTerminalRenderer(terminal, 's1');
 
       setRenderMode('webgl');
+      expect(activeRenderer.value).toBe('webgl');
 
-      // 触发 context loss（此时 loadAddon 会抛异常）
+      // 触发 context loss（恢复时 loadAddon 会抛异常）
       contextLossHandler?.();
 
+      expect(loadAddon).toHaveBeenCalledTimes(2);
       expect(activeRenderer.value).toBe('dom');
+      expect(contextState.value).toBe('unavailable');
     });
   });
 
   // ========== getMetrics ==========
 
-  describe('getMetrics', () => {
+  describe('性能指标获取', () => {
     it('返回完整的 RenderMetrics 对象', async () => {
       const { useTerminalRenderer } = await import('./useTerminalRenderer');
       const terminal = ref(makeTerminal() as any);
@@ -385,7 +394,7 @@ describe('useTerminalRenderer', () => {
 
   // ========== cleanup ==========
 
-  describe('cleanup', () => {
+  describe('清理与资源释放', () => {
     it('cleanup 应停止监控并卸载 addon', async () => {
       const { useTerminalRenderer } = await import('./useTerminalRenderer');
       const terminal = ref(makeTerminal() as any);
@@ -415,7 +424,7 @@ describe('useTerminalRenderer', () => {
 
   // ========== initRenderer ==========
 
-  describe('initRenderer', () => {
+  describe('渲染器初始化', () => {
     it('terminal 为 null 时 initRenderer 不应报错', async () => {
       const { useTerminalRenderer } = await import('./useTerminalRenderer');
       const terminal = ref(null);

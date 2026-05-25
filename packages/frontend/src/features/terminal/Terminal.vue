@@ -388,7 +388,10 @@ onMounted(() => {
 
     term.open(terminalRef.value);
     isTerminalDomReady.value = true;
-    startMonitoring(); // 启动 FPS 采样监控
+    // 仅在用户启用 FPS 显示时启动采样，避免无用 RAF 循环
+    if (isFpsEnabled.value) {
+      startMonitoring();
+    }
     log.info(`[Terminal ${props.sessionId}] Xterm open() called.`);
 
     applyTerminalWrapMode();
@@ -553,6 +556,15 @@ onMounted(() => {
     watch(currentRenderMode, (newMode) => {
       setRenderMode(newMode);
       log.info(`[Terminal ${props.sessionId}] 渲染模式已切换为: ${newMode}`);
+    });
+
+    // --- FPS 监控响应：设置变化时启停采样 ---
+    watch(isFpsEnabled, (enabled) => {
+      if (enabled) {
+        startMonitoring();
+      } else {
+        stopMonitoring();
+      }
     });
 
     // --- Wheel Zoom ---

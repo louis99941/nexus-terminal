@@ -142,13 +142,13 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
           recoveryAttempts = 0;
           activeRenderer.value = 'webgl';
         } else {
-          // 恢复失败，记录状态但不降级（webgl 强制模式）
+          // 恢复失败，降级为 DOM 渲染器
           activeRenderer.value = 'dom';
+          contextState.value = 'unavailable';
           if (recoveryAttempts >= MAX_WEBGL_RECOVERY_ATTEMPTS) {
             log.warn(
-              `[Terminal ${sessionId}] WebGL 恢复已达最大次数 ${MAX_WEBGL_RECOVERY_ATTEMPTS}，渲染器降级为 DOM`
+              `[Terminal ${sessionId}] WebGL 恢复已达最大次数 ${MAX_WEBGL_RECOVERY_ATTEMPTS}，渲染器永久降级为 DOM`
             );
-            contextState.value = 'unavailable';
           }
         }
       }
