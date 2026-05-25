@@ -176,6 +176,13 @@
                   <span :class="getStatusBadgeClass(getReportStatus(report))">
                     {{ getStatusStatusLabel(getReportStatus(report)) }}
                   </span>
+                  <button
+                    @click.stop="handleDeleteReport(report.id)"
+                    class="text-text-secondary hover:text-error opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                    :title="t('common.delete', '删除')"
+                  >
+                    <i class="fas fa-trash-alt text-xs"></i>
+                  </button>
                   <i
                     class="fas fa-chevron-right text-[10px] text-muted opacity-0 group-hover:opacity-100 transition-opacity"
                   ></i>
@@ -253,6 +260,80 @@
         </div>
       </div>
     </div>
+
+    <!-- Report Detail Modal -->
+    <div
+      v-if="selectedReport"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="closeReportDetail"
+    >
+      <div
+        class="bg-background rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden"
+      >
+        <div class="flex items-center justify-between p-4 border-b border-border">
+          <div class="flex items-center gap-3">
+            <span :class="getReportTypeBadgeClass(selectedReport.report_type)">
+              {{ getReportTypeLabel(selectedReport.report_type) }}
+            </span>
+            <span class="text-sm text-muted font-mono">
+              {{ formatDate(selectedReport.created_at) }}
+            </span>
+          </div>
+          <button @click="closeReportDetail" class="text-text-secondary hover:text-foreground">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto max-h-[60vh]">
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-sm font-medium text-text-secondary mb-1">
+                {{ t('aiAudit.timeRange', '时间范围') }}
+              </h4>
+              <p class="font-mono text-sm">
+                {{ formatDate(selectedReport.time_range_start) }} -
+                {{ formatDate(selectedReport.time_range_end) }}
+              </p>
+            </div>
+            <div v-if="selectedReport.summary">
+              <h4 class="text-sm font-medium text-text-secondary mb-1">
+                {{ t('aiAudit.summary', '分析摘要') }}
+              </h4>
+              <div class="p-3 bg-surface/50 rounded-lg text-sm">{{ selectedReport.summary }}</div>
+            </div>
+            <div v-if="selectedReport.anomalies_json">
+              <h4 class="text-sm font-medium text-text-secondary mb-1">
+                {{ t('aiAudit.anomalies', '异常检测') }}
+              </h4>
+              <pre class="p-3 bg-surface/50 rounded-lg text-xs overflow-x-auto">{{
+                selectedReport.anomalies_json
+              }}</pre>
+            </div>
+            <div v-if="selectedReport.ai_analysis">
+              <h4 class="text-sm font-medium text-text-secondary mb-1">
+                {{ t('aiAudit.aiAnalysis', 'AI 分析') }}
+              </h4>
+              <div class="p-3 bg-surface/50 rounded-lg text-sm whitespace-pre-wrap">
+                {{ selectedReport.ai_analysis }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 p-4 border-t border-border">
+          <button
+            @click="handleDeleteReport(selectedReport.id)"
+            class="px-4 py-2 text-sm font-medium text-error hover:bg-error/10 rounded-lg transition-colors"
+          >
+            <i class="fas fa-trash-alt mr-1"></i>{{ t('common.delete', '删除') }}
+          </button>
+          <button
+            @click="closeReportDetail"
+            class="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface/80 rounded-lg transition-colors"
+          >
+            {{ t('common.close', '关闭') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -261,6 +342,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAiAuditStore } from '../stores/ai-audit.store';
 import type { AuditReport, ReportType, ReportStatus } from '../types/ai-audit.types';
+import apiClient from '../utils/apiClient';
 
 const { t } = useI18n();
 const auditStore = useAiAuditStore();
@@ -383,8 +465,27 @@ async function handleCreateReport() {
   isCreating.value = false;
 }
 
+const selectedReport = ref<AuditReport | null>(null);
+
 function viewReport(report: AuditReport) {
-  auditStore.fetchReportById(report.id);
+  selectedReport.value = report;
+}
+
+function closeReportDetail() {
+  selectedReport.value = null;
+}
+
+async function handleDeleteReport(reportId: number) {
+  try {
+    await apiClient.delete(`/ai-audit/reports/${reportId}`);
+    await auditStore.fetchReports();
+    await auditStore.fetchAnomalyStats();
+    if (selectedReport.value?.id === reportId) {
+      selectedReport.value = null;
+    }
+  } catch (err) {
+    console.error('删除报告失败:', err);
+  }
 }
 
 async function handleAcknowledge(anomalyId: number) {
