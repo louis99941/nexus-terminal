@@ -1,7 +1,6 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
-import { GITHUB_REPO_URL } from '@/utils/constants';
 import { log } from '@/utils/log';
 
 export function useVersionCheck() {
@@ -14,7 +13,6 @@ export function useVersionCheck() {
   const isUpdateAvailable = computed(() => {
     if (!latestVersion.value) return false;
 
-    // 清除 'v' 前缀后进行比较
     const cleanLatestVersion = latestVersion.value.startsWith('v')
       ? latestVersion.value.substring(1)
       : latestVersion.value;
@@ -40,23 +38,16 @@ export function useVersionCheck() {
     versionCheckError.value = null;
     latestVersion.value = null;
     try {
-      const response = await axios.get(
-        `https://raw.githubusercontent.com/${GITHUB_REPO_URL.split('github.com/')[1]}/main/VERSION`
-      );
-      if (response.data && response.data.trim()) {
-        latestVersion.value = response.data.trim();
+      const response = await axios.get('/api/v1/version/remote');
+      if (response.data?.version) {
+        latestVersion.value = response.data.version;
       } else {
         throw new Error('Empty VERSION');
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        if (error.response?.status === 404) {
-          log.warn('暂无可用的发布版本');
-          versionCheckError.value = t('settings.about.error.noReleases');
-        } else {
-          log.error('检查最新版本失败:', error);
-          versionCheckError.value = t('settings.about.error.checkFailed');
-        }
+        log.error('检查最新版本失败:', error);
+        versionCheckError.value = t('settings.about.error.checkFailed');
       } else {
         log.error('检查最新版本失败:', error);
         versionCheckError.value = t('settings.about.error.checkFailed');

@@ -22,10 +22,6 @@ vi.mock('@/utils/log', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('@/utils/constants', () => ({
-  GITHUB_REPO_URL: 'https://github.com/Silentely/nexus-terminal',
-}));
-
 describe('useVersionCheck', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -43,29 +39,12 @@ describe('useVersionCheck', () => {
     expect(versionCheckError.value).toBeNull();
   });
 
-  it('应检测有更新可用', async () => {
-    mockAxiosGet.mockResolvedValue({ data: 'v2.0.0' });
-    const { useVersionCheck } = await import('./useVersionCheck');
-    const { isUpdateAvailable } = useVersionCheck();
-
-    // 需要等待 onMounted 执行
-    await vi.waitFor(() => {
-      expect(isUpdateAvailable.value).toBeDefined();
-    });
-  });
-
-  it('应检测无更新', async () => {
-    mockAxiosGet.mockResolvedValue({ data: 'v1.0.0' });
-    const { useVersionCheck } = await import('./useVersionCheck');
-    const { isUpdateAvailable } = useVersionCheck();
-
-    await vi.waitFor(() => {
-      expect(isUpdateAvailable.value).toBeDefined();
-    });
-  });
-
   it('checkLatestVersion 应获取最新版本', async () => {
-    mockAxiosGet.mockResolvedValue({ data: 'v3.0.0' });
+    mockAxiosGet.mockImplementation((url: string) => {
+      if (url === '/VERSION') return Promise.resolve({ data: 'v1.0.0' });
+      if (url === '/api/v1/version/remote') return Promise.resolve({ data: { version: 'v3.0.0' } });
+      return Promise.reject(new Error('unknown url'));
+    });
     const { useVersionCheck } = await import('./useVersionCheck');
     const { checkLatestVersion, latestVersion } = useVersionCheck();
 
@@ -75,17 +54,11 @@ describe('useVersionCheck', () => {
   });
 
   it('checkLatestVersion 失败应设置错误', async () => {
-    mockAxiosGet.mockRejectedValue({ response: { status: 500 } });
-    const { useVersionCheck } = await import('./useVersionCheck');
-    const { checkLatestVersion, versionCheckError } = useVersionCheck();
-
-    await checkLatestVersion();
-
-    expect(versionCheckError.value).toBeTruthy();
-  });
-
-  it('404 错误应显示无发布版本', async () => {
-    mockAxiosGet.mockRejectedValue({ response: { status: 404 } });
+    mockAxiosGet.mockImplementation((url: string) => {
+      if (url === '/VERSION') return Promise.resolve({ data: 'v1.0.0' });
+      if (url === '/api/v1/version/remote') return Promise.reject({ response: { status: 500 } });
+      return Promise.reject(new Error('unknown url'));
+    });
     const { useVersionCheck } = await import('./useVersionCheck');
     const { checkLatestVersion, versionCheckError } = useVersionCheck();
 

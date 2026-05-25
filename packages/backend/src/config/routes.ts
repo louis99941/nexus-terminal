@@ -32,6 +32,7 @@ import dashboardRoutes from '../services/dashboard.routes';
 import metricsRoutes from '../metrics/metrics.routes';
 import backupRoutes from '../backup/backup.routes';
 import { aiAuditRoutes } from '../ai-audit/ai-audit.routes';
+import versionRoutes from '../version/version.routes';
 import { errorHandler, notFoundHandler } from '../middleware/error.middleware';
 import { requestLogger } from '../middleware/request-logger.middleware';
 
@@ -78,6 +79,7 @@ export const registerRoutes = (
   app.use('/api/v1/ai-audit', apiLimiter, aiAuditRoutes);
   app.use('/api/v1/dashboard', apiLimiter, dashboardRoutes);
   app.use('/api/v1/backup', apiLimiter, backupRoutes);
+  app.use('/api/v1/version', apiLimiter, versionRoutes);
 
   // Prometheus 指标端点（受 ENABLE_METRICS 环境变量控制）
   if (process.env.ENABLE_METRICS === 'true') {
