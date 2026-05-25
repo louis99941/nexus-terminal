@@ -302,7 +302,7 @@
         <!-- 操作说明 -->
         <p v-if="bodyList.length > 0" class="text-xs text-muted-foreground mt-2">
           · <strong>新增</strong>：添加或覆盖请求体字段（数字/布尔值自动识别类型）<br/>
-          · <strong>重命名</strong>：在「参数名称」填旧名称，「参数值」填新名称<br/>
+          · <strong>重命名</strong>：在「参数名称」填旧名称，「参数值」填新名称，值保持不变<br/>
           · <strong>删除</strong>：在「参数名称」填要删除的字段名
         </p>
       </div>
@@ -528,7 +528,7 @@ function syncBodyFromSettings() {
 
 function syncBodyToSettings() {
   const body = new Map<string, unknown>();
-  // 仅当存在重命名/删除操作时才加载已有配置（用于查找旧 key）
+  // 仅当存在重命名/删除操作时才加载已有配置（用于查找旧 key 和值）
   const hasNonAdd = bodyList.value.some((item) => item.action !== 'add');
   if (hasNonAdd) {
     const existing = localSettings.value.extraBody || {};
@@ -544,6 +544,7 @@ function syncBodyToSettings() {
         body.set(k, parseBodyValue(item.value));
         break;
       case 'rename': {
+        // 重命名：key=旧名, value=新名, 保留原始值
         const oldValue = body.get(k);
         if (oldValue !== undefined) {
           body.delete(k);
