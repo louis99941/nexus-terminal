@@ -172,12 +172,16 @@
             <!-- 选项下拉框：新增 / 覆盖 / 删除 -->
             <select
               v-model="item.action"
-              class="w-24 px-2 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none cursor-pointer"
+              class="w-24 px-2 py-1.5 text-sm border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
               style="
                 background-image: url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e&quot;);
-                background-position: right 0.35rem center;
-                background-size: 12px 9px;
-                padding-right: 1.5rem;
+                background-position: right 0.4rem center;
+                background-repeat: no-repeat;
+                background-size: 14px 10px;
+                padding-right: 1.6rem;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
               "
             >
               <option value="add">新增</option>
