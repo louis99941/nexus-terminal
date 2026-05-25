@@ -321,8 +321,7 @@ function getReportTypeBadgeClass(type: ReportType): string {
 }
 
 function getReportStatus(report: AuditReport): ReportStatus {
-  if (report.ai_analysis) return 'completed';
-  return 'pending';
+  return report.status || 'pending';
 }
 
 function getStatusBadgeClass(status: ReportStatus): string {

@@ -5,7 +5,6 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { findFullConnectionById } from '../connections/connection.repository';
-import { decrypt } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import { AuditLogService } from '../audit/audit.service';
 import eventService from '../services/event.service';
