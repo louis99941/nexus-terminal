@@ -182,4 +182,35 @@ export class AiAuditController {
       res.status(500).json({ error: '确认异常失败' });
     }
   }
+
+  /**
+   * 删除审计报告
+   * DELETE /api/v1/ai-audit/reports/:id
+   */
+  async deleteReport(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = this.getUserId(req);
+      if (!userId) {
+        res.status(401).json({ error: '未授权' });
+        return;
+      }
+
+      const reportId = Number(req.params.id);
+      if (!reportId) {
+        res.status(400).json({ error: '无效的报告 ID' });
+        return;
+      }
+
+      const success = await this.service.deleteReport(reportId, userId);
+      if (!success) {
+        res.status(404).json({ error: '报告不存在' });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      logger.error({ error: err }, '删除报告失败');
+      res.status(500).json({ error: '删除报告失败' });
+    }
+  }
 }

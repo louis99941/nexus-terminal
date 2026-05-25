@@ -275,6 +275,13 @@ export class AiAuditService {
   }
 
   /**
+   * 删除审计报告
+   */
+  async deleteReport(reportId: number, userId: number): Promise<boolean> {
+    return this.repository.deleteReport(reportId, userId);
+  }
+
+  /**
    * 获取异常统计（按用户过滤）
    */
   async getAnomalyStats(userId: number): Promise<AnomalyStats> {

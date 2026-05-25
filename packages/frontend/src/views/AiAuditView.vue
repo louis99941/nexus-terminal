@@ -321,15 +321,15 @@
         <div class="flex justify-end gap-2 p-4 border-t border-border">
           <button
             @click="handleDeleteReport(selectedReport.id)"
-            class="px-4 py-2 text-sm font-medium text-error hover:bg-error/10 rounded-lg transition-colors"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-error hover:bg-error/10 rounded-lg transition-colors"
           >
-            <i class="fas fa-trash-alt mr-1"></i>{{ t('common.delete', '删除') }}
+            <i class="fas fa-trash-alt"></i>{{ t('common.delete', '删除') }}
           </button>
           <button
             @click="closeReportDetail"
-            class="px-4 py-2 text-sm font-medium bg-surface hover:bg-surface/80 rounded-lg transition-colors"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-foreground bg-surface hover:bg-surface/80 rounded-lg transition-colors"
           >
-            {{ t('common.close', '关闭') }}
+            <i class="fas fa-times"></i>{{ t('common.close', '关闭') }}
           </button>
         </div>
       </div>

@@ -16,6 +16,7 @@ router.use(isAuthenticated);
 router.post('/reports', (req, res) => controller.createReport(req, res));
 router.get('/reports', (req, res) => controller.getReports(req, res));
 router.get('/reports/:id', (req, res) => controller.getReportById(req, res));
+router.delete('/reports/:id', (req, res) => controller.deleteReport(req, res));
 
 // 异常检测
 router.get('/anomalies', (req, res) => controller.getAnomalies(req, res));

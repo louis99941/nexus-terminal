@@ -66,6 +66,32 @@ export class AiAuditRepository {
   }
 
   /**
+   * 删除审计报告及其关联的异常记录
+   */
+  async deleteReport(reportId: number, userId: number): Promise<boolean> {
+    const db = await getDbInstance();
+
+    // 先检查报告是否存在且属于当前用户
+    const report = await getDbRow<{ id: number }>(
+      db,
+      'SELECT id FROM audit_reports WHERE id = ? AND user_id = ?',
+      [reportId, userId]
+    );
+
+    if (!report) {
+      return false;
+    }
+
+    // 删除关联的异常记录
+    await runDb(db, 'DELETE FROM audit_anomalies WHERE report_id = ?', [reportId]);
+
+    // 删除报告
+    await runDb(db, 'DELETE FROM audit_reports WHERE id = ? AND user_id = ?', [reportId, userId]);
+
+    return true;
+  }
+
+  /**
    * 获取报告列表
    */
   async getReports(params: {
