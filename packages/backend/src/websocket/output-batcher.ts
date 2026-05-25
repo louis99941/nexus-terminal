@@ -4,17 +4,27 @@
  *
  * 设计思路：
  * - 每个 sessionId 维护独立的批处理器
- * - 数据到达时写入 buffer，启动 16ms 定时器
- * - 定时器触发时：合并 buffer → Base64 编码 → 发送
- * - 16ms < 16.67ms（60fps 帧预算），延迟不可感知
+ * - 数据到达时写入 buffer：
+ *   1. 小数据（< SMALL_PAYLOAD_THRESHOLD）且当前空闲 → 立即发送（击键回显零延迟）
+ *   2. 大数据洪流 → 启动 16ms 定时器，合并多个块为一帧（带宽优化）
+ *   3. 缓冲区超过 MAX_BATCH_SIZE → 立即发送（防止单帧过大）
+ * - 16ms < 16.67ms（60fps 帧预算），洪流场景下延迟不可感知
+ * - 小数据零延迟路径解决了"按键输入命令需要等待"的输入回显延迟问题
  */
 
 import WebSocket from 'ws';
 import { logger } from '../utils/logger';
 
 /** 批处理器配置 */
-const BATCH_WINDOW_MS = 16; // 16ms 批处理窗口
+const BATCH_WINDOW_MS = 16; // 16ms 批处理窗口（洪流合并窗口）
 const MAX_BATCH_SIZE = 64 * 1024; // 最大 64KB 批次大小
+/**
+ * 小数据载荷阈值（字节）：低于此阈值的单次写入视为击键回显，
+ * 在缓冲区空闲（无 pending timer）时立即发送，避免引入 16ms 延迟。
+ * 256B 足以容纳常见 ANSI 转义序列 + 单字符回显 + 光标移动等组合，
+ * 但小于一行命令的典型输出（80 列 + 颜色控制约 256~512B）。
+ */
+const SMALL_PAYLOAD_THRESHOLD = 256;
 
 /** 批处理器状态 */
 interface BatcherState {
@@ -86,6 +96,23 @@ export function createOutputBatcher(
     // 如果缓冲区超过最大大小，立即发送
     if (state.bufferLength >= MAX_BATCH_SIZE) {
       flush();
+      return;
+    }
+
+    // 零延迟回显路径：
+    // 当缓冲区无 pending timer（即此次写入是当前批次的首个数据块），
+    // 且总长度低于 SMALL_PAYLOAD_THRESHOLD 时，立即 flush。
+    // 这样可消除击键回显的 16ms 批处理延迟，使命令输入感受流畅。
+    //
+    // 冷却机制：flush 后立即启动 16ms 定时器，防止小数据洪流场景下
+    // （如终端快速输出多行短文本）连续立即 flush 破坏合并窗口。
+    // 冷却期内后续小数据走批处理路径正常合并，冷却结束后恢复零延迟。
+    if (!state.timer && state.bufferLength < SMALL_PAYLOAD_THRESHOLD) {
+      flush();
+      state.timer = setTimeout(() => {
+        state.timer = null;
+        flush();
+      }, BATCH_WINDOW_MS);
       return;
     }
 

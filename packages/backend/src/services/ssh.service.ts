@@ -279,6 +279,28 @@ const _setupSshClientListenersAndConnect = (
         client.removeListener('error', eventHandlers.error);
         client.removeListener('close', eventHandlers.close);
 
+        // 关闭底层 TCP socket 的 Nagle 算法（启用 TCP_NODELAY），消除击键回显场景下
+        // 由 Nagle + 远端 ACK 延迟（Linux 默认 40ms 延迟 ACK）叠加产生的输入卡顿。
+        // 仅对最终目标客户端启用；中间跳板的 Nagle 不影响用户回显路径，可保持默认以减小流量包数。
+        if (isFinalClient) {
+          try {
+            // ssh2 内部以 _sock 字段暴露底层 socket；它是 net.Socket 或 Duplex（代理流）。
+            // 仅当具备 setNoDelay 方法时调用，避免误触发其它流类型异常。
+            const underlyingSock = (
+              client as unknown as { _sock?: { setNoDelay?: (v: boolean) => void } }
+            )._sock;
+            if (underlyingSock && typeof underlyingSock.setNoDelay === 'function') {
+              underlyingSock.setNoDelay(true);
+              logger.debug(`${logPrefix} TCP_NODELAY enabled on underlying socket.`);
+            }
+          } catch (noDelayError: unknown) {
+            logger.warn(
+              `${logPrefix} Failed to enable TCP_NODELAY (continuing anyway):`,
+              noDelayError
+            );
+          }
+        }
+
         if (isFinalClient && connectionIdForUpdate !== null && connectionIdForUpdate !== -1) {
           // -1 for unsaved tests
           try {
