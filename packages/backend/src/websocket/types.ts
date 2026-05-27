@@ -298,6 +298,16 @@ export interface SftpDecompressErrorPayload {
   details?: string; // Stderr output or specific error details
   requestId: string;
 }
+
+// S -> C: Archive operation progress (compress/decompress)
+export interface SftpArchiveProgressPayload {
+  requestId: string;
+  /** 当前已处理的文件数量 */
+  fileCount: number;
+  /** 最近处理的文件名（可选） */
+  currentFile?: string;
+}
+
 // S -> C: SFTP Upload Progress (New)
 export interface SftpUploadProgressPayload {
   uploadId: string; // To correlate with the specific upload

@@ -14,6 +14,7 @@ import {
   SftpDecompressRequestPayload,
   SftpDecompressSuccessPayload,
   SftpDecompressErrorPayload,
+  SftpArchiveProgressPayload,
 } from '../websocket/types';
 import { getErrorMessage } from '../utils/AppError';
 import { shellEscape } from '../utils/shell-escape';
@@ -108,9 +109,26 @@ export class SftpArchiveManager {
 
         let stderrData = '';
         let code: number | null = null;
+        let fileCount = 0;
+        let lastProgressTime = 0;
 
         stream.stderr.on('data', (data: Buffer) => {
-          stderrData += data.toString();
+          const chunk = data.toString();
+          stderrData += chunk;
+          // 解析 stderr 中的文件名（tar -v / zip -r 输出）
+          const lines = chunk.split('\n').filter((l) => l.trim());
+          for (const line of lines) {
+            const fileName = this.parseArchiveFileName(line, format);
+            if (fileName) {
+              fileCount++;
+              const now = Date.now();
+              // 节流：每 3 秒最多发送一次进度
+              if (now - lastProgressTime >= 3000) {
+                lastProgressTime = now;
+                this.sendProgress(state.ws, 'compress', requestId, fileCount, fileName);
+              }
+            }
+          }
         });
 
         stream.on('close', (exitCode: number | null) => {
@@ -239,9 +257,25 @@ export class SftpArchiveManager {
 
         let stderrData = '';
         let code: number | null = null;
+        let fileCount = 0;
+        let lastProgressTime = 0;
 
         stream.stderr.on('data', (data: Buffer) => {
-          stderrData += data.toString();
+          const chunk = data.toString();
+          stderrData += chunk;
+          // 解析 stderr 中的文件名（tar -v / unzip 输出）
+          const lines = chunk.split('\n').filter((l) => l.trim());
+          for (const line of lines) {
+            const fileName = this.parseArchiveFileName(line, 'decompress');
+            if (fileName) {
+              fileCount++;
+              const now = Date.now();
+              if (now - lastProgressTime >= 3000) {
+                lastProgressTime = now;
+                this.sendProgress(state.ws, 'decompress', requestId, fileCount, fileName);
+              }
+            }
+          }
         });
 
         stream.on('close', (exitCode: number | null) => {
@@ -395,6 +429,67 @@ export class SftpArchiveManager {
       } else {
         ws.send(JSON.stringify({ type: 'sftp:decompress:error', payload }));
       }
+    }
+  }
+
+  /**
+   * 解析 tar/zip/unzip 的 stderr 输出，提取文件名
+   * tar -v 输出格式: "file.txt" 或 "dir/file.txt"
+   * zip -r 输出格式: "adding: file.txt" 或 "  adding: dir/"
+   * unzip 输出格式: "inflating: file.txt" 或 " extracting: dir/"
+   */
+  private parseArchiveFileName(
+    line: string,
+    format: 'zip' | 'targz' | 'tarbz2' | 'decompress'
+  ): string | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+
+    // zip 输出：以 "adding:" 开头
+    if (format === 'zip' && /^adding:\s+(.+)/i.test(trimmed)) {
+      return RegExp.$1.trim();
+    }
+
+    // unzip 输出：以 "inflating:" 或 "extracting:" 开头
+    if (format === 'decompress' && /^(inflating|extracting|creating):\s+(.+)/i.test(trimmed)) {
+      return RegExp.$2.trim();
+    }
+
+    // tar -v 输出：整行就是一个文件名（排除以 / 开头的目录名和空行）
+    if (format === 'targz' || format === 'tarbz2') {
+      // tar -czvf 输出的每行就是一个文件路径
+      if (trimmed && !trimmed.startsWith('/') && trimmed.length < 1024) {
+        return trimmed;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 发送归档操作进度消息到前端
+   * 前端收到进度消息后会重置超时计时器
+   */
+  private sendProgress(
+    ws: AuthenticatedWebSocket | undefined,
+    operation: 'compress' | 'decompress',
+    requestId: string,
+    fileCount: number,
+    currentFile?: string
+  ): void {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const progressPayload: SftpArchiveProgressPayload = {
+        requestId,
+        fileCount,
+        currentFile,
+      };
+      ws.send(
+        JSON.stringify({
+          type: `sftp:${operation}:progress`,
+          requestId,
+          payload: progressPayload,
+        })
+      );
     }
   }
 

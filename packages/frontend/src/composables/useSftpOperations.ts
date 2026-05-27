@@ -323,14 +323,22 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
 
       let unregisterSuccess: (() => void) | null = null;
       let unregisterError: (() => void) | null = null;
+      let unregisterProgress: (() => void) | null = null;
 
-      const timeoutId = setTimeout(() => {
-        unregisterSuccess?.();
-        unregisterError?.();
-        const errMsg = t('fileManager.errors.compressTimeout');
-        uiNotificationsStore.showError(errMsg);
-        reject(new Error(errMsg));
-      }, 60000);
+      /** 重置超时计时器（收到进度消息时调用） */
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const resetTimeout = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          unregisterSuccess?.();
+          unregisterError?.();
+          unregisterProgress?.();
+          const errMsg = t('fileManager.errors.compressTimeout');
+          uiNotificationsStore.showError(errMsg);
+          reject(new Error(errMsg));
+        }, 120_000);
+      };
+      resetTimeout();
 
       unregisterSuccess = onMessage(
         'sftp:compress:success',
@@ -339,6 +347,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             clearTimeout(timeoutId);
             unregisterSuccess?.();
             unregisterError?.();
+            unregisterProgress?.();
             uiNotificationsStore.showSuccess(
               t('fileManager.notifications.compressSuccess', { name: archiveName })
             );
@@ -356,12 +365,23 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             clearTimeout(timeoutId);
             unregisterSuccess?.();
             unregisterError?.();
+            unregisterProgress?.();
             const errorMsg =
               errorPayload.details || errorPayload.error || t('fileManager.errors.compressFailed');
             uiNotificationsStore.showError(
               t('fileManager.errors.compressErrorDetailed', { error: errorMsg })
             );
             reject(new Error(errorMsg));
+          }
+        }
+      );
+
+      // 监听进度消息，重置超时计时器
+      unregisterProgress = onMessage(
+        'sftp:compress:progress',
+        (_payload: MessagePayload, message: WebSocketMessage) => {
+          if (message.requestId === requestId) {
+            resetTimeout();
           }
         }
       );
@@ -392,14 +412,22 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
 
       let unregisterSuccess: (() => void) | null = null;
       let unregisterError: (() => void) | null = null;
+      let unregisterProgress: (() => void) | null = null;
 
-      const timeoutId = setTimeout(() => {
-        unregisterSuccess?.();
-        unregisterError?.();
-        const errMsg = t('fileManager.errors.decompressTimeout');
-        uiNotificationsStore.showError(errMsg);
-        reject(new Error(errMsg));
-      }, 60000);
+      /** 重置超时计时器（收到进度消息时调用） */
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const resetTimeout = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          unregisterSuccess?.();
+          unregisterError?.();
+          unregisterProgress?.();
+          const errMsg = t('fileManager.errors.decompressTimeout');
+          uiNotificationsStore.showError(errMsg);
+          reject(new Error(errMsg));
+        }, 120_000);
+      };
+      resetTimeout();
 
       unregisterSuccess = onMessage(
         'sftp:decompress:success',
@@ -408,6 +436,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             clearTimeout(timeoutId);
             unregisterSuccess?.();
             unregisterError?.();
+            unregisterProgress?.();
             uiNotificationsStore.showSuccess(
               t('fileManager.notifications.decompressSuccess', { name: item.filename })
             );
@@ -425,6 +454,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             clearTimeout(timeoutId);
             unregisterSuccess?.();
             unregisterError?.();
+            unregisterProgress?.();
             const errorMsg =
               errorPayload.details ||
               errorPayload.error ||
@@ -433,6 +463,16 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
               t('fileManager.errors.decompressErrorDetailed', { error: errorMsg })
             );
             reject(new Error(errorMsg));
+          }
+        }
+      );
+
+      // 监听进度消息，重置超时计时器
+      unregisterProgress = onMessage(
+        'sftp:decompress:progress',
+        (_payload: MessagePayload, message: WebSocketMessage) => {
+          if (message.requestId === requestId) {
+            resetTimeout();
           }
         }
       );

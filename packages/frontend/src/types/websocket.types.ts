@@ -114,6 +114,12 @@ export interface SftpUploadProgressPayload {
   progress: number; // 0-100
 }
 
+export interface SftpArchiveProgressPayload {
+  requestId: string;
+  fileCount: number;
+  currentFile?: string;
+}
+
 export interface SftpUploadReadyPayload {
   uploadId?: string;
 }
@@ -756,6 +762,15 @@ export interface SftpDecompressErrorMessage extends TypedWebSocketMessage<
   type: 'sftp:decompress:error';
 }
 
+// SFTP archive progress 消息（压缩/解压进度）
+export interface SftpCompressProgressMessage extends TypedWebSocketMessage<SftpArchiveProgressPayload> {
+  type: 'sftp:compress:progress';
+}
+
+export interface SftpDecompressProgressMessage extends TypedWebSocketMessage<SftpArchiveProgressPayload> {
+  type: 'sftp:decompress:progress';
+}
+
 // SFTP realpath 消息
 export interface SftpRealpathSuccessMessage extends TypedWebSocketMessage<SftpRealpathSuccessPayload> {
   type: 'sftp:realpath:success';
@@ -935,6 +950,8 @@ export type SftpMessage =
   | SftpCompressErrorMessage
   | SftpDecompressSuccessMessage
   | SftpDecompressErrorMessage
+  | SftpCompressProgressMessage
+  | SftpDecompressProgressMessage
   | SftpRealpathSuccessMessage
   | SftpRealpathErrorMessage
   | SftpStatSuccessMessage

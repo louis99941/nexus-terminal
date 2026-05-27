@@ -781,7 +781,7 @@ describe('useSftpActions (createSftpActionsManager)', () => {
 
       const compressPromise = manager.compressItems([createFileItem('file.txt')], 'zip');
 
-      vi.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(120000);
 
       await expect(compressPromise).rejects.toThrow();
       expect(mockShowError).toHaveBeenCalled();
@@ -840,7 +840,7 @@ describe('useSftpActions (createSftpActionsManager)', () => {
 
       const decompressPromise = manager.decompressItem(createFileItem('archive.zip'));
 
-      vi.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(120000);
 
       await expect(decompressPromise).rejects.toThrow();
       expect(mockShowError).toHaveBeenCalled();
