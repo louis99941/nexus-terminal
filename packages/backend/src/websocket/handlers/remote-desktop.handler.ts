@@ -120,24 +120,41 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
     }
   }, RDP_CONNECT_TIMEOUT_MS);
 
-  // --- 消息转发: Client -> RDP ---
-  ws.on('message', (message: RawData) => {
+  // --- 消息转发: Client -> RDP（保留原始帧类型，避免二进制/文本混淆） ---
+  // 过滤浏览器发送的 connect 指令：guacamole-lite 内部已完成 Guacd 握手，
+  // 浏览器的 connect 指令会导致协议状态混乱
+  ws.on('message', (message: RawData, isBinary: boolean) => {
     if (rdpWs.readyState === WebSocket.OPEN) {
-      rdpWs.send(message);
+      const msgStr = isBinary ? null : message.toString();
+      if (msgStr && msgStr.startsWith('connect,')) {
+        logger.debug(
+          `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 过滤浏览器 connect 指令: ${msgStr.substring(0, 80)}`
+        );
+        return;
+      }
+      const msgLen = isBinary ? (message as Buffer).byteLength : msgStr?.length ?? 0;
+      logger.debug(
+        `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息: binary=${isBinary}, len=${msgLen}, preview=${isBinary ? '[binary]' : msgStr!.substring(0, 60)}`
+      );
+      rdpWs.send(message, { binary: isBinary });
     } else {
       logger.warn(
-        `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, RDP WS 未打开，丢弃消息。`
+        `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, RDP WS 状态=${rdpWs.readyState} 未打开，丢弃消息。`
       );
     }
   });
 
-  // --- 消息转发: RDP -> Client（保持原始二进制透传，避免 UTF-8 转码破坏协议帧） ---
-  rdpWs.on('message', (message: RawData) => {
+  // --- 消息转发: RDP -> Client（保留原始帧类型，guacamole-lite 发文本帧，guacamole-common-js 需要字符串） ---
+  rdpWs.on('message', (message: RawData, isBinary: boolean) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(message);
+      const msgLen = isBinary ? (message as Buffer).byteLength : message.toString().length;
+      logger.debug(
+        `[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, RDP→Client: binary=${isBinary}, len=${msgLen}`
+      );
+      ws.send(message, { binary: isBinary });
     } else {
       logger.warn(
-        `[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 客户端 WS 未打开，丢弃消息。`
+        `[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 客户端 WS 状态=${ws.readyState} 未打开，丢弃消息。`
       );
     }
   });
@@ -181,8 +198,8 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
   ws.on('close', (code, reason) => {
     clearTimeout(rdpConnectTimeout);
     clientWsClosed = true;
-    logger.debug(
-      `[RDP 代理 客户端 WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 代码: ${code}, 原因: ${reason.toString()}`
+    logger.info(
+      `[RDP 代理 客户端 WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 代码: ${code}, 原因: ${reason.toString() || '(空)'}, RDP WS 状态: ${rdpWs.readyState}`
     );
     if (
       !rdpWsClosed &&
@@ -197,8 +214,8 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
   rdpWs.on('close', (code, reason) => {
     clearTimeout(rdpConnectTimeout);
     rdpWsClosed = true;
-    logger.debug(
-      `[RDP 代理 RDP WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 连接已关闭。代码: ${code}, 原因: ${reason.toString()}`
+    logger.info(
+      `[RDP 代理 RDP WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 连接已关闭。代码: ${code}, 原因: ${reason.toString() || '(空)'}, 客户端 WS 状态: ${ws.readyState}`
     );
     if (
       !clientWsClosed &&

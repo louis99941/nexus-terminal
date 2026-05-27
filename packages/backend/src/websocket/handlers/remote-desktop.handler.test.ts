@@ -267,7 +267,7 @@ describe('RDP WebSocket Handler', () => {
       const testMessage = Buffer.from('client message');
       mockWs.emit('message', testMessage);
 
-      expect(capturedRdpWs.send).toHaveBeenCalledWith(testMessage);
+      expect(capturedRdpWs.send).toHaveBeenCalledWith(testMessage, { binary: undefined });
     });
 
     it('RDP WebSocket 未打开时应丢弃客户端消息', () => {
@@ -290,7 +290,7 @@ describe('RDP WebSocket Handler', () => {
       const testMessage = Buffer.from('rdp response');
       capturedRdpWs.emit('message', testMessage);
 
-      expect(mockWs.send).toHaveBeenCalledWith(testMessage);
+      expect(mockWs.send).toHaveBeenCalledWith(testMessage, { binary: undefined });
     });
 
     it('客户端 WebSocket 未打开时应丢弃 RDP 消息', () => {
@@ -304,6 +304,54 @@ describe('RDP WebSocket Handler', () => {
       capturedRdpWs.emit('message', testMessage);
 
       expect(mockWs.send).not.toHaveBeenCalled();
+    });
+
+    it('应过滤浏览器发送的 connect 指令', () => {
+      handleRdpProxyConnection(mockWs, mockRequest);
+      (capturedRdpWs.send as any).mockClear();
+
+      // 模拟浏览器发送的 connect 指令（guacamole-common-js 的 connect,0.;）
+      const connectMessage = 'connect,0.;';
+      mockWs.emit('message', connectMessage, false);
+
+      // connect 指令应被过滤，不应转发到 RDP WebSocket
+      expect(capturedRdpWs.send).not.toHaveBeenCalled();
+    });
+
+    it('应过滤带参数的 connect 指令', () => {
+      handleRdpProxyConnection(mockWs, mockRequest);
+      (capturedRdpWs.send as any).mockClear();
+
+      // 模拟带参数的 connect 指令
+      const connectWithArgs = 'connect,5.arg1,arg2;';
+      mockWs.emit('message', connectWithArgs, false);
+
+      // connect 指令应被过滤
+      expect(capturedRdpWs.send).not.toHaveBeenCalled();
+    });
+
+    it('应正常转发非 connect 指令', () => {
+      handleRdpProxyConnection(mockWs, mockRequest);
+      (capturedRdpWs.send as any).mockClear();
+
+      // 模拟其他 Guacamole 指令（如 size, audio 等）
+      const sizeMessage = 'size,1.1920,2.1080;';
+      mockWs.emit('message', sizeMessage, false);
+
+      // 非 connect 指令应正常转发
+      expect(capturedRdpWs.send).toHaveBeenCalledWith(sizeMessage, { binary: false });
+    });
+
+    it('应正常转发二进制消息', () => {
+      handleRdpProxyConnection(mockWs, mockRequest);
+      (capturedRdpWs.send as any).mockClear();
+
+      // 二进制消息不需要检查 connect 前缀
+      const binaryMessage = Buffer.from([0x00, 0x01, 0x02]);
+      mockWs.emit('message', binaryMessage, true);
+
+      // 二进制消息应正常转发
+      expect(capturedRdpWs.send).toHaveBeenCalledWith(binaryMessage, { binary: true });
     });
   });
 
