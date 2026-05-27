@@ -580,8 +580,8 @@ describe('useSftpActions (createSftpActionsManager)', () => {
 
       const readPromise = manager.readFile('/home/user/test.txt');
 
-      // 快进 20 秒（超时时间）
-      vi.advanceTimersByTime(20000);
+      // 快进 120 秒（超时时间，大文件读取需要更长时间）
+      vi.advanceTimersByTime(120000);
 
       await expect(readPromise).rejects.toThrow();
       expect(mockShowError).toHaveBeenCalled();
@@ -651,7 +651,7 @@ describe('useSftpActions (createSftpActionsManager)', () => {
 
       const writePromise = manager.writeFile('/home/user/test.txt', 'content');
 
-      vi.advanceTimersByTime(20000);
+      vi.advanceTimersByTime(120000);
 
       await expect(writePromise).rejects.toThrow();
       expect(mockShowError).toHaveBeenCalled();

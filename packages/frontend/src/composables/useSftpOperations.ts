@@ -144,13 +144,15 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       let unregisterSuccess: (() => void) | null = null;
       let unregisterError: (() => void) | null = null;
 
-      const timeoutId = setTimeout(() => {
+      // 读取大文件可能耗时较久，使用 120 秒超时（与压缩保持一致）
+      // 后端流式读取大文件可能没有中间进度上报，但断开/失败会立即触发 error 事件
+      const timeoutId: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
         unregisterSuccess?.();
         unregisterError?.();
         const errMsg = t('fileManager.errors.readFileTimeout');
         uiNotificationsStore.showError(errMsg);
         reject(new Error(errMsg));
-      }, 20000);
+      }, 120_000);
 
       unregisterSuccess = onMessage(
         'sftp:readfile:success',
@@ -205,13 +207,14 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       let unregisterSuccess: (() => void) | null = null;
       let unregisterError: (() => void) | null = null;
 
-      const timeoutId = setTimeout(() => {
+      // 写入大文件可能耗时较久，使用 120 秒超时（与压缩保持一致）
+      const timeoutId: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
         unregisterSuccess?.();
         unregisterError?.();
         const errMsg = t('fileManager.errors.saveTimeout');
         uiNotificationsStore.showError(errMsg);
         reject(new Error(errMsg));
-      }, 20000);
+      }, 120_000);
 
       unregisterSuccess = onMessage(
         'sftp:writefile:success',
@@ -326,7 +329,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       let unregisterProgress: (() => void) | null = null;
 
       /** 重置超时计时器（收到进度消息时调用） */
-      let timeoutId: ReturnType<typeof setTimeout>;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const resetTimeout = () => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
@@ -415,7 +418,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       let unregisterProgress: (() => void) | null = null;
 
       /** 重置超时计时器（收到进度消息时调用） */
-      let timeoutId: ReturnType<typeof setTimeout>;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const resetTimeout = () => {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {

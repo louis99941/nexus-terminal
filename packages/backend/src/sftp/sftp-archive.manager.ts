@@ -111,28 +111,43 @@ export class SftpArchiveManager {
         let code: number | null = null;
         let fileCount = 0;
         let lastProgressTime = 0;
+        let lastSeenFileName: string | undefined;
+
+        // 心跳定时器：即使 stderr 长时间无输出（如压缩单个大文件），也每 10 秒发心跳，避免前端误超时
+        const heartbeatInterval = setInterval(() => {
+          if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            this.sendProgress(state.ws, 'compress', requestId, fileCount, lastSeenFileName);
+          }
+        }, 10_000);
 
         stream.stderr.on('data', (data: Buffer) => {
           const chunk = data.toString();
           stderrData += chunk;
           // 解析 stderr 中的文件名（tar -v / zip -r 输出）
+          // fileCount 始终累加，避免因节流丢失计数（W3 修复）；只控制 ws 发送频率
           const lines = chunk.split('\n').filter((l) => l.trim());
           for (const line of lines) {
             const fileName = this.parseArchiveFileName(line, format);
             if (fileName) {
               fileCount++;
-              const now = Date.now();
-              // 节流：每 3 秒最多发送一次进度
-              if (now - lastProgressTime >= 3000) {
-                lastProgressTime = now;
-                this.sendProgress(state.ws, 'compress', requestId, fileCount, fileName);
-              }
+              lastSeenFileName = fileName;
             }
+          }
+          // 节流：每 3 秒最多发送一次进度（与计数解耦）
+          const now = Date.now();
+          if (lastSeenFileName && now - lastProgressTime >= 3000) {
+            lastProgressTime = now;
+            this.sendProgress(state.ws, 'compress', requestId, fileCount, lastSeenFileName);
           }
         });
 
         stream.on('close', (exitCode: number | null) => {
+          clearInterval(heartbeatInterval);
           code = exitCode;
+          // 关闭时发送最终进度，确保前端拿到准确文件总数（包含被节流吞掉的尾部）
+          if (fileCount > 0) {
+            this.sendProgress(state.ws, 'compress', requestId, fileCount, lastSeenFileName);
+          }
           logger.info(`[SFTP Compress ${sessionId}] Finished with code ${code} (ID: ${requestId})`);
           if (code === 0 && !this.isErrorInStdErr(stderrData)) {
             const successPayload: SftpCompressSuccessPayload = {
@@ -156,6 +171,7 @@ export class SftpArchiveManager {
         });
 
         stream.on('error', (streamErr: Error) => {
+          clearInterval(heartbeatInterval);
           logger.error(`[SFTP Compress ${sessionId}] Stream error (ID: ${requestId}):`, streamErr);
           if (!stderrData && code === null) {
             this.sendCompressError(state.ws, '压缩命令流错误', requestId, streamErr.message);
@@ -259,27 +275,43 @@ export class SftpArchiveManager {
         let code: number | null = null;
         let fileCount = 0;
         let lastProgressTime = 0;
+        let lastSeenFileName: string | undefined;
+
+        // 心跳定时器：即使 stderr 长时间无输出，也每 10 秒发心跳，避免前端误超时
+        const heartbeatInterval = setInterval(() => {
+          if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            this.sendProgress(state.ws, 'decompress', requestId, fileCount, lastSeenFileName);
+          }
+        }, 10_000);
 
         stream.stderr.on('data', (data: Buffer) => {
           const chunk = data.toString();
           stderrData += chunk;
           // 解析 stderr 中的文件名（tar -v / unzip 输出）
+          // fileCount 始终累加，避免因节流丢失计数（W3 修复）；只控制 ws 发送频率
           const lines = chunk.split('\n').filter((l) => l.trim());
           for (const line of lines) {
             const fileName = this.parseArchiveFileName(line, 'decompress');
             if (fileName) {
               fileCount++;
-              const now = Date.now();
-              if (now - lastProgressTime >= 3000) {
-                lastProgressTime = now;
-                this.sendProgress(state.ws, 'decompress', requestId, fileCount, fileName);
-              }
+              lastSeenFileName = fileName;
             }
+          }
+          // 节流：每 3 秒最多发送一次进度（与计数解耦）
+          const now = Date.now();
+          if (lastSeenFileName && now - lastProgressTime >= 3000) {
+            lastProgressTime = now;
+            this.sendProgress(state.ws, 'decompress', requestId, fileCount, lastSeenFileName);
           }
         });
 
         stream.on('close', (exitCode: number | null) => {
+          clearInterval(heartbeatInterval);
           code = exitCode;
+          // 关闭时发送最终进度
+          if (fileCount > 0) {
+            this.sendProgress(state.ws, 'decompress', requestId, fileCount, lastSeenFileName);
+          }
           logger.info(
             `[SFTP Decompress ${sessionId}] Finished with code ${code} (ID: ${requestId})`
           );
@@ -307,6 +339,7 @@ export class SftpArchiveManager {
         });
 
         stream.on('error', (streamErr: Error) => {
+          clearInterval(heartbeatInterval);
           logger.error(
             `[SFTP Decompress ${sessionId}] Stream error (ID: ${requestId}):`,
             streamErr
@@ -437,6 +470,8 @@ export class SftpArchiveManager {
    * tar -v 输出格式: "file.txt" 或 "dir/file.txt"
    * zip -r 输出格式: "adding: file.txt" 或 "  adding: dir/"
    * unzip 输出格式: "inflating: file.txt" 或 " extracting: dir/"
+   *
+   * 注意：使用 match() 返回数组，避免 RegExp.$1/$2 全局状态污染。
    */
   private parseArchiveFileName(
     line: string,
@@ -446,19 +481,29 @@ export class SftpArchiveManager {
     if (!trimmed) return null;
 
     // zip 输出：以 "adding:" 开头
-    if (format === 'zip' && /^adding:\s+(.+)/i.test(trimmed)) {
-      return RegExp.$1.trim();
+    if (format === 'zip') {
+      const m = trimmed.match(/^adding:\s+(.+?)(?:\s+\(.*\))?$/i);
+      if (m && m[1]) return m[1].trim();
     }
 
-    // unzip 输出：以 "inflating:" 或 "extracting:" 开头
-    if (format === 'decompress' && /^(inflating|extracting|creating):\s+(.+)/i.test(trimmed)) {
-      return RegExp.$2.trim();
+    // unzip 输出：以 "inflating:" 或 "extracting:" 或 "creating:" 开头
+    if (format === 'decompress') {
+      const m = trimmed.match(/^(inflating|extracting|creating):\s+(.+)/i);
+      if (m && m[2]) return m[2].trim();
     }
 
-    // tar -v 输出：整行就是一个文件名（排除以 / 开头的目录名和空行）
+    // tar -v 输出：整行就是一个文件名
+    // 需要过滤掉 tar 的警告/错误信息（如 "tar: ..." 前缀），避免虚假进度
     if (format === 'targz' || format === 'tarbz2') {
-      // tar -czvf 输出的每行就是一个文件路径
-      if (trimmed && !trimmed.startsWith('/') && trimmed.length < 1024) {
+      // 排除以 "tar:" / "tar (" / 大写字母+冒号 开头的诊断信息
+      if (
+        trimmed &&
+        !trimmed.startsWith('/') &&
+        !/^tar(\s|:|\()/i.test(trimmed) &&
+        trimmed.length < 1024 &&
+        // 排除明显的错误提示（包含 ":"+空格 后跟英文短语）
+        !/^[A-Za-z]+:\s/.test(trimmed)
+      ) {
         return trimmed;
       }
     }

@@ -121,21 +121,27 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
   }, RDP_CONNECT_TIMEOUT_MS);
 
   // --- 消息转发: Client -> RDP（保留原始帧类型，避免二进制/文本混淆） ---
-  // 过滤浏览器发送的 connect 指令：guacamole-lite 内部已完成 Guacd 握手，
-  // 浏览器的 connect 指令会导致协议状态混乱
+  // 过滤浏览器发送的握手指令：guacamole-lite 内部已完成 Guacd 握手，
+  // 浏览器的 connect/select 指令会导致协议状态混乱（Issue #84）
+  const CLIENT_HANDSHAKE_FILTER = /^(connect|select|size|audio|video|image|timezone)[,;]/;
+  // 日志采样：每条 100 条转发只打一次 debug，避免高频日志爆炸
+  let c2sLogCounter = 0;
   ws.on('message', (message: RawData, isBinary: boolean) => {
     if (rdpWs.readyState === WebSocket.OPEN) {
       const msgStr = isBinary ? null : message.toString();
-      if (msgStr && msgStr.startsWith('connect,')) {
+      if (msgStr && CLIENT_HANDSHAKE_FILTER.test(msgStr)) {
         logger.debug(
-          `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 过滤浏览器 connect 指令: ${msgStr.substring(0, 80)}`
+          `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 过滤浏览器握手指令: ${msgStr.substring(0, 80)}`
         );
         return;
       }
-      const msgLen = isBinary ? (message as Buffer).byteLength : msgStr?.length ?? 0;
-      logger.debug(
-        `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息: binary=${isBinary}, len=${msgLen}, preview=${isBinary ? '[binary]' : msgStr!.substring(0, 60)}`
-      );
+      // 高频转发日志采样
+      if (++c2sLogCounter % 100 === 1) {
+        const msgLen = isBinary ? (message as Buffer).byteLength : msgStr?.length ?? 0;
+        logger.debug(
+          `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (采样 1/100): binary=${isBinary}, len=${msgLen}`
+        );
+      }
       rdpWs.send(message, { binary: isBinary });
     } else {
       logger.warn(
@@ -145,12 +151,16 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
   });
 
   // --- 消息转发: RDP -> Client（保留原始帧类型，guacamole-lite 发文本帧，guacamole-common-js 需要字符串） ---
+  let s2cLogCounter = 0;
   rdpWs.on('message', (message: RawData, isBinary: boolean) => {
     if (ws.readyState === WebSocket.OPEN) {
-      const msgLen = isBinary ? (message as Buffer).byteLength : message.toString().length;
-      logger.debug(
-        `[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, RDP→Client: binary=${isBinary}, len=${msgLen}`
-      );
+      // 高频转发日志采样
+      if (++s2cLogCounter % 100 === 1) {
+        const msgLen = isBinary ? (message as Buffer).byteLength : message.toString().length;
+        logger.debug(
+          `[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, RDP→Client (采样 1/100): binary=${isBinary}, len=${msgLen}`
+        );
+      }
       ws.send(message, { binary: isBinary });
     } else {
       logger.warn(

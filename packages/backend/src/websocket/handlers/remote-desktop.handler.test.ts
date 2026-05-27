@@ -264,10 +264,11 @@ describe('RDP WebSocket Handler', () => {
     it('应转发客户端消息到 RDP WebSocket', () => {
       handleRdpProxyConnection(mockWs, mockRequest);
 
+      // 模拟 ws 库实际行为：二进制消息时 isBinary=true
       const testMessage = Buffer.from('client message');
-      mockWs.emit('message', testMessage);
+      mockWs.emit('message', testMessage, true);
 
-      expect(capturedRdpWs.send).toHaveBeenCalledWith(testMessage, { binary: undefined });
+      expect(capturedRdpWs.send).toHaveBeenCalledWith(testMessage, { binary: true });
     });
 
     it('RDP WebSocket 未打开时应丢弃客户端消息', () => {
@@ -278,7 +279,7 @@ describe('RDP WebSocket Handler', () => {
       capturedRdpWs.readyState = 3;
 
       const testMessage = Buffer.from('client message');
-      mockWs.emit('message', testMessage);
+      mockWs.emit('message', testMessage, true);
 
       // 消息应该被丢弃，send 应该没有被调用
       expect(capturedRdpWs.send).not.toHaveBeenCalled();
@@ -287,10 +288,11 @@ describe('RDP WebSocket Handler', () => {
     it('应转发 RDP 消息到客户端 WebSocket', () => {
       handleRdpProxyConnection(mockWs, mockRequest);
 
+      // 模拟 ws 库实际行为：guacamole-lite 发送的是文本帧（isBinary=false）
       const testMessage = Buffer.from('rdp response');
-      capturedRdpWs.emit('message', testMessage);
+      capturedRdpWs.emit('message', testMessage, false);
 
-      expect(mockWs.send).toHaveBeenCalledWith(testMessage, { binary: undefined });
+      expect(mockWs.send).toHaveBeenCalledWith(testMessage, { binary: false });
     });
 
     it('客户端 WebSocket 未打开时应丢弃 RDP 消息', () => {
@@ -330,16 +332,42 @@ describe('RDP WebSocket Handler', () => {
       expect(capturedRdpWs.send).not.toHaveBeenCalled();
     });
 
-    it('应正常转发非 connect 指令', () => {
+    it('应过滤浏览器发送的 select 握手指令', () => {
       handleRdpProxyConnection(mockWs, mockRequest);
       (capturedRdpWs.send as any).mockClear();
 
-      // 模拟其他 Guacamole 指令（如 size, audio 等）
-      const sizeMessage = 'size,1.1920,2.1080;';
-      mockWs.emit('message', sizeMessage, false);
+      // guacamole-common-js 客户端握手会发送 select,3.rdp;
+      const selectMessage = 'select,3.rdp;';
+      mockWs.emit('message', selectMessage, false);
 
-      // 非 connect 指令应正常转发
-      expect(capturedRdpWs.send).toHaveBeenCalledWith(sizeMessage, { binary: false });
+      // select 指令也应被过滤，避免与 guacamole-lite 已完成的握手冲突
+      expect(capturedRdpWs.send).not.toHaveBeenCalled();
+    });
+
+    it('应过滤浏览器发送的 size/audio/video/image 握手指令', () => {
+      handleRdpProxyConnection(mockWs, mockRequest);
+      (capturedRdpWs.send as any).mockClear();
+
+      // 浏览器握手序列中的尺寸/媒体协商指令
+      mockWs.emit('message', 'size,4.1920,4.1080,2.96;', false);
+      mockWs.emit('message', 'audio,9.audio/L16;', false);
+      mockWs.emit('message', 'video;', false);
+      mockWs.emit('message', 'image;', false);
+
+      // 这些握手指令都应被过滤
+      expect(capturedRdpWs.send).not.toHaveBeenCalled();
+    });
+
+    it('应正常转发非握手指令（key/mouse 等）', () => {
+      handleRdpProxyConnection(mockWs, mockRequest);
+      (capturedRdpWs.send as any).mockClear();
+
+      // 模拟用户键盘/鼠标输入指令
+      const keyMessage = 'key,5.65535,1.1;';
+      mockWs.emit('message', keyMessage, false);
+
+      // 用户输入指令应正常转发
+      expect(capturedRdpWs.send).toHaveBeenCalledWith(keyMessage, { binary: false });
     });
 
     it('应正常转发二进制消息', () => {

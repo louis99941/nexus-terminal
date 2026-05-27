@@ -2,6 +2,36 @@
 
 本页面记录 Nexus Terminal 的重要版本更新和变更。
 
+## v1.5.3（2026-05-27）
+
+### 修复
+
+- 🐛 修复 RDP/VNC 远程桌面连接握手协议冲突（Issue #84）— 过滤浏览器 `guacamole-common-js` 发送的 `connect/select/size/audio/video/image/timezone` 等握手指令，避免与 `guacamole-lite` 内部已完成的 Guacd 握手产生协议状态冲突
+- 🐛 修复 SFTP 压缩/解压大文件超时误报问题（Issue #85）— 压缩成功但前端报"压缩超时"的根因：
+  - 后端解析 `tar/zip/unzip` 的 stderr 输出实时上报进度，每 3 秒节流发送 `sftp:compress:progress` / `sftp:decompress:progress`
+  - 新增 10 秒心跳保活机制，即使 stderr 长时间无输出（如压缩单个超大文件）也持续维持前端超时计时器
+  - 修复 `parseArchiveFileName` 使用废弃的 `RegExp.$1/$2` 全局状态变量问题，改用 `match()` 返回的局部数组，避免并发回调中正则状态污染
+  - 强化 `tar` stderr 文件名解析，过滤 `tar:` 前缀诊断信息，减少虚假进度计数
+  - 修复节流与计数耦合问题：`fileCount` 始终累加不丢失，只控制 WebSocket 发送频率，确保尾部文件被节流吞掉时计数仍准确
+  - 在 `stream.on('close')` 关闭时发送最终进度（含最近文件名），确保前端获取准确文件总数
+- 🐛 修复前端 SFTP `readFile` / `writeFile` 大文件 20 秒硬编码超时误报 — 提升至 120 秒，与压缩操作保持一致，避免编辑大日志/二进制文件时误报"读取/保存超时"导致数据状态不一致
+- 🐛 修复前端 SFTP 压缩/解压 `timeoutId` 闭包变量在严格 TypeScript 模式下"used before being assigned"警告
+
+### 改进
+
+- ♻️ RDP 代理消息转发日志采样优化 — 高频转发日志改为 1/100 采样，避免生产环境误开 `LOG_LEVEL=debug` 时刷爆容器日志卷
+- ♻️ RDP/客户端 WebSocket 关闭事件日志提升至 `info` 级别，便于排查异常断开
+- 🔒 后端归档进度上报新增 WebSocket 状态检查，避免向已关闭连接写消息引发异常
+
+### 测试
+
+- ✅ 扩展 RDP handler 测试覆盖：新增 `select/size/audio/video/image` 握手指令过滤测试，新增用户键鼠输入指令（`key,...`）正常转发测试
+- ✅ 前端 SFTP 压缩/解压超时测试用例适配 120 秒新阈值
+
+### 文档
+
+- 📝 更新 `docs/changelog.md` 同步 v1.5.3 修复内容
+
 ## v1.5.2（2026-05-26）
 
 ### 新增
@@ -48,6 +78,8 @@
 ### 杂项
 
 - 🔧 chore: 发布 v1.5.2 版本并清理废弃运行时脚本
+
+- 🐛 fix: 修复 RDP 握手冲突、SFTP 大文件超时误报及进度计数丢失问题
 
 ## v1.5.1（2026-05-19）
 
