@@ -58,11 +58,10 @@ services:
           memory: 512M
 
   # Remote Gateway：内嵌 guacd，guacd 进程与 Node.js 共享同一容器
+  # RDP/VNC 连接由 backend 通过 /rdp-proxy WebSocket 内部代理，无需暴露端口
   remote-gateway:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
-    ports:
-      - "127.0.0.1:8081:8081"   # Guacamole WebSocket（宿主机 Nginx 需要直连）
     environment:
       # guacd 已内嵌于本容器，使用 localhost 连接
       GUACD_HOST: localhost

@@ -15,7 +15,7 @@
 | `REMOTE_GATEWAY_WS_URL_LOCAL`  | `ws://localhost:8080`      | `ws://localhost:8081`      |
 | `REMOTE_GATEWAY_WS_URL_DOCKER` | `ws://remote-gateway:8080` | `ws://remote-gateway:8081` |
 
-如果您的 `.env` 文件中显式设置了这些变量，请同步更新。同时 `docker-compose.yml` 中的端口映射也需更新（Frontend: `18111:80` → `18111:8080`，Remote Gateway WS: `8080` → `8081`）。
+如果您的 `.env` 文件中显式设置了这些变量，请同步更新。
 :::
 
 ---
@@ -162,13 +162,13 @@
 
 ### docker-compose.yml 端口映射
 
-| 服务           | 外部端口      | 容器端口 | 描述                     |
-| -------------- | ------------- | -------- | ------------------------ |
-| frontend       | `18111`       | `8080`   | Web 应用访问端口         |
-| backend        | `3001` (内部) | `3001`   | API 服务端口             |
-| remote-gateway | `8081` (内部) | `8081`   | Guacamole WebSocket 端口 |
-| remote-gateway | `9090` (内部) | `9090`   | API 服务端口             |
-| guacd          | - (内部)      | `4822`   | Guacamole 协议端口       |
+| 服务           | 外部端口      | 容器端口 | 描述                                       |
+| -------------- | ------------- | -------- | ------------------------------------------ |
+| frontend       | `18111`       | `8080`   | Web 应用访问端口                           |
+| backend        | `3001` (内部) | `3001`   | API 服务端口                               |
+| remote-gateway | - (内部)      | `8081`   | Guacamole WebSocket 端口（backend 内部代理）|
+| remote-gateway | - (内部)      | `9090`   | API 服务端口                               |
+| guacd          | - (内部)      | `4822`   | Guacamole 协议端口                         |
 
 ### 外部访问端口
 
@@ -301,11 +301,10 @@ services:
     restart: unless-stopped
 
   # Remote Gateway：内嵌 guacd，guacd 进程与 Node.js 共享同一容器
+  # RDP/VNC 连接由 backend 通过 /rdp-proxy WebSocket 内部代理，无需暴露端口
   remote-gateway:
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
     container_name: nexus-terminal-remote-gateway
-    ports:
-      - '127.0.0.1:8081:8081' # Guacamole WebSocket（宿主机 Nginx 需要直连）
     environment:
       # guacd 已内嵌于本容器，使用 localhost 连接
       GUACD_HOST: localhost

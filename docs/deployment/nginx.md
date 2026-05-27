@@ -65,16 +65,6 @@ server {
         proxy_send_timeout 86400s;
     }
 
-    # 远程桌面网关 WebSocket
-    location /guacamole/ {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-    }
 }
 ```
 
@@ -83,16 +73,7 @@ server {
 适用于 Docker Compose 部署 + 宿主机 Nginx 反向代理的场景（最常见）。
 
 ::: warning 架构说明
-此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。但前端容器内部的 nginx **仅代理 `/api/` 和 `/ws/` 到 backend**，不会转发 `/guacamole/`。因此 `/guacamole/` 必须在宿主机 Nginx 中单独代理到 `remote-gateway:8081`（宿主机上通常是 `127.0.0.1:8081`）。
-
-**前置条件**：`docker-compose.yml` 中 remote-gateway 必须暴露 8081 端口到宿主机：
-
-```yaml
-remote-gateway:
-  ports:
-    - '127.0.0.1:8081:8081' # Guacamole WebSocket
-```
-
+此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。前端容器内部的 nginx 代理 `/api/` 和 `/ws/` 到 backend，RDP/VNC 连接由 backend 通过内部 WebSocket 代理到 remote-gateway，无需单独配置远程桌面路径。
 :::
 
 ```nginx
@@ -153,21 +134,6 @@ server {
         proxy_send_timeout 86400s;
         proxy_buffering off;
     }
-
-    # Guacamole 远程桌面 WebSocket（直连 remote-gateway，不经过前端容器）
-    location /guacamole/ {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-        proxy_buffering off;
-    }
 }
 ```
 
@@ -175,7 +141,6 @@ server {
 | 路径 | 代理目标 | 说明 |
 | --- | --- | --- |
 | `/`、`/api/`、`/ws/` | `127.0.0.1:18111` | 通过前端容器，由其内部分流 |
-| `/guacamole/` | `127.0.0.1:8081` | 直连 remote-gateway，前端容器不代理此路径 |
 :::
 
 ### Docker Compose 内部 Nginx 配置
@@ -186,11 +151,6 @@ server {
 upstream nexus_backend {
     server backend:3001;
     keepalive 32;
-}
-
-upstream nexus_gateway {
-    server remote-gateway:8081;
-    keepalive 16;
 }
 
 server {
@@ -237,18 +197,6 @@ server {
         # 长连接超时
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
-    }
-
-    # 远程桌面 WebSocket
-    location /guacamole/ {
-        proxy_pass http://nexus_gateway;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $http_host;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-        proxy_buffering off;
     }
 }
 ```
@@ -331,20 +279,6 @@ server {
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
     }
-
-    # Guacamole 远程桌面 WebSocket（直连 remote-gateway，不经过前端容器）
-    location /guacamole/ {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-    }
 }
 ```
 
@@ -384,10 +318,9 @@ server {
 
 星枢终端使用两种 WebSocket 连接：
 
-| 路径          | 用途                     | 后端服务       | 默认端口 |
-| ------------- | ------------------------ | -------------- | -------- |
-| `/ws/`        | SSH 终端、SFTP、批量执行 | backend        | 3001     |
-| `/guacamole/` | RDP/VNC 远程桌面         | remote-gateway | 8081     |
+| 路径          | 用途                                  | 后端服务       | 默认端口 |
+| ------------- | ------------------------------------- | -------------- | -------- |
+| `/ws/`        | SSH 终端、SFTP、RDP/VNC、批量执行     | backend        | 3001     |
 
 ### WebSocket 专用配置
 
@@ -428,23 +361,6 @@ server {
         # TCP 优化
         tcp_nodelay on;
     }
-
-    # 远程桌面 WebSocket
-    location /guacamole/ {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-
-        # RDP/VNC 需要更长超时
-        proxy_connect_timeout 7d;
-        proxy_send_timeout 7d;
-        proxy_read_timeout 7d;
-
-        proxy_buffering off;
-        tcp_nodelay on;
-    }
 }
 ```
 
@@ -465,15 +381,6 @@ upstream nexus_backend_cluster {
     keepalive 64;
 }
 
-upstream nexus_gateway_cluster {
-    ip_hash;  # 会话粘滞（远程桌面需要）
-
-    server 192.168.1.10:8081;
-    server 192.168.1.11:8081;
-
-    keepalive 32;
-}
-
 server {
     listen 80;
     server_name your-domain.com;
@@ -487,14 +394,6 @@ server {
 
     location /ws/ {
         proxy_pass http://nexus_backend_cluster;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        # ... 其他配置 ...
-    }
-
-    location /guacamole/ {
-        proxy_pass http://nexus_gateway_cluster;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -762,27 +661,6 @@ location /api/ {
 }
 ```
 
-### Q5: 远程桌面连接失败
-
-**原因**：Guacamole WebSocket 代理配置错误。
-
-**解决方案**：
-
-```nginx
-location /guacamole/ {
-    proxy_pass http://127.0.0.1:8081;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-
-    # 禁用缓冲
-    proxy_buffering off;
-
-    # 长超时
-    proxy_read_timeout 86400s;
-}
-```
-
 ---
 
 ## 完整配置示例
@@ -848,11 +726,6 @@ http {
         keepalive 32;
     }
 
-    upstream nexus_gateway {
-        server 127.0.0.1:8081;
-        keepalive 16;
-    }
-
     include /etc/nginx/conf.d/*.conf;
 }
 ```
@@ -913,18 +786,6 @@ server {
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-        proxy_buffering off;
-    }
-
-    # RDP/VNC WebSocket
-    location /guacamole/ {
-        proxy_pass http://nexus_gateway;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
         proxy_buffering off;

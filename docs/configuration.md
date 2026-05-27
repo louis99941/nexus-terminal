@@ -102,7 +102,7 @@ ENABLE_MULTIPLEX=false             # 默认关闭，设为 true 启用
 ### Nginx 超时
 
 ```nginx
-location ~ ^/(ws|guacamole)/ {
+location /ws/ {
     proxy_read_timeout 86400s;
     proxy_send_timeout 86400s;
 }
