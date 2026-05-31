@@ -11,9 +11,17 @@ export default defineConfig({
       dts: false,
     }),
   ],
+  server: {
+    host: '127.0.0.1',
+  },
   test: {
     globals: true,
     environment: 'happy-dom',
+    environmentOptions: {
+      happyDOM: {
+        url: 'http://127.0.0.1/',
+      },
+    },
     root: path.resolve(__dirname),
     include: ['src/**/*.{test,spec}.ts', 'tests/**/*.{test,spec}.ts'],
     exclude: ['node_modules', 'dist'],

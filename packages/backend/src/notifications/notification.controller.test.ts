@@ -103,4 +103,25 @@ describe('NotificationController', () => {
       message: '测试通知发送失败：network error',
     });
   });
+
+  it('buildTestNotification 的 webhook 默认模板应保留结构化 details', () => {
+    const notification = (
+      controller as unknown as {
+        buildTestNotification: (
+          channelType: 'webhook' | 'email' | 'telegram',
+          config: { bodyTemplate?: string },
+          userId?: number,
+          payload?: { message?: string }
+        ) => { body: string };
+      }
+    ).buildTestNotification('webhook', { bodyTemplate: '' }, 1, { message: 'hello' });
+
+    expect(JSON.parse(notification.body)).toEqual({
+      event: 'testNotification',
+      timestamp: expect.any(String),
+      details: {
+        message: 'hello',
+      },
+    });
+  });
 });

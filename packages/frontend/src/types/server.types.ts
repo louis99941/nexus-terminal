@@ -106,6 +106,11 @@ export interface TelegramConfig {
 
 export type NotificationChannelConfig = WebhookConfig | EmailConfig | TelegramConfig;
 
+export interface NotificationTestResult {
+  success: boolean;
+  message: string;
+}
+
 export interface NotificationSetting {
   id?: number;
   channel_type: NotificationChannelType;
@@ -141,6 +146,7 @@ export type AuditLogActionType =
   | 'TAG_DELETED'
   | 'SETTINGS_UPDATED'
   | 'IP_WHITELIST_UPDATED'
+  | 'IP_BLOCKED'
   | 'NOTIFICATION_SETTING_CREATED'
   | 'NOTIFICATION_SETTING_UPDATED'
   | 'NOTIFICATION_SETTING_DELETED'
@@ -150,6 +156,10 @@ export type AuditLogActionType =
   | 'SSH_SHELL_FAILURE'
   | 'SSH_DISCONNECT'
   | 'SSH_SESSION_SUSPENDED'
+  // Telnet Actions
+  | 'TELNET_CONNECT_SUCCESS'
+  | 'TELNET_CONNECT_FAILURE'
+  | 'TELNET_DISCONNECT'
   // File Transfer
   | 'FILE_UPLOAD'
   | 'FILE_DOWNLOAD'

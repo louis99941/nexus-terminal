@@ -66,11 +66,6 @@ class NotificationProcessorService extends EventEmitter {
         });
       }
     });
-    eventService.onEvent(AppEventType.TestNotification, (payload) => {
-      this.processTestEvent(payload).catch((error: unknown) => {
-        logger.error(`[NotificationProcessor] 处理测试事件时出错:`, error);
-      });
-    });
     logger.info('[NotificationProcessor] 已注册监听器。');
   }
 
@@ -118,63 +113,6 @@ class NotificationProcessorService extends EventEmitter {
     } catch (error: unknown) {
       logger.error(`[NotificationProcessor] 获取事件 ${eventKey} 的设置失败:`, error);
     }
-  }
-
-  private async processTestEvent(payload: AppEventPayload) {
-    if (!this.isInitialized) {
-      logger.warn(`[NotificationProcessor] 在初始化完成前收到测试事件。跳过处理。`);
-      return;
-    }
-    logger.debug(`[NotificationProcessor] 收到测试事件`, payload);
-    const detailsRecord =
-      payload.details && typeof payload.details === 'object'
-        ? (payload.details as Record<string, unknown>)
-        : {};
-    const testTargetConfig = detailsRecord.testTargetConfig as
-      | NotificationChannelConfig
-      | undefined;
-    const testTargetChannelType = detailsRecord.testTargetChannelType as
-      | NotificationChannelType
-      | undefined;
-
-    if (!testTargetConfig || !testTargetChannelType) {
-      logger.error(
-        '[NotificationProcessor] 测试事件负载缺少 testTargetConfig 或 testTargetChannelType。'
-      );
-      return;
-    }
-
-    const mockSetting: NotificationSetting = {
-      id: -1,
-      name: 'Test Setting',
-      enabled: true,
-      channel_type: testTargetChannelType,
-      config: testTargetConfig,
-      enabled_events: [AppEventType.TestNotification as NotificationEvent],
-    };
-
-    // 获取用户语言偏好
-    let userLang = defaultLng;
-    try {
-      const langSetting = await settingsService.getSetting('language');
-      if (langSetting && supportedLngs.includes(langSetting)) {
-        userLang = langSetting;
-      }
-    } catch (error: unknown) {
-      logger.error(`[NotificationProcessor] 获取语言设置时出错，使用默认 (${defaultLng}):`, error);
-    }
-    const translatedEvent = i18next.t(`event.${AppEventType.TestNotification}`, {
-      lng: userLang,
-      defaultValue: AppEventType.TestNotification,
-    });
-
-    this.processSingleSetting(
-      mockSetting,
-      AppEventType.TestNotification,
-      payload,
-      translatedEvent,
-      userLang
-    );
   }
 
   private processSingleSetting(

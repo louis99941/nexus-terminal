@@ -1,4 +1,17 @@
 {
+  "notificationController": {
+    "genericEmailBody": "<p>事件: {event}</p><p>时间: {timestamp}</p><p>详情:</p><pre>{details}</pre>",
+    "genericTelegramBody": "*{event}*\n时间: {timestamp}\n详情:\n```\n{details}\n```",
+    "testSubjectFallback": "Nexus Terminal 测试"
+  },
+  "notificationDispatcher": {
+    "test": {
+      "emptyNotification": "通知测试失败：通知对象为空。",
+      "senderNotRegistered": "通知测试失败：未注册 {channelType} 发送器。",
+      "success": "测试通知发送成功。",
+      "failure": "测试通知发送失败：{message}"
+    }
+  },
   "event": {
     "LOGIN_SUCCESS": "登录成功",
     "LOGIN_FAILURE": "登录失败",

@@ -7,6 +7,7 @@ import {
   NotificationSettingData,
   NotificationChannelType,
   NotificationChannelConfig,
+  NotificationTestResult,
 } from '../types/server.types'; // Import NotificationChannelType
 import { log } from '@/utils/log';
 
@@ -95,18 +96,18 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const testSetting = async (
     id: number,
     _config: NotificationChannelConfig
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<NotificationTestResult> => {
     // Note: We don't set isLoading here as it might interfere with the main form submission state.
     // The component handles its own 'testingNotification' state.
     error.value = null; // Clear previous general errors
     try {
       // Send the request without a body, as the backend uses the saved config for the given ID
-      const response = await apiClient.post<{ success: boolean; message: string }>(
+      const response = await apiClient.post<Partial<NotificationTestResult>>(
         `/notifications/${id}/test`
       );
       return {
         success: response.data.success ?? true,
-        message: response.data.message || '测试成功',
+        message: response.data.message || '',
       };
     } catch (err: unknown) {
       log.error(`Error testing notification setting ${id}:`, err);
@@ -121,11 +122,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const testUnsavedSetting = async (
     channelType: NotificationChannelType,
     config: NotificationChannelConfig
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<NotificationTestResult> => {
     error.value = null;
     try {
       // Send the channel type and config in the request body
-      const response = await apiClient.post<{ success: boolean; message: string }>(
+      const response = await apiClient.post<Partial<NotificationTestResult>>(
         `/notifications/test-unsaved`,
         {
           channel_type: channelType,
@@ -134,7 +135,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       ); // 使用 apiClient
       return {
         success: response.data.success ?? true,
-        message: response.data.message || '测试成功',
+        message: response.data.message || '',
       };
     } catch (err: unknown) {
       log.error(`Error testing unsaved notification setting:`, err);

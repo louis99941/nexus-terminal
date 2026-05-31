@@ -13,6 +13,19 @@
       "bodyTemplate": "*星枢ターミナル テスト通知*\nイベント: `{event}`\nタイムスタンプ: {timestamp}\n詳細:\n```\n{details}\n```"
     }
   },
+  "notificationController": {
+    "genericEmailBody": "<p>イベント: {event}</p><p>タイムスタンプ: {timestamp}</p><p>詳細:</p><pre>{details}</pre>",
+    "genericTelegramBody": "*{event}*\nタイムスタンプ: {timestamp}\n詳細:\n```\n{details}\n```",
+    "testSubjectFallback": "Nexus Terminal テスト"
+  },
+  "notificationDispatcher": {
+    "test": {
+      "emptyNotification": "通知テストに失敗しました: 通知オブジェクトが空です。",
+      "senderNotRegistered": "通知テストに失敗しました: {channelType} 送信者が登録されていません。",
+      "success": "テスト通知の送信に成功しました。",
+      "failure": "テスト通知に失敗しました: {message}"
+    }
+  },
   "event": {
     "LOGIN_SUCCESS": "ログイン成功",
     "LOGIN_FAILURE": "ログイン失敗",

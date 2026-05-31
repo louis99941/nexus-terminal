@@ -40,6 +40,20 @@ const mockLogger = vi.hoisted(() => ({
 }));
 vi.mock('../utils/logger', () => ({ logger: mockLogger }));
 
+vi.mock('../i18n', () => ({
+  default: {
+    t: (_key: string, options?: { defaultValue?: string }) => options?.defaultValue || _key,
+  },
+  defaultLng: 'en-US',
+  supportedLngs: ['en-US', 'zh-CN', 'ja-JP'],
+}));
+
+vi.mock('../settings/settings.service', () => ({
+  settingsService: {
+    getSetting: vi.fn().mockResolvedValue('en-US'),
+  },
+}));
+
 vi.mock('./senders/email.sender.service', () => ({
   default: mockEmailSender,
 }));

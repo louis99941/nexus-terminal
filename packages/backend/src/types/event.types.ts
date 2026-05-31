@@ -239,6 +239,7 @@ export enum EventDomain {
   Auth = 'auth',
   Connection = 'connection',
   Ssh = 'ssh',
+  Telnet = 'telnet',
   Proxy = 'proxy',
   Tag = 'tag',
   Settings = 'settings',
@@ -278,6 +279,11 @@ export const DOMAIN_EVENTS: Record<EventDomain, readonly AppEventType[]> = {
     AppEventType.SshShellFailure,
     AppEventType.SshDisconnect,
     AppEventType.SshSessionSuspended,
+  ],
+  [EventDomain.Telnet]: [
+    AppEventType.TelnetConnectSuccess,
+    AppEventType.TelnetConnectFailure,
+    AppEventType.TelnetDisconnect,
   ],
   [EventDomain.Proxy]: [
     AppEventType.ProxyCreated,

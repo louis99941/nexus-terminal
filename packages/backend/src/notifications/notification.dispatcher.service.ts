@@ -5,13 +5,11 @@ import { NotificationChannelType } from '../types/notification.types';
 import telegramSenderService from './senders/telegram.sender.service';
 import emailSenderService from './senders/email.sender.service';
 import webhookSenderService from './senders/webhook.sender.service';
-import type { INotificationSender } from './notification-sender.interface';
+import i18next, { defaultLng, supportedLngs } from '../i18n';
+import { settingsService } from '../settings/settings.service';
 import { logger } from '../utils/logger';
-
-export interface NotificationDispatchResult {
-  success: boolean;
-  message: string;
-}
+import type { INotificationSender } from './notification-sender.interface';
+import type { NotificationTestResult } from '../types/notification.types';
 
 class NotificationDispatcherService {
   // 使用 Map 来存储不同渠道类型的发送器实例
@@ -99,13 +97,15 @@ class NotificationDispatcherService {
     }
   }
 
-  async sendTestNotification(
-    notification: ProcessedNotification
-  ): Promise<NotificationDispatchResult> {
+  async sendTestNotification(notification: ProcessedNotification): Promise<NotificationTestResult> {
+    const userLang = await this.getUserLanguage();
     if (!notification) {
       return {
         success: false,
-        message: '通知测试失败：通知对象为空。',
+        message: i18next.t('notificationDispatcher.test.emptyNotification', {
+          lng: userLang,
+          defaultValue: 'Notification test failed: notification is empty.',
+        }),
       };
     }
 
@@ -113,7 +113,11 @@ class NotificationDispatcherService {
     if (!sender) {
       return {
         success: false,
-        message: `通知测试失败：未注册 ${notification.channelType} 发送器。`,
+        message: i18next.t('notificationDispatcher.test.senderNotRegistered', {
+          lng: userLang,
+          channelType: notification.channelType,
+          defaultValue: `Notification test failed: no sender registered for ${notification.channelType}.`,
+        }),
       };
     }
 
@@ -121,7 +125,10 @@ class NotificationDispatcherService {
       await sender.send(notification);
       return {
         success: true,
-        message: '测试通知发送成功。',
+        message: i18next.t('notificationDispatcher.test.success', {
+          lng: userLang,
+          defaultValue: 'Test notification sent successfully.',
+        }),
       };
     } catch (error: unknown) {
       logger.error(
@@ -131,9 +138,25 @@ class NotificationDispatcherService {
       const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: `测试通知发送失败：${message}`,
+        message: i18next.t('notificationDispatcher.test.failure', {
+          lng: userLang,
+          message,
+          defaultValue: `Test notification failed: ${message}`,
+        }),
       };
     }
+  }
+
+  private async getUserLanguage(): Promise<string> {
+    try {
+      const langSetting = await settingsService.getSetting('language');
+      if (langSetting && supportedLngs.includes(langSetting)) {
+        return langSetting;
+      }
+    } catch (error: unknown) {
+      logger.error(`[NotificationDispatcher] 获取语言设置时出错，使用默认 (${defaultLng}):`, error);
+    }
+    return defaultLng;
   }
 }
 

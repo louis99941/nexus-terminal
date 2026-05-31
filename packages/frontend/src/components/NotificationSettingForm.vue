@@ -439,6 +439,7 @@ import {
   EmailConfig,
   TelegramConfig,
   NotificationChannelType,
+  NotificationTestResult,
 } from '../types/server.types';
 import { useI18n } from 'vue-i18n';
 import { extractErrorMessage } from '../utils/errorExtractor';
@@ -815,7 +816,7 @@ const handleTestNotification = async () => {
   }
 
   try {
-    let result: { success: boolean; message: string };
+    let result: NotificationTestResult;
     if (isEditing.value && props.initialData?.id) {
       // Test existing setting
       result = await store.testSetting(props.initialData.id, testConfig);
@@ -826,7 +827,13 @@ const handleTestNotification = async () => {
     // Translate the message received from the backend using t()
     testResult.value = {
       success: result.success,
-      message: result.message || t('settings.notifications.form.testSuccess'),
+      message:
+        result.message ||
+        t(
+          result.success
+            ? 'settings.notifications.form.testSuccess'
+            : 'settings.notifications.form.testFailed'
+        ),
     };
   } catch (error: unknown) {
     log.error('Test notification error:', error);

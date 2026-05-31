@@ -13,6 +13,19 @@
       "bodyTemplate": "*Nexus Terminal Test Notification*\nEvent: `{event}`\nTimestamp: {timestamp}\nDetails:\n```\n{details}\n```"
     }
   },
+  "notificationController": {
+    "genericEmailBody": "<p>Event: {event}</p><p>Timestamp: {timestamp}</p><p>Details:</p><pre>{details}</pre>",
+    "genericTelegramBody": "*{event}*\nTimestamp: {timestamp}\nDetails:\n```\n{details}\n```",
+    "testSubjectFallback": "Nexus Terminal Test"
+  },
+  "notificationDispatcher": {
+    "test": {
+      "emptyNotification": "Notification test failed: notification is empty.",
+      "senderNotRegistered": "Notification test failed: no sender registered for {channelType}.",
+      "success": "Test notification sent successfully.",
+      "failure": "Test notification failed: {message}"
+    }
+  },
   "event": {
     "LOGIN_SUCCESS": "Login Success",
     "LOGIN_FAILURE": "Login Failure",

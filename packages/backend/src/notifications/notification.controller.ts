@@ -302,13 +302,14 @@ export class NotificationController {
       details: formattedDetails,
       message: payload?.message || '',
     };
-    const genericEmailBody = `<p>事件: {event}</p><p>时间: {timestamp}</p><p>详情:</p><pre>{details}</pre>`;
-    const genericWebhookBody = JSON.stringify({
-      event: '{event}',
-      timestamp: '{timestamp}',
-      details: '{details}',
+    const genericEmailBody = i18next.t('notificationController.genericEmailBody', {
+      defaultValue:
+        '<p>Event: {event}</p><p>Timestamp: {timestamp}</p><p>Details:</p><pre>{details}</pre>',
     });
-    const genericTelegramBody = `*{event}*\n时间: {timestamp}\n详情:\n\`\`\`\n{details}\n\`\`\``;
+    const genericWebhookBody = '{"event":"{event}","timestamp":"{timestamp}","details":{details}}';
+    const genericTelegramBody = i18next.t('notificationController.genericTelegramBody', {
+      defaultValue: '*{event}*\nTimestamp: {timestamp}\nDetails:\n```\n{details}\n```',
+    });
     let bodyTemplate: string;
     if (channelType === 'email') {
       bodyTemplate = this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericEmailBody;

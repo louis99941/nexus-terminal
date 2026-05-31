@@ -352,7 +352,18 @@ describe('notificationChannels.store', () => {
       const store = useNotificationsStore();
       const result = await store.testSetting(1, {} as NotificationChannelConfig);
 
-      expect(result.message).toBe('测试成功');
+      expect(result).toEqual({ success: true, message: '' });
+    });
+
+    it('后端返回 success=false 且没有 message 时不应回退为成功文案', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: false },
+      });
+
+      const store = useNotificationsStore();
+      const result = await store.testSetting(1, {} as NotificationChannelConfig);
+
+      expect(result).toEqual({ success: false, message: '' });
     });
 
     it('测试失败时应抛出异常', async () => {
@@ -429,13 +440,13 @@ describe('notificationChannels.store', () => {
       expect(result).toEqual({ success: false, message: '测试失败' });
     });
 
-    it('后端未返回 message 时应使用默认消息', async () => {
+    it('后端未返回 message 时应交由组件层决定默认文案', async () => {
       vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
 
       const store = useNotificationsStore();
       const result = await store.testUnsavedSetting('email', { to: 'test@test.com' });
 
-      expect(result.message).toBe('测试成功');
+      expect(result).toEqual({ success: true, message: '' });
     });
 
     it('测试失败时应抛出异常', async () => {

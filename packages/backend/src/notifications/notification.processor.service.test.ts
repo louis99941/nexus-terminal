@@ -154,8 +154,8 @@ describe('NotificationProcessorService', () => {
       expect(mockEventService.onEvent).toHaveBeenCalled();
     });
 
-    it('应监听 TestNotification 事件', () => {
-      expect(mockEventService.onEvent).toHaveBeenCalledWith(
+    it('不应再监听 TestNotification 事件', () => {
+      expect(mockEventService.onEvent).not.toHaveBeenCalledWith(
         AppEventType.TestNotification,
         expect.any(Function)
       );
@@ -209,69 +209,6 @@ describe('NotificationProcessorService', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('LOGIN_SUCCESS'),
         expect.any(Error)
-      );
-    });
-  });
-
-  describe('processTestEvent', () => {
-    it('应处理测试事件并发出 sendNotification', async () => {
-      const emitSpy = vi.spyOn(processorService, 'emit');
-      const testPayload = {
-        timestamp: new Date(),
-        userId: 'test-user',
-        details: {
-          testTargetChannelType: 'email',
-          testTargetConfig: {
-            to: 'test@example.com',
-            smtpHost: 'smtp.test.com',
-            smtpPort: 587,
-          },
-        },
-      };
-
-      mockEventService.emit(AppEventType.TestNotification, testPayload);
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(emitSpy).toHaveBeenCalledWith(
-        'sendNotification',
-        expect.objectContaining({
-          channelType: 'email',
-        })
-      );
-    });
-
-    it('缺少 testTargetConfig 时应记录错误', async () => {
-      // console spy removed (was: error);
-      const invalidPayload = {
-        timestamp: new Date(),
-        userId: 'test-user',
-        details: {},
-      };
-
-      mockEventService.emit(AppEventType.TestNotification, invalidPayload);
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('testTargetConfig'));
-    });
-
-    it('缺少 testTargetChannelType 时应记录错误', async () => {
-      // console spy removed (was: error);
-      const invalidPayload = {
-        timestamp: new Date(),
-        userId: 'test-user',
-        details: {
-          testTargetConfig: { to: 'test@example.com' },
-        },
-      };
-
-      mockEventService.emit(AppEventType.TestNotification, invalidPayload);
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining('testTargetChannelType')
       );
     });
   });
