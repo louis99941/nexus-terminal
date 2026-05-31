@@ -154,6 +154,8 @@ describe('NotificationProcessorService', () => {
       expect(mockEventService.onEvent).toHaveBeenCalled();
     });
 
+    // processTestEvent 已迁移至 NotificationDispatcherService.sendTestNotification()，
+    // 此断言验证 Processor 不再注册对 TestNotification 的异步监听（避免死代码残留）
     it('不应再监听 TestNotification 事件', () => {
       expect(mockEventService.onEvent).not.toHaveBeenCalledWith(
         AppEventType.TestNotification,
