@@ -309,12 +309,15 @@ export class NotificationController {
       details: '{details}',
     });
     const genericTelegramBody = `*{event}*\n时间: {timestamp}\n详情:\n\`\`\`\n{details}\n\`\`\``;
-    const bodyTemplate =
-      channelType === 'email'
-        ? this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericEmailBody
-        : channelType === 'webhook'
-          ? this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericWebhookBody
-          : this.getTestTemplateFromConfig(config, 'messageTemplate') || genericTelegramBody;
+    let bodyTemplate: string;
+    if (channelType === 'email') {
+      bodyTemplate = this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericEmailBody;
+    } else if (channelType === 'webhook') {
+      bodyTemplate = this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericWebhookBody;
+    } else {
+      bodyTemplate =
+        this.getTestTemplateFromConfig(config, 'messageTemplate') || genericTelegramBody;
+    }
 
     return {
       channelType,
