@@ -9,11 +9,23 @@ export interface ICacheService {
   set<T>(key: string, value: T, ttlMs?: number): void;
   delete(key: string): void;
   clear(): void;
+  getStats(): CacheStats;
+  size(): number;
+}
+
+/** 缓存命中率统计 */
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  hitRate: number;
+  size: number;
+  maxSize: number;
 }
 
 interface CacheEntry {
   value: unknown;
   expiresAt: number;
+  lastAccessedAt: number;
 }
 
 export class MemoryCacheService implements ICacheService {
@@ -21,6 +33,8 @@ export class MemoryCacheService implements ICacheService {
   private readonly defaultTtlMs: number;
   private readonly maxSize: number;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private hits = 0;
+  private misses = 0;
 
   constructor(options: { defaultTtlMs?: number; maxSize?: number } = {}) {
     this.defaultTtlMs = options.defaultTtlMs ?? 5 * 60 * 1000; // 默认 5 分钟
@@ -31,11 +45,18 @@ export class MemoryCacheService implements ICacheService {
 
   get<T>(key: string): T | null {
     const entry = this.store.get(key);
-    if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
+    if (!entry) {
+      this.misses++;
       return null;
     }
+    if (Date.now() > entry.expiresAt) {
+      this.store.delete(key);
+      this.misses++;
+      return null;
+    }
+    // 更新访问时间（LRU 语义）
+    entry.lastAccessedAt = Date.now();
+    this.hits++;
     return entry.value as T;
   }
 
@@ -44,9 +65,11 @@ export class MemoryCacheService implements ICacheService {
     if (this.store.size >= this.maxSize && !this.store.has(key)) {
       this.evictOldest();
     }
+    const now = Date.now();
     this.store.set(key, {
       value,
-      expiresAt: Date.now() + (ttlMs ?? this.defaultTtlMs),
+      expiresAt: now + (ttlMs ?? this.defaultTtlMs),
+      lastAccessedAt: now,
     });
   }
 
@@ -56,6 +79,27 @@ export class MemoryCacheService implements ICacheService {
 
   clear(): void {
     this.store.clear();
+  }
+
+  /**
+   * 获取缓存命中率统计
+   */
+  getStats(): CacheStats {
+    const total = this.hits + this.misses;
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: total > 0 ? this.hits / total : 0,
+      size: this.store.size,
+      maxSize: this.maxSize,
+    };
+  }
+
+  /**
+   * 获取当前缓存条目数
+   */
+  size(): number {
+    return this.store.size;
   }
 
   /**
@@ -69,8 +113,16 @@ export class MemoryCacheService implements ICacheService {
   }
 
   private evictOldest(): void {
-    const oldest = this.store.keys().next().value;
-    if (oldest) this.store.delete(oldest);
+    // LRU 策略：淘汰最久未访问的条目
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    for (const [key, entry] of this.store) {
+      if (entry.lastAccessedAt < oldestTime) {
+        oldestTime = entry.lastAccessedAt;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey) this.store.delete(oldestKey);
   }
 
   private cleanup(): void {

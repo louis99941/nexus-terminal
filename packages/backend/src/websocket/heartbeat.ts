@@ -59,6 +59,14 @@ export function initializeHeartbeat(
   检查间隔: ${checkInterval}ms`);
 
   const heartbeatInterval = setInterval(() => {
+    // 防御性清理：移除 lastPingTime 中已不在 wss.clients 里的孤立条目
+    // 正常情况下 close/error 事件会调用 cleanupHeartbeat，此为兜底机制
+    for (const trackedWs of lastPingTime.keys()) {
+      if (!wss.clients.has(trackedWs)) {
+        lastPingTime.delete(trackedWs);
+      }
+    }
+
     wss.clients.forEach((ws: WebSocket) => {
       const extWs = ws as AuthenticatedWebSocket;
       const now = Date.now();

@@ -8,6 +8,7 @@ import { DB_DIR, DB_PATH } from '../config/paths';
 // SQLite 性能优化常量
 const SQLITE_CACHE_SIZE_KB = 64_000; // 64MB 内存缓存（负值表示 KB）
 const SQLITE_MMAP_SIZE_BYTES = 268_435_456; // 256MB 内存映射 I/O
+const SQLITE_BUSY_TIMEOUT_MS = 5000; // 写入锁等待超时 5 秒，防止 SQLITE_BUSY
 
 const dbDir = DB_DIR;
 const dbPath = DB_PATH;
@@ -98,8 +99,10 @@ const runDatabaseInitializations = async (db: sqlite3.Database): Promise<void> =
   await runDb(db, `PRAGMA mmap_size = ${SQLITE_MMAP_SIZE_BYTES};`);
   // 启用外键约束
   await runDb(db, 'PRAGMA foreign_keys = ON;');
+  // 写入锁等待超时，防止并发写入时 SQLITE_BUSY 错误
+  await runDb(db, `PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS};`);
 
-  logger.debug('[DB Init] SQLite 性能优化配置已应用 (WAL模式, 64MB缓存)');
+  logger.debug('[DB Init] SQLite 性能优化配置已应用 (WAL模式, 64MB缓存, busy_timeout=5s)');
 
   // 开始事务（用于表创建）
   await new Promise<void>((resolveTx, rejectTx) => {

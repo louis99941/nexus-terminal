@@ -26,7 +26,7 @@ import { cleanupClientConnection } from './utils';
 import { clientStates, registerUserSocket, unregisterUserSocket } from './state'; // 导入 userId 映射函数
 import { temporaryLogStorageService } from '../ssh-suspend/temporary-log-storage.service';
 import { resetHeartbeat, cleanupHeartbeat } from './heartbeat'; // 导入心跳函数
-import { validateWebSocketMessage } from './validate'; // 导入消息校验函数
+import { validateWebSocketMessage, isLikelyValidJson } from './validate'; // 导入消息校验函数
 import {
   createMultiplexTransport,
   registerTransport,
@@ -145,9 +145,19 @@ export function initializeConnectionHandler(
     } else {
       // Standard SSH/SFTP/Docker connection
       ws.on('message', async (message: RawData) => {
+        const rawStr = message.toString();
+
+        // 快速预检：跳过明显非 JSON 对象的载荷（避免昂贵的 JSON.parse）
+        if (!isLikelyValidJson(rawStr)) {
+          logger.debug(`WebSocket：来自 ${ws.username} 的非 JSON 载荷，已跳过`);
+          if (ws.readyState === WebSocket.OPEN)
+            ws.send(JSON.stringify({ type: 'error', payload: '无效的消息格式 (非 JSON)' }));
+          return;
+        }
+
         let parsedMessage: unknown;
         try {
-          parsedMessage = JSON.parse(message.toString());
+          parsedMessage = JSON.parse(rawStr);
         } catch {
           logger.error(`WebSocket：来自 ${ws.username} 的无效 JSON 消息:`, message.toString());
           if (ws.readyState === WebSocket.OPEN)

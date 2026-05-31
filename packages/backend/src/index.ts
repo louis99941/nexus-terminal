@@ -30,7 +30,11 @@ import {
 import { registerRoutes } from './config/routes';
 
 import eventService from './services/event.service';
-import { loggingMiddleware, persistenceMiddleware } from './services/event.middlewares';
+import {
+  loggingMiddleware,
+  persistenceMiddleware,
+  flushEventBuffer,
+} from './services/event.middlewares';
 import './notifications/notification.processor.service';
 import './notifications/notification.dispatcher.service';
 import { sshPoolService } from './services/ssh-pool.service';
@@ -94,11 +98,27 @@ process.on('uncaughtException', (error: Error) => {
 });
 
 // 进程退出时清理资源
-const gracefulShutdown = (signal: string) => {
+let isShuttingDown = false;
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) return; // 防止重复触发
+  isShuttingDown = true;
+
   logger.info(`收到 ${signal} 信号，正在优雅关闭...`);
   sshPoolService.shutdown();
   cacheService.stop();
-  // 给其他清理逻辑一些时间（2 秒确保连接池清理完成）
+
+  // 刷新事件日志缓冲区，确保数据不丢失（最多等待 8 秒）
+  try {
+    await Promise.race([
+      flushEventBuffer(),
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('flush timeout')), 8000)),
+    ]);
+    logger.info('[Shutdown] 事件缓冲区已刷新');
+  } catch (err) {
+    logger.error('[Shutdown] 刷新事件缓冲区失败或超时:', err);
+  }
+
+  // 给其他清理逻辑一些时间（确保连接池清理完成）
   setTimeout(() => {
     process.exit(0);
   }, 2000);

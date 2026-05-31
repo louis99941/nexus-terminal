@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { messageSchemaRegistry, SupportedMessageType } from './schemas';
 
+/**
+ * 快速预检：在 JSON.parse 之前用低成本字符串检查过滤无效消息
+ * 所有合法消息都是 JSON 对象（以 `{` 开头），此检查可跳过明显无效的载荷
+ *
+ * @returns true 表示可能合法，false 表示一定非法
+ */
+export function isLikelyValidJson(raw: string): boolean {
+  // 跳过前导空白，检查是否以 `{` 开头
+  const len = raw.length;
+  let i = 0;
+  while (i < len && raw.charCodeAt(i) <= 32) i++;
+  return i < len && raw.charCodeAt(i) === 123; // 123 === '{'
+}
+
 type ValidatedWebSocketMessage = {
   type: string;
   payload?: unknown;
