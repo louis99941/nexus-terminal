@@ -21,9 +21,9 @@
   "notificationDispatcher": {
     "test": {
       "emptyNotification": "通知テストに失敗しました: 通知オブジェクトが空です。",
-      "senderNotRegistered": "通知テストに失敗しました: {channelType} 送信者が登録されていません。",
+      "senderNotRegistered": "通知テストに失敗しました: {{channelType}} 送信者が登録されていません。",
       "success": "テスト通知の送信に成功しました。",
-      "failure": "テスト通知に失敗しました: {message}"
+      "failure": "テスト通知に失敗しました: {{message}}"
     }
   },
   "event": {

@@ -7,9 +7,9 @@
   "notificationDispatcher": {
     "test": {
       "emptyNotification": "通知测试失败：通知对象为空。",
-      "senderNotRegistered": "通知测试失败：未注册 {channelType} 发送器。",
+      "senderNotRegistered": "通知测试失败：未注册 {{channelType}} 发送器。",
       "success": "测试通知发送成功。",
-      "failure": "测试通知发送失败：{message}"
+      "failure": "测试通知发送失败：{{message}}"
     }
   },
   "event": {

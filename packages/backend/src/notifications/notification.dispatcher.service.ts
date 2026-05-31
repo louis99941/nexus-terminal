@@ -99,16 +99,6 @@ class NotificationDispatcherService {
 
   async sendTestNotification(notification: ProcessedNotification): Promise<NotificationTestResult> {
     const userLang = await this.getUserLanguage();
-    if (!notification) {
-      return {
-        success: false,
-        message: i18next.t('notificationDispatcher.test.emptyNotification', {
-          lng: userLang,
-          defaultValue: 'Notification test failed: notification is empty.',
-        }),
-      };
-    }
-
     const sender = this.senders.get(notification.channelType);
     if (!sender) {
       return {

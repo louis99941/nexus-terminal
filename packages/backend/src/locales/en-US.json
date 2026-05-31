@@ -21,9 +21,9 @@
   "notificationDispatcher": {
     "test": {
       "emptyNotification": "Notification test failed: notification is empty.",
-      "senderNotRegistered": "Notification test failed: no sender registered for {channelType}.",
+      "senderNotRegistered": "Notification test failed: no sender registered for {{channelType}}.",
       "success": "Test notification sent successfully.",
-      "failure": "Test notification failed: {message}"
+      "failure": "Test notification failed: {{message}}"
     }
   },
   "event": {

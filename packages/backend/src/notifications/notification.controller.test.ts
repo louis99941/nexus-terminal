@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotificationController } from './notification.controller';
+import { buildTestNotification } from './notification-test-builder.helper';
 
 const { mockRepository, mockSendTestNotification, mockEmitEvent } = vi.hoisted(() => ({
   mockRepository: {
@@ -103,18 +104,13 @@ describe('NotificationController', () => {
       message: '测试通知发送失败：network error',
     });
   });
+});
 
-  it('buildTestNotification 的 webhook 默认模板应保留结构化 details', () => {
-    const notification = (
-      controller as unknown as {
-        buildTestNotification: (
-          channelType: 'webhook' | 'email' | 'telegram',
-          config: { bodyTemplate?: string },
-          userId?: number,
-          payload?: { message?: string }
-        ) => { body: string };
-      }
-    ).buildTestNotification('webhook', { bodyTemplate: '' }, 1, { message: 'hello' });
+describe('buildTestNotification (helper)', () => {
+  it('webhook 默认模板应保留结构化 details', () => {
+    const notification = buildTestNotification('webhook', { bodyTemplate: '' }, 1, {
+      message: 'hello',
+    });
 
     expect(JSON.parse(notification.body)).toEqual({
       event: 'testNotification',
@@ -123,5 +119,41 @@ describe('NotificationController', () => {
         message: 'hello',
       },
     });
+  });
+
+  it('email 默认模板应包含 HTML 结构', () => {
+    const notification = buildTestNotification('email', {}, 1, { message: 'hello' });
+
+    expect(notification.body).toContain('<p>Event: testNotification</p>');
+    expect(notification.body).toContain('<pre>');
+  });
+
+  it('telegram 默认模板应包含 markdown 格式', () => {
+    const notification = buildTestNotification('telegram', {}, 1, { message: 'hello' });
+
+    expect(notification.body).toContain('```');
+  });
+
+  it('自定义模板应被正确插值', () => {
+    const notification = buildTestNotification(
+      'webhook',
+      { bodyTemplate: '{"msg":"{message}","ts":"{timestamp}"}' },
+      1,
+      { message: 'custom' }
+    );
+
+    const parsed = JSON.parse(notification.body);
+    expect(parsed.msg).toBe('custom');
+    expect(parsed.ts).toBeDefined();
+  });
+
+  it('未使用的占位符应保留原始值', () => {
+    const notification = buildTestNotification(
+      'webhook',
+      { bodyTemplate: '{"key":"{unknownVar}"}' },
+      1
+    );
+
+    expect(notification.body).toContain('{unknownVar}');
   });
 });
