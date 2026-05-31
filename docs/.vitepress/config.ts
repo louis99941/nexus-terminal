@@ -50,7 +50,7 @@ export default defineConfig({
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Linux, macOS, Windows',
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'CNY' },
-        softwareVersion: '1.2.0',
+        softwareVersion: '1.5.3',
         author: { '@type': 'Person', name: 'Silentely' },
       }),
     ],
@@ -110,6 +110,7 @@ export default defineConfig({
       {
         text: '配置',
         items: [
+          { text: '高级配置', link: '/configuration' },
           { text: '环境变量配置', link: '/configuration/docker' },
           { text: 'CORS 跨域配置', link: '/configuration/cors' },
         ],

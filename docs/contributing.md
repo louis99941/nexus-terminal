@@ -2,6 +2,51 @@
 
 感谢您对 Nexus Terminal 的关注！本文档将帮助您快速参与到项目开发中。
 
+## 开发环境要求
+
+| 依赖 | 最低版本 | 推荐版本 | 说明 |
+|------|----------|----------|------|
+| Node.js | 18.0 | 20 LTS | 运行时 |
+| npm | 8.0 | 10+ | 包管理（项目使用 npm workspaces） |
+| Git | 2.30 | 最新 | 版本控制 |
+| Docker | 20.10 | 24.0+ | 可选，用于容器化部署测试 |
+
+### 安装依赖
+
+```bash
+# 克隆仓库
+git clone https://github.com/<your-username>/nexus-terminal.git
+cd nexus-terminal
+
+# 安装所有子包依赖（npm workspaces）
+npm install
+```
+
+### Git Hooks 说明
+
+项目使用 Husky 管理 Git hooks，安装依赖后会自动配置：
+
+- **pre-commit**：运行 lint-staged（eslint --fix + prettier --write），然后执行 quality:check（类型检查 + lint 零 warning + 格式检查）
+- **commit-msg**：Commitlint 校验提交消息格式（必须符合 Conventional Commits + 中文 subject + 可选 Emoji）
+
+如需临时跳过 pre-commit 质量检查：
+
+```bash
+SKIP_PRECOMMIT_QUALITY=1 git commit -m "✨ feat(scope): 示例"
+```
+
+### 测试命令
+
+```bash
+npm test                 # 全部测试
+npm run test:backend     # 后端测试
+npm run test:frontend    # 前端测试
+npm run test:coverage    # 覆盖率报告
+npm run typecheck:frontend  # 前端类型检查
+npm run typecheck:backend   # 后端类型检查
+npm run lint             # 代码检查
+```
+
 ## 参与方式
 
 ### 报告 Bug

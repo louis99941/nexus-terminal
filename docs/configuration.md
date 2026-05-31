@@ -2,30 +2,15 @@
 
 本指南涵盖 Nexus Terminal 的高级配置选项，包括 CORS、Passkey、WebSocket、日志和防火墙等。
 
-## CORS 跨域配置
+## 配置入口
 
-当您需要通过自定义域名访问，或有多个域名需要访问时，需要配置 CORS。
+| 配置项 | 文档链接 | 说明 |
+|--------|----------|------|
+| 环境变量 | [Docker 环境变量配置](./configuration/docker) | 完整的环境变量参考，含 Backend 和 Remote Gateway |
+| CORS 跨域 | [CORS 跨域配置](./configuration/cors) | 自定义域名、多域名、开发环境 CORS 配置 |
+| 本页 | 下方 | Passkey、API Token、速率限制、WebSocket、日志、HTTPS、防火墙 |
 
-编辑 `docker-compose.yml` 中的 `remote-gateway` 服务：
-
-```yaml
-remote-gateway:
-  environment:
-    # 添加允许的域名（逗号分隔多个域名）
-    CORS_ALLOWED_ORIGINS: https://yourdomain.com,https://www.yourdomain.com
-    # 开发模式可设置为 true（不推荐生产环境）
-    # CORS_ALLOW_ALL: false
-```
-
-| 场景     | 配置值                        |
-| -------- | ----------------------------- |
-| 单域名   | `https://example.com`         |
-| 多域名   | `https://a.com,https://b.com` |
-| 开发环境 | `CORS_ALLOW_ALL: true`        |
-
-::: warning 安全提示
-生产环境请避免使用 `CORS_ALLOW_ALL: true`，这会带来安全风险。
-:::
+---
 
 ## Passkey 认证配置
 
@@ -67,7 +52,7 @@ remote-gateway:
 ::: tip 建议
 
 - 使用强随机字符串（建议 32+ 字符）
-- Backend 和 Remote Gateway 必须使用相同的 Token
+- Backend 和 Remote Gateway 必须使用相同 Token
   :::
 
 ## 速率限制
@@ -75,8 +60,20 @@ remote-gateway:
 | 配置项     | 默认值  | 说明             |
 | ---------- | ------- | ---------------- |
 | 窗口时间   | 15 分钟 | 限制计数窗口     |
-| 最大请求数 | 100 次  | 窗口内最大请求数 |
+| 最大请求数 | 300 次  | 窗口内最大请求数 |
 | 跳过条件   | 已认证  | 登录后不受限制   |
+
+可通过环境变量调整：
+
+```dotenv
+# 通用 API
+API_RATE_LIMIT_WINDOW_MS=900000
+API_RATE_LIMIT_MAX=300
+
+# Settings API
+SETTINGS_RATE_LIMIT_WINDOW_MS=900000
+SETTINGS_RATE_LIMIT_MAX=500
+```
 
 ## WebSocket 配置
 
@@ -111,7 +108,7 @@ location /ws/ {
 ## 日志配置
 
 ```dotenv
-LOG_LEVEL=info   # debug | info | warn | error
+LOG_LEVEL=info   # debug | info | warn | error | silent
 ```
 
 Docker 日志轮转（已在 `docker-compose.yml` 中配置）：
@@ -153,42 +150,6 @@ sudo ufw allow 443/tcp
 sudo ufw deny 18111/tcp   # 不对外暴露直连端口
 sudo ufw deny 3001/tcp    # 不对外暴露后端端口
 ```
-
-## 环境变量完整参考
-
-### 后端环境变量
-
-| 变量名              | 类型    | 默认值           | 说明                 |
-| ------------------- | ------- | ---------------- | -------------------- |
-| `NODE_ENV`          | string  | `development`    | 运行环境             |
-| `PORT`              | number  | `3001`           | API 端口             |
-| `APP_NAME`          | string  | `Nexus Terminal` | 应用名称             |
-| `DEPLOYMENT_MODE`   | string  | `local`          | 部署模式             |
-| `ENCRYPTION_KEY`    | string  | 自动生成         | 加密密钥             |
-| `SESSION_SECRET`    | string  | 自动生成         | 会话密钥             |
-| `GUACD_HOST`        | string  | `localhost`      | Guacd 主机           |
-| `GUACD_PORT`        | number  | `4822`           | Guacd 端口           |
-| `RP_ID`             | string  | —                | Passkey RP ID        |
-| `RP_ORIGIN`         | string  | —                | Passkey RP Origin    |
-| `ALLOWED_ORIGINS`   | string  | —                | 允许的来源           |
-| `ENABLE_METRICS`    | boolean | `false`          | 启用 Prometheus      |
-| `ENABLE_GEO_LOOKUP` | boolean | `true`           | 启用 IP 地理位置查询 |
-| `LOG_LEVEL`         | string  | `info`           | 日志级别             |
-| `ENABLE_REQUEST_LOG`| boolean | `true`           | 启用请求访问日志     |
-
-### Remote Gateway 环境变量
-
-| 变量名                     | 默认值                | 说明           |
-| -------------------------- | --------------------- | -------------- |
-| `GUACD_HOST`               | `localhost`           | Guacd 主机     |
-| `GUACD_PORT`               | `4822`                | Guacd 端口     |
-| `REMOTE_GATEWAY_API_PORT`  | `9090`                | API 端口       |
-| `REMOTE_GATEWAY_WS_PORT`   | `8081`                | WebSocket 端口 |
-| `FRONTEND_URL`             | `http://frontend`     | 前端 URL       |
-| `MAIN_BACKEND_URL`         | `http://backend:3001` | 后端 URL       |
-| `REMOTE_GATEWAY_API_TOKEN` | —                     | API Token      |
-| `CORS_ALLOWED_ORIGINS`     | —                     | CORS 允许来源  |
-| `CORS_ALLOW_ALL`           | `false`               | 允许所有来源   |
 
 ## 故障排查
 

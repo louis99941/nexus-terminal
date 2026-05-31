@@ -4,7 +4,7 @@
 
 [![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)][docker-url] [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-4CAF50?style=flat-square)](https://github.com/Silentely/nexus-terminal/blob/main/LICENSE) [![Changelog](https://img.shields.io/badge/changelog-kittylog-10b981)](https://kittylog.app/c/Silentely/nexus-terminal)
 <br>
-[中文](./README.md) | [English](./docs/guide/README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
+[中文](./README.md) | [English](./README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
 
 [docker-url]: https://ghcr.io/silentely/nexus-terminal-frontend
 
