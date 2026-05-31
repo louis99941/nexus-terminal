@@ -119,15 +119,15 @@ cd packages/frontend && npm run build
 
 ### 环境变量
 
-| 变量                      | 默认值         | 说明                      |
-| ------------------------- | -------------- | ------------------------- |
-| `PORT`                    | 3001           | API 端口                  |
-| `ENCRYPTION_KEY`          | 自动生成       | 数据库加密密钥（32B hex） |
-| `SESSION_SECRET`          | 自动生成       | 会话密钥                  |
-| `GUACD_HOST`/`GUACD_PORT` | localhost:4822 | Guacamole daemon          |
-| `ENABLE_METRICS`          | false          | Prometheus 端点           |
-| `ENABLE_GEO_LOOKUP`       | true           | IP 地理位置查询           |
-| `LOG_LEVEL`               | info           | 日志等级                  |
+| 变量                      | 默认值         | 说明                             |
+| ------------------------- | -------------- | -------------------------------- |
+| `PORT`                    | 3001           | API 端口                         |
+| `ENCRYPTION_KEY`          | 自动生成       | 数据库加密密钥（32B hex）        |
+| `SESSION_SECRET`          | 自动生成       | 会话密钥                         |
+| `GUACD_HOST`/`GUACD_PORT` | localhost:4822 | Guacamole daemon                 |
+| `ENABLE_METRICS`          | false          | Prometheus 端点                  |
+| `ENABLE_GEO_LOOKUP`       | true           | IP 地理位置查询                  |
+| `LOG_LEVEL`               | info           | 日志等级                         |
 | `ENABLE_REQUEST_LOG`      | true           | 启用请求访问日志（false 可关闭） |
 
 ---
