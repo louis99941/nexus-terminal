@@ -58,6 +58,10 @@ export type NotificationEvent =
   | 'SSH_SHELL_FAILURE'
   | 'SSH_DISCONNECT'
   | 'SSH_SESSION_SUSPENDED'
+  // Telnet 事件
+  | 'TELNET_CONNECT_SUCCESS'
+  | 'TELNET_CONNECT_FAILURE'
+  | 'TELNET_DISCONNECT'
   // 批量任务事件
   | 'BATCH_TASK_CREATED'
   | 'BATCH_TASK_COMPLETED'

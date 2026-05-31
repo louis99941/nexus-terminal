@@ -7,6 +7,8 @@ import {
 } from '../types/notification.types';
 // import { AuditLogService } from '../services/audit.service'; // Keep for now if other parts use it - Removed as eventService is used
 import { AppEventType, default as eventService } from '../services/event.service'; // Import event service
+import notificationDispatcherService from './notification.dispatcher.service';
+import type { ProcessedNotification } from './notification.processor.service';
 import i18next from '../i18n'; // Import the i18next instance
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
@@ -23,6 +25,10 @@ import { logger } from '../utils/logger';
 
 type SessionWithUserId = {
   userId?: unknown;
+};
+
+type TestPayloadDetails = {
+  message?: string;
 };
 
 // 从 session 中安全提取 userId，避免直接使用 any。
@@ -204,23 +210,19 @@ export class NotificationController {
         return;
       }
 
-      // Trigger the standard test event, passing the config to be used by the processor
-      eventService.emitEvent(AppEventType.TestNotification, {
-        userId: getSessionUserId(req.session), // Optional: associate test with user
-        details: {
-          // Use i18next.t for i18n with interpolation
+      const testNotification = this.buildTestNotification(
+        settingToTest.channel_type,
+        settingToTest.config,
+        getSessionUserId(req.session),
+        {
           message: i18next.t('notificationController.testMessageSaved', {
             id,
             name: settingToTest.name,
           }),
-          testTargetConfig: settingToTest.config, // Pass the config to use
-          testTargetChannelType: settingToTest.channel_type, // Pass the channel type
-        },
-      });
-
-      // Respond immediately confirming the event was triggered
-      // Use i18next.t for i18n
-      res.status(200).json({ message: i18next.t('notificationController.testEventTriggered') });
+        }
+      );
+      const result = await notificationDispatcherService.sendTestNotification(testNotification);
+      res.status(200).json(result);
     } catch (error: unknown) {
       logger.error(`[NotificationController] Error triggering test for setting ${id}:`, error);
       // Use i18next.t for i18n
@@ -254,22 +256,18 @@ export class NotificationController {
     }
 
     try {
-      // Trigger the standard test event, passing the unsaved config to be used by the processor
-      eventService.emitEvent(AppEventType.TestNotification, {
-        userId: getSessionUserId(req.session),
-        details: {
-          // Use i18next.t for i18n with interpolation
+      const testNotification = this.buildTestNotification(
+        channel_type,
+        config,
+        getSessionUserId(req.session),
+        {
           message: i18next.t('notificationController.testMessageUnsaved', {
             channelType: channel_type,
           }),
-          testTargetConfig: config, // Pass the unsaved config to use
-          testTargetChannelType: channel_type, // Pass the channel type
-        },
-      });
-
-      // Respond immediately confirming the event was triggered
-      // Use i18next.t for i18n
-      res.status(200).json({ message: i18next.t('notificationController.testEventTriggered') });
+        }
+      );
+      const result = await notificationDispatcherService.sendTestNotification(testNotification);
+      res.status(200).json(result);
     } catch (error: unknown) {
       logger.error(
         `[NotificationController] Error triggering test for unsaved ${channel_type}:`,
@@ -282,4 +280,72 @@ export class NotificationController {
       });
     }
   };
+
+  private buildTestNotification(
+    channelType: NotificationChannelType,
+    config: NotificationChannelConfig,
+    userId?: number,
+    payload?: TestPayloadDetails
+  ): ProcessedNotification {
+    const eventPayload = {
+      event: AppEventType.TestNotification,
+      timestamp: new Date(),
+      details: payload ?? {},
+    };
+    const formattedDetails = this.formatTestDetails(eventPayload.details);
+    const subject = i18next.t('notificationController.testSubjectFallback', {
+      defaultValue: 'Nexus Terminal Test',
+    });
+    const baseData = {
+      event: eventPayload.event,
+      timestamp: eventPayload.timestamp.toISOString(),
+      details: formattedDetails,
+      message: payload?.message || '',
+    };
+    const genericEmailBody = `<p>事件: {event}</p><p>时间: {timestamp}</p><p>详情:</p><pre>{details}</pre>`;
+    const genericWebhookBody = JSON.stringify({
+      event: '{event}',
+      timestamp: '{timestamp}',
+      details: '{details}',
+    });
+    const genericTelegramBody = `*{event}*\n时间: {timestamp}\n详情:\n\`\`\`\n{details}\n\`\`\``;
+    const bodyTemplate =
+      channelType === 'email'
+        ? this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericEmailBody
+        : channelType === 'webhook'
+          ? this.getTestTemplateFromConfig(config, 'bodyTemplate') || genericWebhookBody
+          : this.getTestTemplateFromConfig(config, 'messageTemplate') || genericTelegramBody;
+
+    return {
+      channelType,
+      config,
+      subject,
+      body: this.interpolateTestTemplate(bodyTemplate, baseData),
+      rawPayload: {
+        event: eventPayload.event,
+        timestamp: eventPayload.timestamp,
+        details: eventPayload.details as Record<string, unknown> | undefined,
+        ...(typeof userId === 'number' ? { userId } : {}),
+      } as ProcessedNotification['rawPayload'],
+    };
+  }
+
+  private getTestTemplateFromConfig(
+    config: NotificationChannelConfig,
+    key: 'bodyTemplate' | 'messageTemplate'
+  ): string | undefined {
+    if (config && typeof config === 'object') {
+      const value = (config as unknown as Record<string, unknown>)[key];
+      return typeof value === 'string' && value.trim() ? value : undefined;
+    }
+    return undefined;
+  }
+
+  private formatTestDetails(details: TestPayloadDetails): string {
+    return JSON.stringify(details || {}, null, 2);
+  }
+
+  private interpolateTestTemplate(template: string, data: Record<string, string>): string {
+    return template.replace(/\{(\w+)\}/g, (match, key) => data[key] ?? match);
+  }
 }

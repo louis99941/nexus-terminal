@@ -532,6 +532,10 @@ const allNotificationEvents: NotificationEvent[] = [
   'SSH_SHELL_FAILURE',
   'SSH_DISCONNECT',
   'SSH_SESSION_SUSPENDED',
+  // Telnet 事件
+  'TELNET_CONNECT_SUCCESS',
+  'TELNET_CONNECT_FAILURE',
+  'TELNET_DISCONNECT',
   // 批量任务事件
   'BATCH_TASK_CREATED',
   'BATCH_TASK_COMPLETED',
@@ -821,8 +825,8 @@ const handleTestNotification = async () => {
     }
     // Translate the message received from the backend using t()
     testResult.value = {
-      success: true,
-      message: t(result.message || 'settings.notifications.form.testSuccess'),
+      success: result.success,
+      message: result.message || t('settings.notifications.form.testSuccess'),
     };
   } catch (error: unknown) {
     log.error('Test notification error:', error);

@@ -8,6 +8,11 @@ import webhookSenderService from './senders/webhook.sender.service';
 import type { INotificationSender } from './notification-sender.interface';
 import { logger } from '../utils/logger';
 
+export interface NotificationDispatchResult {
+  success: boolean;
+  message: string;
+}
+
 class NotificationDispatcherService {
   // 使用 Map 来存储不同渠道类型的发送器实例
   private senders: Map<NotificationChannelType, INotificationSender>;
@@ -91,6 +96,43 @@ class NotificationDispatcherService {
         error
       );
       // 这里可以添加失败重试或记录失败状态的逻辑
+    }
+  }
+
+  async sendTestNotification(
+    notification: ProcessedNotification
+  ): Promise<NotificationDispatchResult> {
+    if (!notification) {
+      return {
+        success: false,
+        message: '通知测试失败：通知对象为空。',
+      };
+    }
+
+    const sender = this.senders.get(notification.channelType);
+    if (!sender) {
+      return {
+        success: false,
+        message: `通知测试失败：未注册 ${notification.channelType} 发送器。`,
+      };
+    }
+
+    try {
+      await sender.send(notification);
+      return {
+        success: true,
+        message: '测试通知发送成功。',
+      };
+    } catch (error: unknown) {
+      logger.error(
+        `[NotificationDispatcher] 测试 ${notification.channelType} 通知发送失败:`,
+        error
+      );
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        message: `测试通知发送失败：${message}`,
+      };
     }
   }
 }

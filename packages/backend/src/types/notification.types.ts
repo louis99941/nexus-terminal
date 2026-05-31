@@ -33,6 +33,10 @@ export type NotificationEvent =
   | 'SSH_SHELL_FAILURE'
   | 'SSH_DISCONNECT'
   | 'SSH_SESSION_SUSPENDED'
+  // Telnet 事件
+  | 'TELNET_CONNECT_SUCCESS'
+  | 'TELNET_CONNECT_FAILURE'
+  | 'TELNET_DISCONNECT'
   // 批量任务事件
   | 'BATCH_TASK_CREATED'
   | 'BATCH_TASK_COMPLETED'
@@ -111,4 +115,9 @@ export interface NotificationPayload {
   event: NotificationEvent;
   timestamp: number;
   details?: Record<string, unknown> | string; // Contextual information about the event
+}
+
+export interface NotificationTestResult {
+  success: boolean;
+  message: string;
 }

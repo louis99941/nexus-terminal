@@ -101,8 +101,13 @@ export const useNotificationsStore = defineStore('notifications', () => {
     error.value = null; // Clear previous general errors
     try {
       // Send the request without a body, as the backend uses the saved config for the given ID
-      const response = await apiClient.post<{ message: string }>(`/notifications/${id}/test`); // 使用 apiClient, removed config from body
-      return { success: true, message: response.data.message || '测试成功' };
+      const response = await apiClient.post<{ success: boolean; message: string }>(
+        `/notifications/${id}/test`
+      );
+      return {
+        success: response.data.success ?? true,
+        message: response.data.message || '测试成功',
+      };
     } catch (err: unknown) {
       log.error(`Error testing notification setting ${id}:`, err);
       // Don't set the main 'error' ref here, let the component handle test-specific errors/results.
@@ -120,11 +125,17 @@ export const useNotificationsStore = defineStore('notifications', () => {
     error.value = null;
     try {
       // Send the channel type and config in the request body
-      const response = await apiClient.post<{ message: string }>(`/notifications/test-unsaved`, {
-        channel_type: channelType,
-        config,
-      }); // 使用 apiClient
-      return { success: true, message: response.data.message || '测试成功' };
+      const response = await apiClient.post<{ success: boolean; message: string }>(
+        `/notifications/test-unsaved`,
+        {
+          channel_type: channelType,
+          config,
+        }
+      ); // 使用 apiClient
+      return {
+        success: response.data.success ?? true,
+        message: response.data.message || '测试成功',
+      };
     } catch (err: unknown) {
       log.error(`Error testing unsaved notification setting:`, err);
       throw err; // Re-throw the error to be caught in the component

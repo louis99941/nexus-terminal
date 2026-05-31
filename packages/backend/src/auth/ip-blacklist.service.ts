@@ -1,10 +1,8 @@
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { settingsService } from '../settings/settings.service';
-import { NotificationService } from '../notifications/notification.service';
+import eventService, { AppEventType } from '../services/event.service';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
-
-const notificationService = new NotificationService(); // 实例化 NotificationService
 
 // 黑名单相关设置的 Key
 const MAX_LOGIN_ATTEMPTS_KEY = 'maxLoginAttempts';
@@ -128,16 +126,15 @@ export class IpBlacklistService {
         );
 
         if (shouldNotify && blockedUntil) {
-          notificationService
-            .sendNotification('IP_BLOCKED', {
+          eventService.emitEvent(AppEventType.IpBlocked, {
+            details: {
               ip,
               attempts: newAttempts,
               duration: banDuration,
               blockedUntil: new Date(blockedUntil * 1000).toISOString(),
-            })
-            .catch((err: unknown) =>
-              logger.error(`[IP Blacklist] 发送 IP_BLACKLISTED 通知失败 for IP ${ip}:`, err)
-            );
+              reason: 'max_login_attempts',
+            },
+          });
         }
       } else {
         // Insert new record
@@ -160,16 +157,15 @@ export class IpBlacklistService {
         );
 
         if (shouldNotify && blockedUntil) {
-          notificationService
-            .sendNotification('IP_BLOCKED', {
+          eventService.emitEvent(AppEventType.IpBlocked, {
+            details: {
               ip,
               attempts,
               duration: banDuration,
               blockedUntil: new Date(blockedUntil * 1000).toISOString(),
-            })
-            .catch((err: unknown) =>
-              logger.error(`[IP Blacklist] 发送 IP_BLACKLISTED 通知失败 for IP ${ip}:`, err)
-            );
+              reason: 'max_login_attempts',
+            },
+          });
         }
       }
     } catch (error: unknown) {

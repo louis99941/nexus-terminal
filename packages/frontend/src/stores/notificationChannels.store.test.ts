@@ -326,13 +326,24 @@ describe('notificationChannels.store', () => {
 
   describe('testSetting', () => {
     it('测试成功时应返回 success 和 message', async () => {
-      vi.mocked(apiClient.post).mockResolvedValue({ data: { message: '发送成功' } });
+      vi.mocked(apiClient.post).mockResolvedValue({ data: { success: true, message: '发送成功' } });
 
       const store = useNotificationsStore();
       const result = await store.testSetting(1, {} as NotificationChannelConfig);
 
       expect(apiClient.post).toHaveBeenCalledWith('/notifications/1/test');
       expect(result).toEqual({ success: true, message: '发送成功' });
+    });
+
+    it('后端返回 success=false 时应原样透传', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: false, message: '发送失败' },
+      });
+
+      const store = useNotificationsStore();
+      const result = await store.testSetting(1, {} as NotificationChannelConfig);
+
+      expect(result).toEqual({ success: false, message: '发送失败' });
     });
 
     it('后端未返回 message 时应使用默认消息', async () => {
@@ -391,7 +402,9 @@ describe('notificationChannels.store', () => {
 
   describe('testUnsavedSetting', () => {
     it('测试未保存设置成功时应返回 success 和 message', async () => {
-      vi.mocked(apiClient.post).mockResolvedValue({ data: { message: '测试通过' } });
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: true, message: '测试通过' },
+      });
 
       const store = useNotificationsStore();
       const result = await store.testUnsavedSetting('webhook', {
@@ -403,6 +416,17 @@ describe('notificationChannels.store', () => {
         config: { url: 'https://example.com' },
       });
       expect(result).toEqual({ success: true, message: '测试通过' });
+    });
+
+    it('后端返回 success=false 时应原样透传', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: false, message: '测试失败' },
+      });
+
+      const store = useNotificationsStore();
+      const result = await store.testUnsavedSetting('email', { to: 'test@test.com' });
+
+      expect(result).toEqual({ success: false, message: '测试失败' });
     });
 
     it('后端未返回 message 时应使用默认消息', async () => {
