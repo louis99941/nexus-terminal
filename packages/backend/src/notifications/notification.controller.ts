@@ -7,6 +7,8 @@ import {
 } from '../types/notification.types';
 // import { AuditLogService } from '../services/audit.service'; // Keep for now if other parts use it - Removed as eventService is used
 import { AppEventType, default as eventService } from '../services/event.service'; // Import event service
+import notificationDispatcherService from './notification.dispatcher.service';
+import { buildTestNotification } from './notification-test-builder.helper';
 import i18next from '../i18n'; // Import the i18next instance
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
@@ -204,23 +206,19 @@ export class NotificationController {
         return;
       }
 
-      // Trigger the standard test event, passing the config to be used by the processor
-      eventService.emitEvent(AppEventType.TestNotification, {
-        userId: getSessionUserId(req.session), // Optional: associate test with user
-        details: {
-          // Use i18next.t for i18n with interpolation
+      const testNotification = buildTestNotification(
+        settingToTest.channel_type,
+        settingToTest.config,
+        getSessionUserId(req.session),
+        {
           message: i18next.t('notificationController.testMessageSaved', {
             id,
             name: settingToTest.name,
           }),
-          testTargetConfig: settingToTest.config, // Pass the config to use
-          testTargetChannelType: settingToTest.channel_type, // Pass the channel type
-        },
-      });
-
-      // Respond immediately confirming the event was triggered
-      // Use i18next.t for i18n
-      res.status(200).json({ message: i18next.t('notificationController.testEventTriggered') });
+        }
+      );
+      const result = await notificationDispatcherService.sendTestNotification(testNotification);
+      res.status(200).json(result);
     } catch (error: unknown) {
       logger.error(`[NotificationController] Error triggering test for setting ${id}:`, error);
       // Use i18next.t for i18n
@@ -254,22 +252,18 @@ export class NotificationController {
     }
 
     try {
-      // Trigger the standard test event, passing the unsaved config to be used by the processor
-      eventService.emitEvent(AppEventType.TestNotification, {
-        userId: getSessionUserId(req.session),
-        details: {
-          // Use i18next.t for i18n with interpolation
+      const testNotification = buildTestNotification(
+        channel_type,
+        config,
+        getSessionUserId(req.session),
+        {
           message: i18next.t('notificationController.testMessageUnsaved', {
             channelType: channel_type,
           }),
-          testTargetConfig: config, // Pass the unsaved config to use
-          testTargetChannelType: channel_type, // Pass the channel type
-        },
-      });
-
-      // Respond immediately confirming the event was triggered
-      // Use i18next.t for i18n
-      res.status(200).json({ message: i18next.t('notificationController.testEventTriggered') });
+        }
+      );
+      const result = await notificationDispatcherService.sendTestNotification(testNotification);
+      res.status(200).json(result);
     } catch (error: unknown) {
       logger.error(
         `[NotificationController] Error triggering test for unsaved ${channel_type}:`,

@@ -439,6 +439,7 @@ import {
   EmailConfig,
   TelegramConfig,
   NotificationChannelType,
+  NotificationTestResult,
 } from '../types/server.types';
 import { useI18n } from 'vue-i18n';
 import { extractErrorMessage } from '../utils/errorExtractor';
@@ -532,6 +533,10 @@ const allNotificationEvents: NotificationEvent[] = [
   'SSH_SHELL_FAILURE',
   'SSH_DISCONNECT',
   'SSH_SESSION_SUSPENDED',
+  // Telnet 事件
+  'TELNET_CONNECT_SUCCESS',
+  'TELNET_CONNECT_FAILURE',
+  'TELNET_DISCONNECT',
   // 批量任务事件
   'BATCH_TASK_CREATED',
   'BATCH_TASK_COMPLETED',
@@ -811,7 +816,7 @@ const handleTestNotification = async () => {
   }
 
   try {
-    let result: { success: boolean; message: string };
+    let result: NotificationTestResult;
     if (isEditing.value && props.initialData?.id) {
       // Test existing setting
       result = await store.testSetting(props.initialData.id, testConfig);
@@ -821,8 +826,14 @@ const handleTestNotification = async () => {
     }
     // Translate the message received from the backend using t()
     testResult.value = {
-      success: true,
-      message: t(result.message || 'settings.notifications.form.testSuccess'),
+      success: result.success,
+      message:
+        result.message ||
+        t(
+          result.success
+            ? 'settings.notifications.form.testSuccess'
+            : 'settings.notifications.form.testFailed'
+        ),
     };
   } catch (error: unknown) {
     log.error('Test notification error:', error);

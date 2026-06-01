@@ -5,8 +5,11 @@ import { NotificationChannelType } from '../types/notification.types';
 import telegramSenderService from './senders/telegram.sender.service';
 import emailSenderService from './senders/email.sender.service';
 import webhookSenderService from './senders/webhook.sender.service';
-import type { INotificationSender } from './notification-sender.interface';
+import i18next, { defaultLng, supportedLngs } from '../i18n';
+import { settingsService } from '../settings/settings.service';
 import { logger } from '../utils/logger';
+import type { INotificationSender } from './notification-sender.interface';
+import type { NotificationTestResult } from '../types/notification.types';
 
 class NotificationDispatcherService {
   // 使用 Map 来存储不同渠道类型的发送器实例
@@ -92,6 +95,58 @@ class NotificationDispatcherService {
       );
       // 这里可以添加失败重试或记录失败状态的逻辑
     }
+  }
+
+  async sendTestNotification(notification: ProcessedNotification): Promise<NotificationTestResult> {
+    const userLang = await this.getUserLanguage();
+    const sender = this.senders.get(notification.channelType);
+    if (!sender) {
+      return {
+        success: false,
+        message: i18next.t('notificationDispatcher.test.senderNotRegistered', {
+          lng: userLang,
+          channelType: notification.channelType,
+          defaultValue: `Notification test failed: no sender registered for ${notification.channelType}.`,
+        }),
+      };
+    }
+
+    try {
+      await sender.send(notification);
+      return {
+        success: true,
+        message: i18next.t('notificationDispatcher.test.success', {
+          lng: userLang,
+          defaultValue: 'Test notification sent successfully.',
+        }),
+      };
+    } catch (error: unknown) {
+      logger.error(
+        `[NotificationDispatcher] 测试 ${notification.channelType} 通知发送失败:`,
+        error
+      );
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        message: i18next.t('notificationDispatcher.test.failure', {
+          lng: userLang,
+          message,
+          defaultValue: `Test notification failed: ${message}`,
+        }),
+      };
+    }
+  }
+
+  private async getUserLanguage(): Promise<string> {
+    try {
+      const langSetting = await settingsService.getSetting('language');
+      if (langSetting && supportedLngs.includes(langSetting)) {
+        return langSetting;
+      }
+    } catch (error: unknown) {
+      logger.error(`[NotificationDispatcher] 获取语言设置时出错，使用默认 (${defaultLng}):`, error);
+    }
+    return defaultLng;
   }
 }
 

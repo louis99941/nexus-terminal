@@ -326,7 +326,7 @@ describe('notificationChannels.store', () => {
 
   describe('testSetting', () => {
     it('测试成功时应返回 success 和 message', async () => {
-      vi.mocked(apiClient.post).mockResolvedValue({ data: { message: '发送成功' } });
+      vi.mocked(apiClient.post).mockResolvedValue({ data: { success: true, message: '发送成功' } });
 
       const store = useNotificationsStore();
       const result = await store.testSetting(1, {} as NotificationChannelConfig);
@@ -335,13 +335,35 @@ describe('notificationChannels.store', () => {
       expect(result).toEqual({ success: true, message: '发送成功' });
     });
 
+    it('后端返回 success=false 时应原样透传', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: false, message: '发送失败' },
+      });
+
+      const store = useNotificationsStore();
+      const result = await store.testSetting(1, {} as NotificationChannelConfig);
+
+      expect(result).toEqual({ success: false, message: '发送失败' });
+    });
+
     it('后端未返回 message 时应使用默认消息', async () => {
       vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
 
       const store = useNotificationsStore();
       const result = await store.testSetting(1, {} as NotificationChannelConfig);
 
-      expect(result.message).toBe('测试成功');
+      expect(result).toEqual({ success: true, message: '' });
+    });
+
+    it('后端返回 success=false 且没有 message 时不应回退为成功文案', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: false },
+      });
+
+      const store = useNotificationsStore();
+      const result = await store.testSetting(1, {} as NotificationChannelConfig);
+
+      expect(result).toEqual({ success: false, message: '' });
     });
 
     it('测试失败时应抛出异常', async () => {
@@ -391,7 +413,9 @@ describe('notificationChannels.store', () => {
 
   describe('testUnsavedSetting', () => {
     it('测试未保存设置成功时应返回 success 和 message', async () => {
-      vi.mocked(apiClient.post).mockResolvedValue({ data: { message: '测试通过' } });
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: true, message: '测试通过' },
+      });
 
       const store = useNotificationsStore();
       const result = await store.testUnsavedSetting('webhook', {
@@ -405,13 +429,24 @@ describe('notificationChannels.store', () => {
       expect(result).toEqual({ success: true, message: '测试通过' });
     });
 
-    it('后端未返回 message 时应使用默认消息', async () => {
+    it('后端返回 success=false 时应原样透传', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({
+        data: { success: false, message: '测试失败' },
+      });
+
+      const store = useNotificationsStore();
+      const result = await store.testUnsavedSetting('email', { to: 'test@test.com' });
+
+      expect(result).toEqual({ success: false, message: '测试失败' });
+    });
+
+    it('后端未返回 message 时应交由组件层决定默认文案', async () => {
       vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
 
       const store = useNotificationsStore();
       const result = await store.testUnsavedSetting('email', { to: 'test@test.com' });
 
-      expect(result.message).toBe('测试成功');
+      expect(result).toEqual({ success: true, message: '' });
     });
 
     it('测试失败时应抛出异常', async () => {

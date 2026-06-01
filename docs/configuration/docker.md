@@ -99,7 +99,7 @@
 | `LOG_PRETTY`                 | -        | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启                    |
 | `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                                      |
 | `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                                              |
-| `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                         |
+| `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                       |
 | `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
 
 ### NL2CMD 调试配置
@@ -162,13 +162,13 @@
 
 ### docker-compose.yml 端口映射
 
-| 服务           | 外部端口      | 容器端口 | 描述                                       |
-| -------------- | ------------- | -------- | ------------------------------------------ |
-| frontend       | `18111`       | `8080`   | Web 应用访问端口                           |
-| backend        | `3001` (内部) | `3001`   | API 服务端口                               |
-| remote-gateway | - (内部)      | `8081`   | Guacamole WebSocket 端口（backend 内部代理）|
-| remote-gateway | - (内部)      | `9090`   | API 服务端口                               |
-| guacd          | - (内部)      | `4822`   | Guacamole 协议端口                         |
+| 服务           | 外部端口      | 容器端口 | 描述                                         |
+| -------------- | ------------- | -------- | -------------------------------------------- |
+| frontend       | `18111`       | `8080`   | Web 应用访问端口                             |
+| backend        | `3001` (内部) | `3001`   | API 服务端口                                 |
+| remote-gateway | - (内部)      | `8081`   | Guacamole WebSocket 端口（backend 内部代理） |
+| remote-gateway | - (内部)      | `9090`   | API 服务端口                                 |
+| guacd          | - (内部)      | `4822`   | Guacamole 协议端口                           |
 
 ### 外部访问端口
 

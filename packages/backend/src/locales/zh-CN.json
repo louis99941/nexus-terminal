@@ -1,4 +1,17 @@
 {
+  "notificationController": {
+    "genericEmailBody": "<p>事件: {event}</p><p>时间: {timestamp}</p><p>详情:</p><pre>{details}</pre>",
+    "genericTelegramBody": "*{event}*\n时间: {timestamp}\n详情:\n```\n{details}\n```",
+    "testSubjectFallback": "Nexus Terminal 测试"
+  },
+  "notificationDispatcher": {
+    "test": {
+      "emptyNotification": "通知测试失败：通知对象为空。",
+      "senderNotRegistered": "通知测试失败：未注册 {{channelType}} 发送器。",
+      "success": "测试通知发送成功。",
+      "failure": "测试通知发送失败：{{message}}"
+    }
+  },
   "event": {
     "LOGIN_SUCCESS": "登录成功",
     "LOGIN_FAILURE": "登录失败",
@@ -17,6 +30,7 @@
     "TAG_DELETED": "标签已删除",
     "SETTINGS_UPDATED": "设置已更新",
     "IP_WHITELIST_UPDATED": "IP 白名单已更新",
+    "IP_BLOCKED": "IP 已封禁",
     "NOTIFICATION_SETTING_CREATED": "通知设置已创建",
     "NOTIFICATION_SETTING_UPDATED": "通知设置已更新",
     "NOTIFICATION_SETTING_DELETED": "通知设置已删除",
@@ -25,6 +39,9 @@
     "SSH_SHELL_FAILURE": "SSH Shell 打开失败",
     "SSH_DISCONNECT": "SSH 连接已断开",
     "SSH_SESSION_SUSPENDED": "SSH 会话已挂起",
+    "TELNET_CONNECT_SUCCESS": "Telnet 连接成功",
+    "TELNET_CONNECT_FAILURE": "Telnet 连接失败",
+    "TELNET_DISCONNECT": "Telnet 连接已断开",
     "PASSKEY_REGISTERED": "通行密钥已注册",
     "PASSKEY_DELETE_UNAUTHORIZED": "通行密钥删除未授权",
     "PASSKEY_NAME_UPDATED": "通行密钥名称已更新",

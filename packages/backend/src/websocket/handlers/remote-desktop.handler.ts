@@ -137,7 +137,12 @@ export function handleRdpProxyConnection(ws: AuthenticatedWebSocket, request: Re
       }
       // 高频转发日志采样
       if (++c2sLogCounter % 100 === 1) {
-        const msgLen = isBinary ? (message as Buffer).byteLength : msgStr?.length ?? 0;
+        let msgLen = 0;
+        if (isBinary) {
+          msgLen = (message as Buffer).byteLength;
+        } else if (msgStr) {
+          msgLen = msgStr.length;
+        }
         logger.debug(
           `[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (采样 1/100): binary=${isBinary}, len=${msgLen}`
         );

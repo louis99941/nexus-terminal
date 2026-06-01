@@ -7,6 +7,7 @@ import {
   NotificationSettingData,
   NotificationChannelType,
   NotificationChannelConfig,
+  NotificationTestResult,
 } from '../types/server.types'; // Import NotificationChannelType
 import { log } from '@/utils/log';
 
@@ -95,14 +96,19 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const testSetting = async (
     id: number,
     _config: NotificationChannelConfig
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<NotificationTestResult> => {
     // Note: We don't set isLoading here as it might interfere with the main form submission state.
     // The component handles its own 'testingNotification' state.
     error.value = null; // Clear previous general errors
     try {
       // Send the request without a body, as the backend uses the saved config for the given ID
-      const response = await apiClient.post<{ message: string }>(`/notifications/${id}/test`); // 使用 apiClient, removed config from body
-      return { success: true, message: response.data.message || '测试成功' };
+      const response = await apiClient.post<Partial<NotificationTestResult>>(
+        `/notifications/${id}/test`
+      );
+      return {
+        success: response.data.success ?? true,
+        message: response.data.message || '',
+      };
     } catch (err: unknown) {
       log.error(`Error testing notification setting ${id}:`, err);
       // Don't set the main 'error' ref here, let the component handle test-specific errors/results.
@@ -116,15 +122,21 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const testUnsavedSetting = async (
     channelType: NotificationChannelType,
     config: NotificationChannelConfig
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<NotificationTestResult> => {
     error.value = null;
     try {
       // Send the channel type and config in the request body
-      const response = await apiClient.post<{ message: string }>(`/notifications/test-unsaved`, {
-        channel_type: channelType,
-        config,
-      }); // 使用 apiClient
-      return { success: true, message: response.data.message || '测试成功' };
+      const response = await apiClient.post<Partial<NotificationTestResult>>(
+        `/notifications/test-unsaved`,
+        {
+          channel_type: channelType,
+          config,
+        }
+      ); // 使用 apiClient
+      return {
+        success: response.data.success ?? true,
+        message: response.data.message || '',
+      };
     } catch (err: unknown) {
       log.error(`Error testing unsaved notification setting:`, err);
       throw err; // Re-throw the error to be caught in the component

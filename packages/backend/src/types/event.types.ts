@@ -29,6 +29,7 @@ export enum AppEventType {
   TagDeleted = 'TAG_DELETED',
   SettingsUpdated = 'SETTINGS_UPDATED',
   IpWhitelistUpdated = 'IP_WHITELIST_UPDATED',
+  IpBlocked = 'IP_BLOCKED',
   NotificationSettingCreated = 'NOTIFICATION_SETTING_CREATED',
   NotificationSettingUpdated = 'NOTIFICATION_SETTING_UPDATED',
   NotificationSettingDeleted = 'NOTIFICATION_SETTING_DELETED',
@@ -134,6 +135,16 @@ export interface EventPayloadMap {
     details?: { key?: string; [key: string]: unknown };
   };
   [AppEventType.IpWhitelistUpdated]: { userId?: number; details?: Record<string, unknown> };
+  [AppEventType.IpBlocked]: {
+    userId?: number;
+    details?: {
+      ip?: string;
+      attempts?: number;
+      duration?: number;
+      blockedUntil?: string;
+      reason?: string;
+    };
+  };
 
   // 通知设置事件
   [AppEventType.NotificationSettingCreated]: { userId?: number; details?: Record<string, unknown> };
@@ -228,6 +239,7 @@ export enum EventDomain {
   Auth = 'auth',
   Connection = 'connection',
   Ssh = 'ssh',
+  Telnet = 'telnet',
   Proxy = 'proxy',
   Tag = 'tag',
   Settings = 'settings',
@@ -268,6 +280,11 @@ export const DOMAIN_EVENTS: Record<EventDomain, readonly AppEventType[]> = {
     AppEventType.SshDisconnect,
     AppEventType.SshSessionSuspended,
   ],
+  [EventDomain.Telnet]: [
+    AppEventType.TelnetConnectSuccess,
+    AppEventType.TelnetConnectFailure,
+    AppEventType.TelnetDisconnect,
+  ],
   [EventDomain.Proxy]: [
     AppEventType.ProxyCreated,
     AppEventType.ProxyUpdated,
@@ -277,6 +294,7 @@ export const DOMAIN_EVENTS: Record<EventDomain, readonly AppEventType[]> = {
   [EventDomain.Settings]: [
     AppEventType.SettingsUpdated,
     AppEventType.IpWhitelistUpdated,
+    AppEventType.IpBlocked,
     AppEventType.NotificationSettingCreated,
     AppEventType.NotificationSettingUpdated,
     AppEventType.NotificationSettingDeleted,
@@ -322,6 +340,7 @@ export const PERSISTENT_EVENTS: ReadonlySet<AppEventType> = new Set([
   AppEventType.PasskeyAuthSuccess,
   AppEventType.PasskeyAuthFailure,
   AppEventType.PasskeyDeleted,
+  AppEventType.IpBlocked,
   // SSH 事件（访问审计）
   AppEventType.SshConnectSuccess,
   AppEventType.SshConnectFailure,
