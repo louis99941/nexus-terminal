@@ -70,6 +70,7 @@ interface SettingsState {
   quickCommandRowSizeMultiplier?: string;
   quickCommandsCompactMode?: string;
   terminalOutputEnhancerEnabled?: string;
+  terminalEnableBracketedPaste?: string;
   [key: string]: string | undefined;
 }
 
@@ -227,6 +228,7 @@ export const useSettingsStore = defineStore('settings', () => {
       quickCommandRowSizeMultiplier: '1.0',
       quickCommandsCompactMode: 'false',
       terminalOutputEnhancerEnabled: 'true',
+      terminalEnableBracketedPaste: 'true',
     };
     for (const [key, defaultValue] of Object.entries(defaults)) {
       if (settings.value[key] === undefined) {
@@ -386,6 +388,7 @@ export const useSettingsStore = defineStore('settings', () => {
       'quickCommandRowSizeMultiplier',
       'quickCommandsCompactMode',
       'terminalOutputEnhancerEnabled',
+      'terminalEnableBracketedPaste',
     ];
     if (!allowedKeys.includes(key)) {
       log.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -484,6 +487,7 @@ export const useSettingsStore = defineStore('settings', () => {
       'quickCommandRowSizeMultiplier',
       'quickCommandsCompactMode',
       'terminalOutputEnhancerEnabled',
+      'terminalEnableBracketedPaste',
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: string | undefined;
@@ -615,6 +619,7 @@ export const useSettingsStore = defineStore('settings', () => {
     terminalScrollbackLimitNumber: systemGetters.terminalScrollbackLimitNumber,
     terminalAutoWrapEnabledBoolean: systemGetters.terminalAutoWrapEnabledBoolean,
     terminalEnableRightClickPasteBoolean: systemGetters.terminalEnableRightClickPasteBoolean,
+    terminalEnableBracketedPasteBoolean: systemGetters.terminalEnableBracketedPasteBoolean,
     sshSuspendKeepAliveSecondsNumber: systemGetters.sshSuspendKeepAliveSecondsNumber,
 
     // 安全设置（来自 securityGetters）

@@ -154,6 +154,11 @@ export function createSystemSettingsGetters(deps: SystemSettingsDeps) {
     return settings.value?.terminalEnableRightClickPaste !== 'false';
   });
 
+  /** 终端粘贴模式 (Bracketed Paste Mode) */
+  const terminalEnableBracketedPasteBoolean = computed(() => {
+    return settings.value?.terminalEnableBracketedPaste !== 'false';
+  });
+
   /** SSH 挂起会话保活时长（秒） */
   const sshSuspendKeepAliveSecondsNumber = computed(() => {
     const valStr = settings.value?.sshSuspendKeepAliveSeconds;
@@ -197,6 +202,7 @@ export function createSystemSettingsGetters(deps: SystemSettingsDeps) {
     terminalScrollbackLimitNumber,
     terminalAutoWrapEnabledBoolean,
     terminalEnableRightClickPasteBoolean,
+    terminalEnableBracketedPasteBoolean,
     sshSuspendKeepAliveSecondsNumber,
     rdpModalWidth,
     rdpModalHeight,

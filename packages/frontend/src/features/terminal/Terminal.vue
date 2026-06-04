@@ -128,6 +128,7 @@ const {
   terminalAutoWrapEnabledBoolean,
   terminalEnableRightClickPasteBoolean,
   terminalOutputEnhancerEnabledBoolean,
+  terminalEnableBracketedPasteBoolean,
 } = storeToRefs(settingsStore);
 
 const debounce = <TArgs extends unknown[]>(func: (...args: TArgs) => void, delay: number) => {
@@ -244,10 +245,14 @@ const handleContextMenuPaste = async (event: MouseEvent) => {
     const text = await navigator.clipboard.readText();
     if (text) {
       const processedText = text.replace(/\r\n?/g, '\n');
-      // 使用 Bracketed Paste Mode 包裹，同 Ctrl+Shift+V 粘贴逻辑
+      // 根据设置决定是否使用 Bracketed Paste Mode 包裹
+      // 关闭 bracketed paste 可解决基础 sh 环境下转义序列显示异常问题
+      const data = terminalEnableBracketedPasteBoolean.value
+        ? `\x1b[200~${processedText}\x1b[201~`
+        : processedText;
       emitWorkspaceEvent('terminal:input', {
         sessionId: props.sessionId,
-        data: `\x1b[200~${processedText}\x1b[201~`,
+        data,
       });
     }
   } catch (err: unknown) {
@@ -504,11 +509,14 @@ onMounted(() => {
             .then((text) => {
               if (text) {
                 const processedText = text.replace(/\r\n?/g, '\n');
-                // 使用 Bracketed Paste Mode 包裹，告知远端编辑器这是粘贴内容
-                // 不可逐行解释（解决 nano 等编辑器粘贴失败问题）
+                // 根据设置决定是否使用 Bracketed Paste Mode 包裹
+                // 关闭 bracketed paste 可解决基础 sh 环境下转义序列显示异常问题
+                const data = terminalEnableBracketedPasteBoolean.value
+                  ? `\x1b[200~${processedText}\x1b[201~`
+                  : processedText;
                 emitWorkspaceEvent('terminal:input', {
                   sessionId: props.sessionId,
-                  data: `\x1b[200~${processedText}\x1b[201~`,
+                  data,
                 });
               }
             })

@@ -23,6 +23,7 @@ export function useWorkspaceSettings() {
     fileManagerShowDeleteConfirmationBoolean,
     fileManagerSingleClickOpenFileBoolean,
     terminalEnableRightClickPasteBoolean,
+    terminalEnableBracketedPasteBoolean,
     showPopupFileManagerBoolean,
     statusMonitorShowIpBoolean,
     terminalOutputEnhancerEnabledBoolean,
@@ -443,6 +444,37 @@ export function useWorkspaceSettings() {
     }
   };
 
+  // --- Terminal Bracketed Paste Mode ---
+  const terminalEnableBracketedPasteLocal = ref(true);
+  const terminalEnableBracketedPasteLoading = ref(false);
+  const terminalEnableBracketedPasteMessage = ref('');
+  const terminalEnableBracketedPasteSuccess = ref(false);
+
+  const handleUpdateTerminalBracketedPasteSetting = async () => {
+    terminalEnableBracketedPasteLoading.value = true;
+    terminalEnableBracketedPasteMessage.value = '';
+    terminalEnableBracketedPasteSuccess.value = false;
+    try {
+      const valueToSave = terminalEnableBracketedPasteLocal.value ? 'true' : 'false';
+      await settingsStore.updateSetting('terminalEnableBracketedPaste', valueToSave);
+      terminalEnableBracketedPasteMessage.value = t(
+        'settings.workspace.terminalBracketedPasteSuccess',
+        '终端粘贴模式设置已保存。'
+      );
+      terminalEnableBracketedPasteSuccess.value = true;
+    } catch (error: unknown) {
+      log.error('更新终端粘贴模式设置失败:', error);
+      terminalEnableBracketedPasteLocal.value = terminalEnableBracketedPasteBoolean.value;
+      terminalEnableBracketedPasteMessage.value = extractErrorMessage(
+        error,
+        t('settings.workspace.terminalBracketedPasteError', '保存终端粘贴模式设置失败。')
+      );
+      terminalEnableBracketedPasteSuccess.value = false;
+    } finally {
+      terminalEnableBracketedPasteLoading.value = false;
+    }
+  };
+
   // --- Popup File Manager ---
   const showPopupFileManagerLocal = ref(true);
   const showPopupFileManagerLoading = ref(false);
@@ -623,6 +655,13 @@ export function useWorkspaceSettings() {
     { immediate: true }
   );
   watch(
+    terminalEnableBracketedPasteBoolean,
+    (newValue) => {
+      terminalEnableBracketedPasteLocal.value = newValue;
+    },
+    { immediate: true }
+  );
+  watch(
     showPopupFileManagerBoolean,
     (newValue) => {
       showPopupFileManagerLocal.value = newValue;
@@ -719,6 +758,12 @@ export function useWorkspaceSettings() {
     terminalEnableRightClickPasteMessage,
     terminalEnableRightClickPasteSuccess,
     handleUpdateTerminalRightClickPasteSetting,
+
+    terminalEnableBracketedPasteLocal,
+    terminalEnableBracketedPasteLoading,
+    terminalEnableBracketedPasteMessage,
+    terminalEnableBracketedPasteSuccess,
+    handleUpdateTerminalBracketedPasteSetting,
 
     // Popup File Manager
     showPopupFileManagerLocal,

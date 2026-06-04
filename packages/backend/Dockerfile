@@ -24,6 +24,9 @@ RUN npm run build --workspace=@nexus-terminal/backend
 FROM node:20-alpine
 
 ENV NODE_ENV=production
+# 设置 UTF-8 locale，解决中文文件名显示乱码问题
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # Install build dependencies including setuptools for node-gyp, gosu for user switching
 RUN apk add --no-cache --virtual .build-deps python3 py3-setuptools make g++ \
