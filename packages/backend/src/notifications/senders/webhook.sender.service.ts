@@ -94,8 +94,14 @@ class WebhookSenderService implements INotificationSender {
           `[WebhookSender] Webhook endpoint responded with status: ${response.status}`,
           response.data
         );
+        let dataSummary: string;
+        try {
+          dataSummary = JSON.stringify(response.data).substring(0, 200);
+        } catch {
+          dataSummary = String(response.data).substring(0, 200);
+        }
         throw new Error(
-          `Webhook endpoint rejected the request (HTTP ${response.status}): ${JSON.stringify(response.data).substring(0, 200)}`
+          `Webhook endpoint rejected the request (HTTP ${response.status}): ${dataSummary}`
         );
       }
     } catch (error: unknown) {

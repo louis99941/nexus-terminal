@@ -19,7 +19,7 @@ import { createPinnedLookup } from '../utils/ssrf-guard';
  * 允许的内部网关主机名（remote-gateway 是内部服务）
  * 使用主机名精确匹配，防止 userinfo 绕过（如 ws://attacker@localhost:8081）
  */
-const INTERNAL_GATEWAY_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', 'remote-gateway']);
+const INTERNAL_GATEWAY_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', 'remote-gateway']);
 
 function isInternalGatewayUrl(url: string): boolean {
   try {

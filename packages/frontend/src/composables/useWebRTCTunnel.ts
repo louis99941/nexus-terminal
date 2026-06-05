@@ -254,43 +254,49 @@ export class WebRTCTunnel {
   /**
    * 处理 DataChannel 上接收到的 Guacamole 消息
    * Guacamole 帧格式: len.value,len.value,...;
-   * len 是 UTF-8 字节数，value 是原始字符串
-   * 使用长度前缀正确解析，而非简单按逗号/分号分割
+   * len 是 UTF-8 字节数，value 是原始 UTF-8 字节序列
+   *
+   * 由于 len 以字节计，解析必须在字节级别进行：
+   * 先将字符串编码回 Uint8Array，按字节偏移读取长度和值，
+   * 再对每个值片段做 TextDecoder 解码为字符串。
    */
   private handleDataChannelMessage(data: string): void {
-    // 缓冲区可能包含多条指令，逐字节解析
+    const bytes = new TextEncoder().encode(data);
     let offset = 0;
-    while (offset < data.length) {
-      // 读取元素长度
-      const dotPos = data.indexOf('.', offset);
-      if (dotPos === -1) break;
 
-      const lenStr = data.substring(offset, dotPos);
-      const elementLen = parseInt(lenStr, 10);
+    while (offset < bytes.length) {
+      // 查找 '.' 定位长度字段结束
+      const dotByte = bytes.indexOf(0x2e /* '.' */, offset);
+      if (dotByte === -1) break;
+
+      // 解析元素字节长度
+      const lenBytes = bytes.slice(offset, dotByte);
+      const elementLen = parseInt(new TextDecoder().decode(lenBytes), 10);
       if (isNaN(elementLen)) break;
 
-      // 提取元素值（长度为 UTF-8 字节数，但 DataChannel 传入的是已解码的字符串）
-      const valueStart = dotPos + 1;
-      const value = data.substring(valueStart, valueStart + elementLen);
+      // 提取元素值（UTF-8 字节数精确匹配）
+      const valueStart = dotByte + 1;
+      const valueBytes = bytes.slice(valueStart, valueStart + elementLen);
+      const value = new TextDecoder().decode(valueBytes);
       offset = valueStart + elementLen;
 
       // 读取后续逗号分隔的元素
       const args: string[] = [value];
-      while (offset < data.length && data[offset] === ',') {
+      while (offset < bytes.length && bytes[offset] === 0x2c /* ',' */) {
         offset++; // 跳过逗号
-        const nextDot = data.indexOf('.', offset);
+        const nextDot = bytes.indexOf(0x2e, offset);
         if (nextDot === -1) break;
 
-        const nextLen = parseInt(data.substring(offset, nextDot), 10);
+        const nextLen = parseInt(new TextDecoder().decode(bytes.slice(offset, nextDot)), 10);
         if (isNaN(nextLen)) break;
 
         const nextValueStart = nextDot + 1;
-        args.push(data.substring(nextValueStart, nextValueStart + nextLen));
+        args.push(new TextDecoder().decode(bytes.slice(nextValueStart, nextValueStart + nextLen)));
         offset = nextValueStart + nextLen;
       }
 
       // 跳过指令终止符 ';'
-      if (offset < data.length && data[offset] === ';') {
+      if (offset < bytes.length && bytes[offset] === 0x3b /* ';' */) {
         offset++;
       }
 
