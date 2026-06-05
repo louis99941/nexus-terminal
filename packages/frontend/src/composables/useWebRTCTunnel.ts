@@ -546,18 +546,18 @@ export class WebRTCTunnel {
     try {
       log.info(`[WebRTCTunnel] 初始化普通 WebSocket 隧道: ${this.config.tunnelUrl}`);
       // 使用 Guacamole 的 WebSocketTunnel
-      const wsTunnel = new Guacamole.WebSocketTunnel(this.config.tunnelUrl);
+      const wsTunnel = new Guacamole.WebSocketTunnel(this.config.tunnelUrl) as any;
 
       // 代理所有的事件回调
-      wsTunnel.oninstruction = (opcode, args) => {
+      wsTunnel.oninstruction = (opcode: string, args: any[]) => {
         this.oninstruction?.(opcode, args);
       };
 
-      wsTunnel.onerror = (status) => {
+      wsTunnel.onerror = (status: any) => {
         this.onerror?.(status);
       };
 
-      wsTunnel.onstatechange = (state) => {
+      wsTunnel.onstatechange = (state: number) => {
         if (state === 3) {
           this.setState('connected');
         } else if (state === 5) {

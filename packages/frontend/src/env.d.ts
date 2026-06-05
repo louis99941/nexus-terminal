@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="pinia-plugin-persistedstate" />
 
 // Worker 构造函数类型声明（Vite 的 new URL 模式）
 interface WorkerConstructor {
