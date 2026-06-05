@@ -4,10 +4,12 @@ import { useI18n } from 'vue-i18n';
 import { useSettingsStore } from '../stores/settings.store';
 import { useConnectionsStore } from '../stores/connections.store';
 import Guacamole from 'guacamole-common-js';
+import type { Tunnel as GuacamoleTunnel } from 'guacamole-common-js';
 import apiClient from '../utils/apiClient';
 import { ConnectionInfo } from '../stores/connections.store';
 import { extractErrorMessage } from '../utils/errorExtractor';
 import { log } from '@/utils/log';
+import { useWebRTCTunnel } from '@/composables/useWebRTCTunnel';
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
@@ -111,7 +113,29 @@ const handleConnection = async () => {
       throw new Error(`Unsupported connection type: ${props.connection.type}`);
     }
 
-    const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
+    // WebRTC 优先 + WebSocket 降级
+    const { createTunnel, isWebRTCSupported } = useWebRTCTunnel();
+    const signalingUrl = `${backendBaseUrl}/webrtc-signaling`;
+
+    let tunnel: GuacamoleTunnel;
+    let transportType = 'websocket';
+
+    try {
+      if (isWebRTCSupported()) {
+        const result = await createTunnel(tunnelUrl, signalingUrl, true);
+        tunnel = result.tunnel;
+        transportType = result.transport;
+        log.debug(`[RDP] 使用 ${transportType} 传输`);
+      } else {
+        // WebRTC 不可用，直接使用 WebSocket
+        tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
+      }
+    } catch {
+      // WebRTC 失败，降级到 WebSocket
+      log.warn('[RDP] WebRTC 连接失败，降级到 WebSocket');
+      tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
+      transportType = 'websocket';
+    }
 
     tunnel.onerror = (status: GuacamoleStatus) => {
       const errorMessage = status.message || 'Unknown tunnel error';

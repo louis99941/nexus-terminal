@@ -7,7 +7,7 @@ import { AppearanceSettings, UpdateAppearanceDto } from '../types/appearance.typ
 import * as terminalThemeRepository from '../terminal-themes/terminal-theme.repository';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
-import { validateUrlNotPrivate } from '../utils/url';
+import { safeHttpGet } from '../utils/ssrf-guard';
 
 // 预设 HTML 主题的存储路径 (作为只读预设)
 import { PRESET_HTML_THEMES_DIR, CUSTOM_HTML_THEMES_DIR, BACKGROUND_DIR } from '../config/paths';
@@ -708,11 +708,15 @@ export const listRemoteHtmlPresets = async (
 
   try {
     logger.debug('[AppearanceService] 正在从 GitHub API 获取远程主题列表');
-    await validateUrlNotPrivate(apiUrl, 'Appearance listRemoteHtmlPresets');
-    const response = await axios.get(apiUrl, {
-      headers: { Accept: 'application/vnd.github.v3+json' },
-      // 对于公共仓库，通常不需要 token
-    });
+    // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+    const response = await safeHttpGet(
+      apiUrl,
+      {
+        headers: { Accept: 'application/vnd.github.v3+json' },
+        timeout: 10000,
+      },
+      'Appearance listRemoteHtmlPresets'
+    );
 
     if (response.status === 200 && Array.isArray(response.data)) {
       const htmlFiles = response.data
@@ -784,12 +788,15 @@ export const getRemoteHtmlPresetContent = async (fileUrl: string): Promise<strin
 
   try {
     logger.debug('[AppearanceService] 正在从远程 URL 获取主题内容');
-    await validateUrlNotPrivate(fileUrl, 'Appearance getRemoteHtmlPresetContent');
-    const response = await axios.get(fileUrl, {
-      responseType: 'text', // 确保获取的是文本内容
-      maxRedirects: 0, // 禁止重定向 (SSRF 防护)
-      timeout: 5000, // 5 秒超时
-    });
+    // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+    const response = await safeHttpGet(
+      fileUrl,
+      {
+        responseType: 'text',
+        timeout: 5000,
+      },
+      'Appearance getRemoteHtmlPresetContent'
+    );
 
     if (response.status === 200 && typeof response.data === 'string') {
       logger.debug(`[AppearanceService] 成功从 ${fileUrl} 获取主题内容。`);

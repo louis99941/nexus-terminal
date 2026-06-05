@@ -4,6 +4,7 @@ import type { ProcessedNotification } from '../notification.processor.service';
 import { WebhookConfig } from '../../types/notification.types';
 import { getErrorMessage } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
+import { safeHttpGet, safeHttpPost } from '../../utils/ssrf-guard';
 
 class WebhookSenderService implements INotificationSender {
   async send(notification: ProcessedNotification): Promise<void> {
@@ -66,14 +67,23 @@ class WebhookSenderService implements INotificationSender {
         );
       }
 
-      const response = await axios({
-        method: requestMethod,
-        url,
+      // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+      let response;
+      const baseOptions = {
         headers: finalHeaders,
-        data: requestData,
         params: requestParams,
         timeout: 15000,
-      });
+      };
+      if (['POST', 'PUT', 'PATCH'].includes(requestMethod)) {
+        response = await safeHttpPost(
+          url,
+          requestData,
+          { ...baseOptions, method: requestMethod },
+          'Webhook'
+        );
+      } else {
+        response = await safeHttpGet(url, { ...baseOptions, method: requestMethod }, 'Webhook');
+      }
 
       if (response.status >= 200 && response.status < 300) {
         logger.info(

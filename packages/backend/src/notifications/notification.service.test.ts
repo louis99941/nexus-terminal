@@ -68,6 +68,16 @@ vi.mock('axios', () => ({
   }),
 }));
 
+// Mock ssrf-guard：让 safeHttpGet/safeHttpPost 直接调用 mock 的 axios，跳过 SSRF 验证
+vi.mock('../utils/ssrf-guard', () => ({
+  safeHttpGet: vi.fn((url: string, options: Record<string, unknown> = {}) => {
+    return mockAxios({ ...options, url, method: (options.method as string) || 'GET' });
+  }),
+  safeHttpPost: vi.fn((url: string, data?: unknown, options: Record<string, unknown> = {}) => {
+    return mockAxiosPost(url, data, options);
+  }),
+}));
+
 vi.mock('../settings/settings.service', () => ({
   settingsService: {
     getSetting: mockGetSetting,
@@ -284,17 +294,16 @@ describe('NotificationService', () => {
 
     describe('Webhook 测试', () => {
       it('应成功发送测试 Webhook', async () => {
-        mockAxios.mockResolvedValue({ status: 200, data: { ok: true } });
+        mockAxiosPost.mockResolvedValue({ status: 200, data: { ok: true } });
 
         const result = await service.testSetting('webhook', mockWebhookConfig);
 
         expect(result.success).toBe(true);
         expect(result.message).toContain('成功');
-        expect(mockAxios).toHaveBeenCalledWith(
-          expect.objectContaining({
-            method: 'POST',
-            url: 'https://webhook.example.com/notify',
-          })
+        expect(mockAxiosPost).toHaveBeenCalledWith(
+          'https://webhook.example.com/notify',
+          expect.any(String),
+          expect.objectContaining({ method: 'POST' })
         );
       });
 
@@ -308,7 +317,8 @@ describe('NotificationService', () => {
       });
 
       it('请求失败时应返回错误信息', async () => {
-        mockAxios.mockRejectedValue({
+        mockAxiosPost.mockRejectedValue({
+          isAxiosError: true,
           response: { data: { message: 'Unauthorized' } },
           message: 'Request failed',
         });
@@ -422,13 +432,13 @@ describe('NotificationService', () => {
       };
 
       mockRepository.getEnabledByEvent.mockResolvedValue([emailSetting, webhookSetting]);
-      mockAxios.mockResolvedValue({ status: 200 });
+      mockAxiosPost.mockResolvedValue({ status: 200 });
 
       await service.sendNotification('SETTINGS_UPDATED', { updatedKeys: ['theme'] });
 
       expect(mockRepository.getEnabledByEvent).toHaveBeenCalledWith('SETTINGS_UPDATED');
       expect(mockTransporter.sendMail).toHaveBeenCalled();
-      expect(mockAxios).toHaveBeenCalled();
+      expect(mockAxiosPost).toHaveBeenCalled();
     });
 
     it('无匹配设置时应静默返回', async () => {
@@ -510,13 +520,13 @@ describe('NotificationService', () => {
 
       mockRepository.getEnabledByEvent.mockResolvedValue([emailSetting, webhookSetting]);
       mockTransporter.sendMail.mockRejectedValue(new Error('SMTP error'));
-      mockAxios.mockResolvedValue({ status: 200 });
+      mockAxiosPost.mockResolvedValue({ status: 200 });
 
       await service.sendNotification('SETTINGS_UPDATED');
 
       // 两个都应该被调用，即使第一个失败
       expect(mockTransporter.sendMail).toHaveBeenCalled();
-      expect(mockAxios).toHaveBeenCalled();
+      expect(mockAxiosPost).toHaveBeenCalled();
     });
   });
 
@@ -526,7 +536,7 @@ describe('NotificationService', () => {
     });
 
     it('应正确渲染模板变量', async () => {
-      mockAxios.mockResolvedValue({ status: 200 });
+      mockAxiosPost.mockResolvedValue({ status: 200 });
 
       const webhookConfig: WebhookConfig = {
         url: 'https://example.com',
@@ -535,10 +545,10 @@ describe('NotificationService', () => {
 
       await service.testSetting('webhook', webhookConfig);
 
-      expect(mockAxios).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.stringContaining('SETTINGS_UPDATED'),
-        })
+      expect(mockAxiosPost).toHaveBeenCalledWith(
+        'https://example.com',
+        expect.stringContaining('SETTINGS_UPDATED'),
+        expect.any(Object)
       );
     });
   });
@@ -571,14 +581,14 @@ describe('NotificationService', () => {
       };
 
       mockRepository.getEnabledByEvent.mockResolvedValue([webhookSetting]);
-      mockAxios.mockResolvedValue({ status: 200 });
+      mockAxiosPost.mockResolvedValue({ status: 200 });
 
       await service.sendNotification('CONNECTION_TEST', {
         testResult: 'success',
         connectionName: '测试服务器',
       });
 
-      expect(mockAxios).toHaveBeenCalled();
+      expect(mockAxiosPost).toHaveBeenCalled();
     });
 
     it('应翻译连接测试失败详情', async () => {
@@ -589,7 +599,7 @@ describe('NotificationService', () => {
       };
 
       mockRepository.getEnabledByEvent.mockResolvedValue([webhookSetting]);
-      mockAxios.mockResolvedValue({ status: 200 });
+      mockAxiosPost.mockResolvedValue({ status: 200 });
 
       await service.sendNotification('CONNECTION_TEST', {
         testResult: 'failed',
@@ -597,7 +607,7 @@ describe('NotificationService', () => {
         error: 'Connection refused',
       });
 
-      expect(mockAxios).toHaveBeenCalled();
+      expect(mockAxiosPost).toHaveBeenCalled();
     });
 
     it('应翻译设置更新详情', async () => {
@@ -608,13 +618,13 @@ describe('NotificationService', () => {
       };
 
       mockRepository.getEnabledByEvent.mockResolvedValue([webhookSetting]);
-      mockAxios.mockResolvedValue({ status: 200 });
+      mockAxiosPost.mockResolvedValue({ status: 200 });
 
       await service.sendNotification('SETTINGS_UPDATED', {
         updatedKeys: ['ipWhitelist'],
       });
 
-      expect(mockAxios).toHaveBeenCalled();
+      expect(mockAxiosPost).toHaveBeenCalled();
     });
   });
 

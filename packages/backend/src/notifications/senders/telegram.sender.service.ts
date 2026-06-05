@@ -4,6 +4,7 @@ import type { ProcessedNotification } from '../notification.processor.service';
 import { TelegramConfig } from '../../types/notification.types';
 import { getErrorMessage } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
+import { safeHttpPost } from '../../utils/ssrf-guard';
 
 class TelegramSenderService implements INotificationSender {
   async send(notification: ProcessedNotification): Promise<void> {
@@ -34,7 +35,8 @@ class TelegramSenderService implements INotificationSender {
 
     try {
       logger.info(`[TelegramSender] Sending notification to chat ID: ${chatId}`);
-      const response = await axios.post(
+      // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+      const response = await safeHttpPost(
         apiUrl,
         {
           chat_id: chatId,
@@ -42,9 +44,8 @@ class TelegramSenderService implements INotificationSender {
           parse_mode: 'Markdown',
           disable_web_page_preview: true,
         },
-        {
-          timeout: 10000,
-        }
+        { timeout: 10000 },
+        'Telegram'
       );
 
       if (response.data && response.data.ok) {
