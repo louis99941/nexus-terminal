@@ -57,14 +57,17 @@ jobs:
               - 'packages/backend/**'
               - 'package.json'
               - 'package-lock.json'
+              - '.github/workflows/docker-publish.yml'
             frontend:
               - 'packages/frontend/**'
               - 'package.json'
               - 'package-lock.json'
+              - '.github/workflows/docker-publish.yml'
             remote-gateway:
               - 'packages/remote-gateway/**'
               - 'package.json'
               - 'package-lock.json'
+              - '.github/workflows/docker-publish.yml'
 
       - name: 输出变更检测结果
         run: |
