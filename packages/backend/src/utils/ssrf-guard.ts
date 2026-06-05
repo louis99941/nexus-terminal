@@ -172,6 +172,8 @@ export async function safeHttpGet(
   const lookup = createPinnedLookup(addresses);
 
   // 3. 发起请求（禁用自动重定向）
+  // 此处 url 已在上方通过 getOrResolveHost() 完成 SSRF 验证和 DNS 绑定，CodeQL 误报
+  // codeql[disable js/request-forgery]
   const response = await axios({
     ...options,
     url,

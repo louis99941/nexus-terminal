@@ -13,6 +13,7 @@
  * 6. DataChannel 建立后，由 bridge.ts 负责桥接到 remote-gateway
  */
 
+import crypto from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RTCPeerConnection, RTCDataChannel } from 'werift';
 import { logger } from '../utils/logger';
@@ -139,7 +140,7 @@ async function handleOffer(
     return null;
   }
 
-  const sessionId = `webrtc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const sessionId = `webrtc-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   const iceConfig = getICEConfig();
 
   // 创建 RTCPeerConnection
