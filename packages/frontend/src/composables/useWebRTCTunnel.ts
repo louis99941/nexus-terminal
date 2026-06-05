@@ -77,6 +77,8 @@ export class WebRTCTunnel {
   private msgsReceived = 0;
   /** 降级后的 WebSocket 隧道 */
   private fallbackTunnel: any = null;
+  /** 信令阶段消息队列（DataChannel 未就绪时暂存） */
+  private pendingMessages: string[] = [];
 
   constructor(config: WebRTCTunnelConfig) {
     this.config = {
@@ -156,14 +158,21 @@ export class WebRTCTunnel {
       return;
     }
 
+    // 编码为 Guacamole 指令帧
+    const enc = new TextEncoder();
+    const message = elements.map((el) => `${enc.encode(el).length}.${el}`).join(',') + ';';
+
     if (!this.dc || this.dc.readyState !== 'open') {
+      // 信令阶段：Guacamole Client 可能在 DataChannel 建立前就调用 sendMessage
+      // 将消息暂存到队列，等 DataChannel 打开后发送
+      if (this.state === 'signaling') {
+        this.pendingMessages.push(message);
+        return;
+      }
       this.handleError('DataChannel 未就绪');
       return;
     }
 
-    // 编码为 Guacamole 指令帧：len.value,len.value,...;（len 为 UTF-8 字节数）
-    const enc = new TextEncoder();
-    const message = elements.map((el) => `${enc.encode(el).length}.${el}`).join(',') + ';';
     this.dc.send(message);
     this.msgsSent++;
 
@@ -178,6 +187,7 @@ export class WebRTCTunnel {
   disconnect(): void {
     this.clearConnectTimer();
     this.setState('disconnected');
+    this.pendingMessages = [];
 
     if (this.fallbackTunnel) {
       try {
@@ -229,6 +239,8 @@ export class WebRTCTunnel {
 
     this.dc.onopen = () => {
       log.info(`[WebRTCTunnel] DataChannel 已打开, sessionId=${this.sessionId}`);
+      // 发送信令阶段暂存的消息
+      this.flushPendingMessages();
     };
 
     this.dc.onmessage = (event) => {
@@ -356,11 +368,15 @@ export class WebRTCTunnel {
 
       this.signalingWs.onerror = (error) => {
         log.error('[WebRTCTunnel] 信令 WebSocket 错误:', error);
-        this.handleError('信令连接失败');
+        // 仅在尚未触发降级时处理错误（避免 onerror + onclose 双重触发）
+        if (this.state === 'signaling' && !this.fallbackTunnel) {
+          this.handleError('信令连接失败');
+        }
       };
 
       this.signalingWs.onclose = () => {
-        if (this.state === 'signaling') {
+        // 仅在仍处于信令阶段且尚未降级时触发（避免与 onerror 重复）
+        if (this.state === 'signaling' && !this.fallbackTunnel) {
           this.handleError('信令连接关闭');
         }
       };
@@ -460,6 +476,19 @@ export class WebRTCTunnel {
   }
 
   /**
+   * 发送信令阶段暂存的消息
+   */
+  private flushPendingMessages(): void {
+    if (this.pendingMessages.length === 0 || !this.dc || this.dc.readyState !== 'open') return;
+    log.debug(`[WebRTCTunnel] 发送 ${this.pendingMessages.length} 条暂存消息`);
+    for (const msg of this.pendingMessages) {
+      this.dc.send(msg);
+      this.msgsSent++;
+    }
+    this.pendingMessages = [];
+  }
+
+  /**
    * 清除连接超时
    */
   private clearConnectTimer(): void {
@@ -540,6 +569,12 @@ export class WebRTCTunnel {
       this.fallbackTunnel = wsTunnel;
       // 启动降级隧道连接
       this.fallbackTunnel.connect();
+
+      // 信令阶段暂存的消息现在通过降级隧道发送
+      // 注意：Guacamole WebSocketTunnel 的 sendMessage 接受 ...elements 参数
+      // 暂存的消息已经是编码后的帧字符串，但 Guacamole Client 会在 connect 后
+      // 重新发送初始握手指令，所以这里清空队列即可
+      this.pendingMessages = [];
     } catch (error) {
       log.error('[WebRTCTunnel] WebSocket 降级初始化失败:', error);
       this.setState('failed');
