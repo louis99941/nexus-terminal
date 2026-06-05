@@ -163,7 +163,7 @@ jobs:
         with:
           context: .
           file: packages/backend/Dockerfile
-          platforms: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || startsWith(github.ref, 'refs/tags/v')) && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -257,7 +257,7 @@ jobs:
         with:
           context: .
           file: packages/frontend/Dockerfile
-          platforms: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || startsWith(github.ref, 'refs/tags/v')) && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -351,7 +351,7 @@ jobs:
         with:
           context: .
           file: packages/remote-gateway/Dockerfile
-          platforms: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || startsWith(github.ref, 'refs/tags/v')) && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
