@@ -20,21 +20,21 @@
 
 ## 技术栈
 
-| 类别      | 技术/库                             |
-| --------- | ----------------------------------- |
-| 框架      | Vue 3.3+ (Composition API)          |
-| 构建工具  | Vite 5.x                            |
-| 语言      | TypeScript 5.x                      |
-| 状态管理  | Pinia + pinia-plugin-persistedstate |
-| 路由      | Vue Router 4.x                      |
-| UI 组件库 | Element Plus                        |
-| 终端模拟  | Xterm.js + xterm-addon-\*           |
-| 代码编辑  | Monaco Editor + CodeMirror          |
-| 图表      | Chart.js + vue-chartjs              |
-| 远程桌面  | guacamole-common-js                 |
-| 工具库    | @vueuse/core, date-fns, axios       |
-| 国际化    | vue-i18n                            |
-| 样式      | Tailwind CSS 4.x                    |
+| 类别      | 技术/库                                                 |
+| --------- | ------------------------------------------------------- |
+| 框架      | Vue 3.3+ (Composition API)                              |
+| 构建工具  | Vite 5.x                                                |
+| 语言      | TypeScript 5.x                                          |
+| 状态管理  | Pinia + pinia-plugin-persistedstate                     |
+| 路由      | Vue Router 4.x                                          |
+| UI 组件库 | Element Plus                                            |
+| 终端模拟  | Xterm.js + xterm-addon-\*（含 Unicode11Addon CJK 对齐） |
+| 代码编辑  | Monaco Editor + CodeMirror                              |
+| 图表      | Chart.js + vue-chartjs                                  |
+| 远程桌面  | guacamole-common-js                                     |
+| 工具库    | @vueuse/core, date-fns, axios                           |
+| 国际化    | vue-i18n                                                |
+| 样式      | Tailwind CSS 4.x                                        |
 
 ---
 
@@ -97,6 +97,8 @@ packages/frontend/
 │   │
 │   ├── composables/                # 组合式函数
 │   │   ├── useVirtualListSetup.ts  # 虚拟列表通用配置
+│   │   ├── useVirtualKeyboard.ts   # VisualViewport 键盘避让（移动端）
+│   │   ├── useTerminalGestures.ts  # 触摸手势增强（双指缩放、长按）
 │   │   └── ...                     # 其他可复用逻辑
 │   │
 │   ├── features/                   # 功能模块
@@ -112,7 +114,8 @@ packages/frontend/
 │   ├── workers/                    # WebWorker 线程
 │   │   ├── types.ts                # Worker 消息协议类型
 │   │   ├── createWorkerPool.ts     # 通用 Worker 池管理器
-│   │   └── output-processor.worker.ts  # 终端输出处理 Worker
+│   │   ├── output-processor.worker.ts  # 终端输出处理 Worker
+│   │   └── search.worker.ts        # 终端异步搜索 Worker（正则/模糊搜索）
 │   │
 │   ├── types/                      # TypeScript 类型定义
 │   │   ├── connection.ts
@@ -329,9 +332,12 @@ packages/frontend/
 ### 性能优化基础设施
 
 - `src/composables/useVirtualListSetup.ts` - 虚拟列表通用配置（封装 `@vueuse/core` 的 `useVirtualList`）
+- `src/composables/useVirtualKeyboard.ts` - VisualViewport 键盘避让（移动端虚拟键盘弹出时动态调整终端高度）
+- `src/composables/useTerminalGestures.ts` - 触摸手势增强（双指缩放字号、长按振动反馈）
 - `src/workers/types.ts` - Worker 消息协议类型定义
 - `src/workers/createWorkerPool.ts` - 通用 Worker 池管理器（Promise-based API，支持主线程降级）
 - `src/workers/output-processor.worker.ts` - 终端输出处理 Worker（语法高亮移至 Worker 线程）
+- `src/workers/search.worker.ts` - 终端异步搜索 Worker（支持正则/模糊搜索，避免阻塞主线程）
 - `public/sw.js` - Service Worker（结构化缓存，支持离线访问）
 
 ### 样式
@@ -384,7 +390,7 @@ npm run preview
 ### 性能优化约定
 
 - **虚拟滚动**：大数据列表（>50 项）必须使用 `useVirtualListSetup` composable，禁止直接 `v-for` 渲染
-- **WebWorker**：计算密集型任务（JSON 解析、语法高亮、Base64 解码）优先使用 Worker 线程，通过 `createWorkerPool` 管理
+- **WebWorker**：计算密集型任务（JSON 解析、语法高亮、Base64 解码、终端搜索）优先使用 Worker 线程，通过 `createWorkerPool` 管理
 - **路由预加载**：认证后自动预加载核心路由 chunk（Dashboard > Workspace > Connections）
 - **Service Worker**：使用结构化缓存策略（Cache-First 静态资源，Network-First API/导航），支持离线访问
 

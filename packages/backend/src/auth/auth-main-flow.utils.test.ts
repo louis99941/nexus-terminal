@@ -57,7 +57,10 @@ describe('auth-main-flow.utils', () => {
       });
       await new Promise(process.nextTick);
 
-      expect(services.ipBlacklistService.recordFailedAttempt).toHaveBeenCalledWith('10.0.0.1');
+      expect(services.ipBlacklistService.recordFailedAttempt).toHaveBeenCalledWith(
+        '10.0.0.1',
+        undefined
+      );
       expect(services.auditLogService.logAction).toHaveBeenCalledWith('LOGIN_FAILURE', {
         username: 'alice',
         reason: 'Invalid password',

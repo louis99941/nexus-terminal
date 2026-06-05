@@ -590,7 +590,7 @@ describe('Auth Controller - Security Fixes', () => {
         expect(mockRes.status).toHaveBeenCalledWith(401);
         expect(mockRes.json).toHaveBeenCalledWith({ message: '验证码无效。' });
         expect(ipBlacklistService.recordFailedAttempt).toHaveBeenCalledTimes(1);
-        expect(ipBlacklistService.recordFailedAttempt).toHaveBeenCalledWith('127.0.0.1');
+        expect(ipBlacklistService.recordFailedAttempt).toHaveBeenCalledWith('127.0.0.1', '2fa');
       });
     });
   });

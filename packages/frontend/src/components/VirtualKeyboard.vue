@@ -222,4 +222,25 @@ const getCtrlSequence = (char: string): string => {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+/* 横屏模式：压缩键盘高度，增大终端可视区域 */
+@media (orientation: landscape) {
+  .virtual-keyboard-sticky {
+    padding: 0.125rem 0.25rem;
+  }
+  .virtual-keyboard-sticky button {
+    height: 1.75rem;
+    min-width: 2rem;
+    font-size: 0.625rem;
+  }
+}
+/* 超小屏幕：进一步压缩 */
+@media (max-height: 500px) and (orientation: landscape) {
+  .virtual-keyboard-sticky {
+    padding: 0.0625rem 0.125rem;
+  }
+  .virtual-keyboard-sticky button {
+    height: 1.5rem;
+    min-width: 1.75rem;
+  }
+}
 </style>

@@ -392,7 +392,10 @@ export const verifyLogin2FA = async (
         attemptAction: verificationOutcomeAction.attemptAction,
         onSuccess: () => undefined,
         onFailure: (attempt) =>
-          recordLoginFailureAttempt(loginTwoFactorSideEffectServices, attempt),
+          recordLoginFailureAttempt(loginTwoFactorSideEffectServices, {
+            ...attempt,
+            method: '2fa',
+          }),
       });
       eventService.emitEvent(AppEventType.LoginFailure, {
         details: {

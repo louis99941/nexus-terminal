@@ -144,6 +144,8 @@ export const registerSecurityMiddleware = (app: express.Application) => {
   app.use(metricsMiddleware as RequestHandler);
 
   // 4. 安全响应头
+  const enableHsts = process.env.ENABLE_HSTS === 'true';
+
   app.use((_req, res, next) => {
     res.setHeader(
       'Content-Security-Policy',
@@ -152,6 +154,20 @@ export const registerSecurityMiddleware = (app: express.Application) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // P1-3: 补齐安全头
+    // HSTS — 仅在 ENABLE_HSTS=true 时启用，避免开发环境强制跳转 HTTPS
+    if (enableHsts) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    // 限制浏览器特性访问
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    // 跨域隔离策略 — 防止跨域窗口引用
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    // 跨域资源策略 — 同源部署用 same-origin，跨域部署需要 cross-origin
+    // 默认 cross-origin 以兼容前后端分离部署场景（ALLOWED_ORIGINS 配置）
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
     next();
   });
 };

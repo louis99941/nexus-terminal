@@ -513,6 +513,13 @@ export class SftpUploadManager {
         }
 
         uploadState.bytesWritten += chunkBuffer.length;
+        // SFTP 上传字节指标（延迟导入避免循环依赖）
+        try {
+          const { sftpTransferredBytes } = require('../metrics/metrics.service');
+          sftpTransferredBytes.inc({ direction: 'upload' }, chunkBuffer.length);
+        } catch (metricsErr) {
+          logger.warn('[SFTP Upload] 指标模块加载失败，上传字节未记录:', metricsErr);
+        }
 
         if (writeSuccess) {
           // 内核缓冲区尚有余量，回调即表示数据已入队

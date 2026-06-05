@@ -100,6 +100,7 @@
 | `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                                      |
 | `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                                              |
 | `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                       |
+| `ENABLE_HSTS`                | `false`  | 启用 HSTS 安全头（Strict-Transport-Security）。仅生产 HTTPS 环境开启，开发环境勿启用           |
 | `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
 
 ### NL2CMD 调试配置
@@ -233,11 +234,14 @@ REMOTE_GATEWAY_API_TOKEN=
 # ALLOWED_WS_ORIGINS=https://yourdomain.com
 
 # ===== 监控与日志 =====
+# ENABLE_METRICS=false
 # METRICS_TOKEN=
 # LOG_LEVEL=info
 # LOG_PRETTY=
 # LOG_REDACT=
 # LOG_TZ=
+# ENABLE_REQUEST_LOG=true
+# ENABLE_HSTS=false
 # TZ=UTC
 
 # ===== 终端配置 =====

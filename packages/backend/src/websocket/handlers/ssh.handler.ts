@@ -16,6 +16,8 @@ import { startDockerStatusPolling } from './docker.handler';
 import { getErrorMessage } from '../../utils/AppError';
 import { lookupGeoInfo } from '../../auth/ip-geo.service';
 import { logger } from '../../utils/logger';
+import { withLogContext } from '../../middleware/log-context.middleware';
+import { sshConnectDuration } from '../../metrics/metrics.service';
 import eventService, { AppEventType } from '../../services/event.service';
 import { getOrCreateBatcher, destroyBatcher } from '../output-batcher';
 
@@ -582,8 +584,12 @@ export async function handleSshConnect(
   if (ws.readyState === WebSocket.OPEN)
     ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在处理连接请求...' }));
 
+  // SSH 连接耗时计时器（成功时标记 success，失败时标记 failure）
+  const sshConnectTimer = sshConnectDuration.startTimer();
+
   const dbConnectionIdAsNumber = parseInt(String(dbConnectionId), 10);
   if (Number.isNaN(dbConnectionIdAsNumber)) {
+    sshConnectTimer({ status: 'failure' });
     logger.error(`WebSocket: 无效的 dbConnectionId '${dbConnectionId}' (非数字)，无法建立连接。`);
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: 'ssh:error', payload: '无效的连接 ID。' }));
@@ -643,6 +649,7 @@ export async function handleSshConnect(
       const shellReadyTimeout = setTimeout(() => {
         if (!shellCallbackCalled) {
           shellCallbackCalled = true;
+          sshConnectTimer({ status: 'failure' });
           logger.error(`SSH: 会话 ${newSessionId} Shell 就绪超时（${SHELL_READY_TIMEOUT_MS}ms）。`);
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ssh:error', payload: 'Shell 就绪超时，请重试。' }));
@@ -667,6 +674,7 @@ export async function handleSshConnect(
           if (shellCallbackCalled) return; // 超时已处理，忽略后续回调
           shellCallbackCalled = true;
           if (err) {
+            sshConnectTimer({ status: 'failure' });
             logger.error(`SSH: 会话 ${newSessionId} 打开 Shell 失败:`, err);
             const shellFailPayload: Record<string, unknown> = {
               connectionName: newState.connectionName,
@@ -797,6 +805,14 @@ export async function handleSshConnect(
             });
           });
 
+          // SSH 连接成功，记录连接耗时指标
+          sshConnectTimer({ status: 'success' });
+
+          // SSH 连接成功，追加 connectionId 和 protocol 到日志上下文
+          withLogContext({ connectionId: dbConnectionIdAsNumber, protocol: 'ssh' }, () => {
+            logger.info(`WebSocket: 会话 ${newSessionId} SSH 连接和 Shell 建立成功。`);
+          });
+
           if (ws.readyState === WebSocket.OPEN)
             ws.send(
               JSON.stringify({
@@ -807,7 +823,6 @@ export async function handleSshConnect(
                 },
               })
             );
-          logger.info(`WebSocket: 会话 ${newSessionId} SSH 连接和 Shell 建立成功。`);
           const connectSuccessPayload: Record<string, unknown> = {
             userId: ws.userId,
             username: ws.username,
@@ -916,6 +931,9 @@ export async function handleSshConnect(
         auditLogService.logAction('SSH_CONNECT_FAILURE', connectFailPayload);
         notificationService.sendNotification('SSH_CONNECT_FAILURE', connectFailPayload);
       });
+    // SSH 连接失败，记录连接耗时指标
+    sshConnectTimer({ status: 'failure' });
+
     eventService.emitEvent(AppEventType.SshConnectFailure, {
       userId: ws.userId,
       details: {

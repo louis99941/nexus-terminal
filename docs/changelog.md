@@ -2,6 +2,30 @@
 
 本页面记录 Nexus Terminal 的重要版本更新和变更。
 
+## v1.5.4（2026-06-05）
+
+### 修复
+
+- 🐛 修复 WebRTC 远程桌面桥接的 SSRF 防护漏洞（PR #92）— `bridgeDataChannelToGateway` 在建立 WebSocket 连接前，新增 `validateUrlNotPrivate` 验证 `remoteGatewayUrl`，阻止指向私有/内部地址的恶意网关 URL
+- 🐛 修复 SSRF DNS 缓存误缓存直接 IP 地址问题（PR #92）— 使用 `ipaddr.js` 明确检测 IP 地址格式，替代原先 `new URL()` 的间接判断方式，避免原始 IP 被错误写入 DNS 缓存
+- 🐛 修复 WebRTC 连接状态变更时定时器未清理问题（PR #92）— 前端 `WebRTCTunnel` 在 `connected`、`failed`、`disconnected` 状态变更时调用 `clearConnectTimer()`，防止连接超时计时器在已确定状态下继续触发
+
+### 改进
+
+- ♻️ WebRTC 信令协议增强（PR #92）— `SignalingMessage` 接口新增 `remoteGatewayUrl` 字段，offer 消息必须携带该字段；`handleOffer` 改为返回创建的会话对象，确保后续信令消息能正确关联会话上下文
+- 📊 Prometheus 指标增强：新增 SSH 连接耗时、SFTP 传输字节、认证失败次数、SSH 连接池 4 个业务指标
+- 📊 新增 Grafana Dashboard 模板和 Prometheus 告警规则（`docs/monitoring/`）
+- 📝 结构化日志增强：AsyncLocalStorage 日志上下文自动传播（requestId、userId、sessionId、protocol）
+- 🎨 终端渲染优化：Unicode11Addon 支持 CJK 宽字符对齐
+- 🎨 新增异步搜索 Web Worker
+- 📱 移动端优化：VisualViewport 键盘避让、触摸手势增强（双指缩放字号）
+- 📱 PWA manifest 完善：新增快捷方式、display_override
+
+### 安全
+
+- 🔒 WebRTC 桥接层新增 SSRF 防护（PR #92）— 验证远程网关 URL 不指向私有网络地址，验证失败时通过 DataChannel 返回明确错误信息
+- 🔒 新增安全响应头：HSTS（`ENABLE_HSTS` 环境变量控制）、`Permissions-Policy`、`Cross-Origin-Opener-Policy`、`Cross-Origin-Resource-Policy`
+
 ## v1.5.3（2026-05-27）
 
 ### 修复
