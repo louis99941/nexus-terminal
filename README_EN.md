@@ -138,7 +138,7 @@ Below is a summary of the key differences between this fork and upstream:
 
 ### 1️⃣ Configure Environment
 
-> It is recommended to deploy in a Debian (AMD64 architecture) environment. Since I do not have an ARM device, compatibility with ARM is not guaranteed.
+> It is recommended to deploy in a Debian / Ubuntu environment. The official Docker images natively support both AMD64 and ARM64 architectures.
 
 Create a new folder
 
@@ -292,8 +292,7 @@ You can right-click in the SSH tab to select "Suspend Session" (long-press on mo
 2.  **Multiple Text Editors**: The functionality to add multiple text editors in the same layout has not yet been implemented.
 3.  For **ARMv7** users, please refer to the [deployment guide](https://nexus.cosr.eu.org/deployment).
     Since Apache Guacamole does not provide an ARMv7-compatible image for `guacd`, the RDP/VNC feature has been disabled, and related images will not be pulled for now.
-4.  Since I don't have an ARM machine on hand, I haven't conducted actual testing, so unexpected bugs may occur during runtime.
-5.  Data backup can be done via the built-in API (`/api/v1/backup`) for export/import, or by manually backing up the `data` directory.
+4.  Data backup can be done via the built-in API (`/api/v1/backup`) for export/import, or by manually backing up the `data` directory.
 
 ## 💐 Acknowledgements
 
