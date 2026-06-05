@@ -32,15 +32,9 @@
   "orientation": "portrait-primary",
   "shortcuts": [
     {
-      "name": "新建 SSH 连接",
-      "short_name": "SSH",
-      "url": "/connections/new?type=ssh",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "新建 RDP 连接",
-      "short_name": "RDP",
-      "url": "/connections/new?type=rdp",
+      "name": "连接管理",
+      "short_name": "连接",
+      "url": "/connections",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ],

@@ -93,8 +93,9 @@ export function useVirtualKeyboard(containerRef?: Ref<HTMLElement | null>) {
   const handleOrientationChange = () => {
     // 延迟等待旋转动画完成后再读取高度
     setTimeout(() => {
-      initialViewportHeight = viewport ? viewport.height : window.innerHeight;
-      // 重置键盘状态
+      // 使用 window.innerHeight 作为基准，避免键盘弹出时 viewport.height 偏小导致误判
+      initialViewportHeight = window.innerHeight;
+      // 重置键盘状态并重新检测
       isVisible.value = false;
       keyboardHeight.value = 0;
       viewportDelta.value = 0;
@@ -102,6 +103,8 @@ export function useVirtualKeyboard(containerRef?: Ref<HTMLElement | null>) {
         containerRef.value.style.height = '';
         containerRef.value.style.maxHeight = '';
       }
+      // 重新检测当前视口状态（键盘可能在旋转后仍处于弹出状态）
+      handleViewportResize();
     }, 300);
   };
 
