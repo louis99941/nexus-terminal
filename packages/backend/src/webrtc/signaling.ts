@@ -21,6 +21,7 @@ import { logger } from '../utils/logger';
 interface SignalingMessage {
   type: 'offer' | 'answer' | 'ice-candidate' | 'error' | 'ready';
   payload?: unknown;
+  remoteGatewayUrl?: string;
 }
 
 /** WebRTC 连接配置 */
@@ -81,7 +82,13 @@ function handleSignalingConnection(clientWs: WebSocket): void {
 
       switch (message.type) {
         case 'offer':
-          await handleOffer(clientWs, message);
+          {
+            const newSession = await handleOffer(clientWs, message);
+            if (newSession) {
+              sessionId = newSession.sessionId;
+              session = newSession;
+            }
+          }
           break;
         case 'ice-candidate':
           await handleIceCandidate(clientWs, message);
@@ -113,12 +120,23 @@ function handleSignalingConnection(clientWs: WebSocket): void {
 /**
  * 处理 SDP offer：创建后端 RTCPeerConnection 并生成 answer
  */
-async function handleOffer(clientWs: WebSocket, message: SignalingMessage): Promise<void> {
+async function handleOffer(
+  clientWs: WebSocket,
+  message: SignalingMessage
+): Promise<ActiveWebRTCSession | null> {
   const offer = message.payload as RTCSessionDescriptionInit;
 
   if (!offer || offer.type !== 'offer') {
     sendError(clientWs, '无效的 SDP offer');
-    return;
+    return null;
+  }
+
+  // 提取 remoteGatewayUrl（从 offer 消息中获取）
+  const remoteGatewayUrl = message.remoteGatewayUrl || '';
+  if (!remoteGatewayUrl) {
+    logger.error('[WebRTC Signaling] offer 缺少 remoteGatewayUrl');
+    sendError(clientWs, 'offer 缺少 remoteGatewayUrl');
+    return null;
   }
 
   const sessionId = `webrtc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -138,7 +156,7 @@ async function handleOffer(clientWs: WebSocket, message: SignalingMessage): Prom
     dc: null,
     ws: clientWs,
     sessionId,
-    remoteGatewayUrl: '', // 由前端在 offer 中指定
+    remoteGatewayUrl,
     createdAt: Date.now(),
   };
 
@@ -191,6 +209,7 @@ async function handleOffer(clientWs: WebSocket, message: SignalingMessage): Prom
   }
 
   logger.debug(`[WebRTC Signaling] SDP answer 已发送: ${sessionId}`);
+  return session;
 }
 
 /**
