@@ -75,6 +75,8 @@ export class WebRTCTunnel {
   /** 已发送/接收消息计数 */
   private msgsSent = 0;
   private msgsReceived = 0;
+  /** 降级后的 WebSocket 隧道 */
+  private fallbackTunnel: any = null;
 
   constructor(config: WebRTCTunnelConfig) {
     this.config = {
@@ -149,6 +151,11 @@ export class WebRTCTunnel {
    * Guacamole 协议格式: len.value,len.value,...;
    */
   sendMessage(...elements: string[]): void {
+    if (this.fallbackTunnel) {
+      this.fallbackTunnel.sendMessage(...elements);
+      return;
+    }
+
     if (!this.dc || this.dc.readyState !== 'open') {
       this.handleError('DataChannel 未就绪');
       return;
@@ -171,6 +178,16 @@ export class WebRTCTunnel {
   disconnect(): void {
     this.clearConnectTimer();
     this.setState('disconnected');
+
+    if (this.fallbackTunnel) {
+      try {
+        this.fallbackTunnel.disconnect();
+      } catch (error) {
+        log.warn('[WebRTCTunnel] 断开降级连接时出错:', error);
+      }
+      this.fallbackTunnel = null;
+      return;
+    }
 
     try {
       this.dc?.close();
@@ -464,11 +481,73 @@ export class WebRTCTunnel {
    */
   private handleError(message: string): void {
     log.error(`[WebRTCTunnel] ${message}`);
+
+    // 如果在信令或未连接阶段出错，且尚未进行过降级，则尝试自动降级到普通 WebSocket
+    if ((this.state === 'signaling' || this.state === 'idle') && !this.fallbackTunnel) {
+      log.warn('[WebRTCTunnel] WebRTC 信令或连接失败，正在自动降级到普通 WebSocket 隧道...');
+      this.fallbackToWebSocket();
+      return;
+    }
+
     this.setState('failed');
     this.onerror?.({
       code: 0x0100, // Guacamole status code for connection error
       message,
     });
+  }
+
+  /**
+   * 降级到普通 WebSocket 连接
+   */
+  private fallbackToWebSocket(): void {
+    this.clearConnectTimer();
+
+    // 销毁 WebRTC 相关资源
+    try {
+      this.dc?.close();
+      this.pc?.close();
+      this.signalingWs?.close();
+    } catch (error) {
+      log.warn('[WebRTCTunnel] 销毁 WebRTC 连接以进行降级時出錯:', error);
+    }
+    this.dc = null;
+    this.pc = null;
+    this.signalingWs = null;
+
+    try {
+      log.info(`[WebRTCTunnel] 初始化普通 WebSocket 隧道: ${this.config.tunnelUrl}`);
+      // 使用 Guacamole 的 WebSocketTunnel
+      const wsTunnel = new Guacamole.WebSocketTunnel(this.config.tunnelUrl);
+
+      // 代理所有的事件回调
+      wsTunnel.oninstruction = (opcode, args) => {
+        this.oninstruction?.(opcode, args);
+      };
+
+      wsTunnel.onerror = (status) => {
+        this.onerror?.(status);
+      };
+
+      wsTunnel.onstatechange = (state) => {
+        if (state === 3) {
+          this.setState('connected');
+        } else if (state === 5) {
+          this.setState('disconnected');
+        }
+        this.onstatechange?.(state);
+      };
+
+      this.fallbackTunnel = wsTunnel;
+      // 启动降级隧道连接
+      this.fallbackTunnel.connect();
+    } catch (error) {
+      log.error('[WebRTCTunnel] WebSocket 降级初始化失败:', error);
+      this.setState('failed');
+      this.onerror?.({
+        code: 0x0100,
+        message: `WebSocket 降级初始化失败: ${error instanceof Error ? error.message : error}`,
+      });
+    }
   }
 }
 
