@@ -31,6 +31,16 @@ vi.mock('axios', () => ({
   isAxiosError: mockIsAxiosError,
 }));
 
+// Mock ssrf-guard：让 safeHttpGet/safeHttpPost 直接调用 mock 的 axios，跳过 SSRF 验证
+vi.mock('../../utils/ssrf-guard', () => ({
+  safeHttpGet: vi.fn((url: string, options: Record<string, unknown> = {}) => {
+    return mockAxios({ ...options, url, method: (options.method as string) || 'GET' });
+  }),
+  safeHttpPost: vi.fn((url: string, data?: unknown, options: Record<string, unknown> = {}) => {
+    return mockAxios({ ...options, url, method: (options.method as string) || 'POST', data });
+  }),
+}));
+
 describe('WebhookSenderService', () => {
   const mockWebhookConfig: WebhookConfig = {
     url: 'https://webhook.example.com/notify',
@@ -347,12 +357,13 @@ describe('WebhookSenderService', () => {
       expect(mockLogger.info).toHaveBeenCalledTimes(10);
     });
 
-    it('非 2xx 状态码应记录警告但不抛出错误', async () => {
-      // console spy removed (was: warn);
+    it('非 2xx 状态码应记录警告并抛出错误', async () => {
       mockAxios.mockResolvedValue({ status: 302, data: { redirected: true } });
 
-      // 不应抛出错误
-      await webhookSenderService.send(mockNotification);
+      // 非 2xx 应抛出错误以触发重试/错误上报
+      await expect(webhookSenderService.send(mockNotification)).rejects.toThrow(
+        'Webhook endpoint rejected the request (HTTP 302)'
+      );
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('responded with status: 302'),

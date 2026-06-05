@@ -1,4 +1,5 @@
-import axios from 'axios';
+import { isAxiosError } from 'axios';
+import { safeHttpPost } from '../utils/ssrf-guard';
 import { settingsService } from '../settings/settings.service';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
@@ -115,9 +116,12 @@ export class CaptchaService {
         params.append('sitekey', siteKey);
       }
 
-      const response = await axios.post(HCAPTCHA_VERIFY_URL, params, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      const response = await safeHttpPost(
+        HCAPTCHA_VERIFY_URL,
+        params,
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        'Captcha'
+      );
 
       logger.debug(`[CaptchaService] hCaptcha ${mode}验证响应:`, response.data);
       const errorCodes: string[] = response.data['error-codes'] || [];
@@ -165,13 +169,13 @@ export class CaptchaService {
       return false; // 令牌验证失败
     } catch (error: unknown) {
       const errorMessage =
-        axios.isAxiosError(error) && error.response?.data?.message
+        isAxiosError(error) && error.response?.data?.message
           ? error.response.data.message
           : getErrorMessage(error);
       logger.error(
         `[CaptchaService] 调用 hCaptcha ${mode}验证 API 时出错:`,
         errorMessage,
-        axios.isAxiosError(error) && error.response?.data ? error.response.data : ''
+        isAxiosError(error) && error.response?.data ? error.response.data : ''
       );
       // 抛出错误，让上层处理
       throw new Error(`hCaptcha ${mode}验证请求失败: ${errorMessage}`);
@@ -203,9 +207,12 @@ export class CaptchaService {
       // reCAPTCHA 的 siteverify API 不像 hCaptcha 那样直接接受 sitekey 参数
       // sitekey 的验证是隐式通过 secretKey 的。
 
-      const response = await axios.post(RECAPTCHA_VERIFY_URL, params, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      const response = await safeHttpPost(
+        RECAPTCHA_VERIFY_URL,
+        params,
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        'Captcha'
+      );
 
       logger.debug(`[CaptchaService] Google reCAPTCHA ${mode}验证响应:`, response.data);
       const errorCodes: string[] = response.data['error-codes'] || [];
@@ -239,13 +246,13 @@ export class CaptchaService {
       return false; // 令牌验证失败
     } catch (error: unknown) {
       const errorMessage =
-        axios.isAxiosError(error) && error.response?.data?.message
+        isAxiosError(error) && error.response?.data?.message
           ? error.response.data.message
           : getErrorMessage(error);
       logger.error(
         `[CaptchaService] 调用 Google reCAPTCHA ${mode}验证 API 时出错:`,
         errorMessage,
-        axios.isAxiosError(error) && error.response?.data ? error.response.data : ''
+        isAxiosError(error) && error.response?.data ? error.response.data : ''
       );
       throw new Error(`Google reCAPTCHA ${mode}验证请求失败: ${errorMessage}`);
     }

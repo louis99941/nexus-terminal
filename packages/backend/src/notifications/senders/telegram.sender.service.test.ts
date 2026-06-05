@@ -33,6 +33,13 @@ vi.mock('axios', () => ({
   isAxiosError: mockIsAxiosError,
 }));
 
+// Mock ssrf-guard：让 safeHttpPost 直接调用 mock 的 axios.post，跳过 SSRF 验证
+vi.mock('../../utils/ssrf-guard', () => ({
+  safeHttpPost: vi.fn((url: string, data?: unknown, options: Record<string, unknown> = {}) => {
+    return mockPost(url, data, options);
+  }),
+}));
+
 describe('TelegramSenderService', () => {
   const mockTelegramConfig: TelegramConfig = {
     botToken: '123456789:ABCdefGHIjklMNOpqrSTUvwxYZ',

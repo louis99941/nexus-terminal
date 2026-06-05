@@ -184,11 +184,14 @@ describe('TelnetNegotiator', () => {
     });
 
     it('应处理连续的 IAC 字节（255 作为数据）', () => {
-      // 两个连续 IAC 表示数据 255
+      // 两个连续 IAC 表示数据 255（0xFF）
+      // 注意：0xFF 不是合法 UTF-8 单字节，Node.js toString('utf-8') 会将其替换为 U+FFFD
+      // 但 raw bytes 仍被正确收集到 cleanBytes 数组中
       const buffer = Buffer.from([TELNET_IAC, TELNET_IAC, 0x41]); // IAC IAC 'A'
       const result = negotiator.parse(buffer);
 
-      expect(result.cleanData).toBe('\xFFA');
+      // 0xFF 经 UTF-8 编码后变为替换字符 U+FFFD
+      expect(result.cleanData).toBe('�' + 'A');
       expect(result.responses).toHaveLength(0);
     });
   });

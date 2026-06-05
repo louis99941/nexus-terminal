@@ -5,6 +5,7 @@ import {
   getSingleHeaderToken,
   normalizeOrigin,
   validateUrlNotPrivate,
+  resolveAndValidatePublicHost,
 } from './url';
 
 // Mock dns/promises 用于 SSRF 测试
@@ -163,11 +164,13 @@ describe('url utils', () => {
         await expect(validateUrlNotPrivate('https://api.openai.com/')).resolves.toBeUndefined();
       });
 
-      it('DNS 解析全部失败时应放行', async () => {
+      it('DNS 解析全部失败时应阻止（安全修复）', async () => {
         vi.mocked(dns.resolve4).mockRejectedValue(new Error('ENOTFOUND'));
         vi.mocked(dns.resolve6).mockRejectedValue(new Error('ENOTFOUND'));
 
-        await expect(validateUrlNotPrivate('https://api.openai.com/')).resolves.toBeUndefined();
+        await expect(validateUrlNotPrivate('https://api.openai.com/')).rejects.toThrow(
+          '目标域名无法解析，无法验证地址安全性，请求已阻止。'
+        );
       });
 
       it('应阻止 IPv6 私有地址 (ULA)', async () => {
@@ -177,6 +180,53 @@ describe('url utils', () => {
         await expect(validateUrlNotPrivate('http://ipv6-internal.example.com/')).rejects.toThrow(
           '目标地址解析到不允许的网络范围'
         );
+      });
+    });
+
+    describe('resolveAndValidatePublicHost', () => {
+      beforeEach(() => {
+        vi.clearAllMocks();
+      });
+
+      it('应返回直接 IP 地址的验证结果', async () => {
+        const result = await resolveAndValidatePublicHost('https://8.8.8.8/');
+        expect(result.hostname).toBe('8.8.8.8');
+        expect(result.addresses).toEqual(['8.8.8.8']);
+      });
+
+      it('应返回域名解析后的 IP 列表', async () => {
+        vi.mocked(dns.resolve4).mockResolvedValue(['142.250.80.46', '142.250.80.78']);
+        vi.mocked(dns.resolve6).mockResolvedValue([]);
+
+        const result = await resolveAndValidatePublicHost('https://api.openai.com/');
+        expect(result.hostname).toBe('api.openai.com');
+        expect(result.addresses).toEqual(['142.250.80.46', '142.250.80.78']);
+      });
+
+      it('应阻止私有 IP 并抛出错误', async () => {
+        vi.mocked(dns.resolve4).mockResolvedValue(['192.168.1.100']);
+        vi.mocked(dns.resolve6).mockResolvedValue([]);
+
+        await expect(resolveAndValidatePublicHost('http://internal.example.com/')).rejects.toThrow(
+          '目标地址解析到不允许的网络范围'
+        );
+      });
+
+      it('DNS 全部失败时应阻止', async () => {
+        vi.mocked(dns.resolve4).mockRejectedValue(new Error('ENOTFOUND'));
+        vi.mocked(dns.resolve6).mockRejectedValue(new Error('ENOTFOUND'));
+
+        await expect(resolveAndValidatePublicHost('https://api.openai.com/')).rejects.toThrow(
+          '目标域名无法解析，无法验证地址安全性，请求已阻止。'
+        );
+      });
+
+      it('应同时返回 IPv4 和 IPv6 地址', async () => {
+        vi.mocked(dns.resolve4).mockResolvedValue(['142.250.80.46']);
+        vi.mocked(dns.resolve6).mockResolvedValue(['2607:f8b0:4004:800::200e']);
+
+        const result = await resolveAndValidatePublicHost('https://api.openai.com/');
+        expect(result.addresses).toEqual(['142.250.80.46', '2607:f8b0:4004:800::200e']);
       });
     });
   });

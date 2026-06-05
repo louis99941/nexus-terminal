@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 type UpgradeRequestMeta = {
   clientIpAddress?: string;
   isRdpProxy?: boolean;
+  isWebRTCSignaling?: boolean;
   rdpToken?: unknown;
   rdpWidth?: unknown;
   rdpHeight?: unknown;
@@ -133,8 +134,22 @@ export function initializeUpgradeHandler(
       const typedRequest = getUpgradeRequest(request);
 
       // --- 根据路径处理升级 ---
+      // WebRTC 信令路径
+      if (pathname === '/webrtc-signaling' || pathname === '/ws/webrtc-signaling') {
+        logger.debug(
+          `WebSocket: Handling WebRTC signaling upgrade for user ${request.session.username}`
+        );
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          const extWs = ws as AuthenticatedWebSocket;
+          extWs.userId = request.session.userId;
+          extWs.username = request.session.username;
+          typedRequest.clientIpAddress = ipAddress;
+          typedRequest.isWebRTCSignaling = true;
+          wss.emit('connection', extWs, request);
+        });
+      }
       // 本地调试用/rdp-proxy，nginx反代用/ws/rdp-proxy
-      if (pathname === '/rdp-proxy' || pathname === '/ws/rdp-proxy') {
+      else if (pathname === '/rdp-proxy' || pathname === '/ws/rdp-proxy') {
         // RDP 代理路径 - 直接处理升级，连接逻辑在 'connection' 事件中处理
         logger.debug(`WebSocket: Handling RDP proxy upgrade for user ${request.session.username}`);
         wss.handleUpgrade(request, socket, head, (ws) => {

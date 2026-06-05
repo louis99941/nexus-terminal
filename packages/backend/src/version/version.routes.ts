@@ -4,7 +4,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import axios from 'axios';
+import { safeHttpGet } from '../utils/ssrf-guard';
+import { asyncHandler } from '../utils/asyncHandler';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -34,67 +35,88 @@ function setCache(key: string, data: unknown): void {
  * GET /api/v1/version/latest
  * 获取 GitHub 最新 release 版本号
  */
-router.get('/latest', async (_req: Request, res: Response) => {
-  try {
-    const cached = getCached('latest');
-    if (cached) {
-      res.json(cached);
-      return;
-    }
+router.get(
+  '/latest',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const cached = getCached('latest');
+      if (cached) {
+        res.json(cached);
+        return;
+      }
 
-    const response = await axios.get(GITHUB_RELEASES_URL, {
-      timeout: 10000,
-      headers: { Accept: 'application/vnd.github.v3+json' },
-    });
+      const response = await safeHttpGet(
+        GITHUB_RELEASES_URL,
+        {
+          timeout: 10000,
+          headers: { Accept: 'application/vnd.github.v3+json' },
+        },
+        'Version'
+      );
 
-    const result = {
-      tag: response.data?.tag_name ?? null,
-      htmlUrl: response.data?.html_url ?? null,
-    };
+      if (response.status >= 400) {
+        const status = response.status;
+        logger.warn({ status }, '[Version] GitHub releases 请求失败');
+        res.status(status === 404 ? 200 : status).json({
+          tag: null,
+          htmlUrl: null,
+          error: status === 404 ? 'no_release' : 'fetch_failed',
+        });
+        return;
+      }
 
-    setCache('latest', result);
-    res.json(result);
-  } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status ?? 502;
-      logger.warn({ status }, '[Version] GitHub releases 请求失败');
-      res.status(status === 404 ? 200 : status).json({
-        tag: null,
-        htmlUrl: null,
-        error: status === 404 ? 'no_release' : 'fetch_failed',
-      });
-    } else {
+      const result = {
+        tag: response.data?.tag_name ?? null,
+        htmlUrl: response.data?.html_url ?? null,
+      };
+
+      setCache('latest', result);
+      res.json(result);
+    } catch (error: unknown) {
       logger.error({ err: error }, '[Version] 未知错误');
       res.status(502).json({ tag: null, htmlUrl: null, error: 'fetch_failed' });
     }
-  }
-});
+  })
+);
 
 /**
  * GET /api/v1/version/remote
  * 获取远程 VERSION 文件内容（main 分支）
  */
-router.get('/remote', async (_req: Request, res: Response) => {
-  try {
-    const cached = getCached('remote');
-    if (cached) {
-      res.json(cached);
-      return;
+router.get(
+  '/remote',
+  asyncHandler(async (_req: Request, res: Response) => {
+    try {
+      const cached = getCached('remote');
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+
+      const response = await safeHttpGet(
+        VERSION_FILE_URL,
+        {
+          timeout: 10000,
+        },
+        'Version'
+      );
+
+      if (response.status >= 400) {
+        logger.warn({ status: response.status }, '[Version] 远程 VERSION 文件请求失败');
+        res.status(502).json({ version: null, error: 'fetch_failed' });
+        return;
+      }
+
+      const version = typeof response.data === 'string' ? response.data.trim() : null;
+      const result = { version };
+
+      setCache('remote', result);
+      res.json(result);
+    } catch (error: unknown) {
+      logger.warn({ err: error }, '[Version] 远程 VERSION 文件请求失败');
+      res.status(502).json({ version: null, error: 'fetch_failed' });
     }
-
-    const response = await axios.get(VERSION_FILE_URL, {
-      timeout: 10000,
-    });
-
-    const version = typeof response.data === 'string' ? response.data.trim() : null;
-    const result = { version };
-
-    setCache('remote', result);
-    res.json(result);
-  } catch (error: unknown) {
-    logger.warn({ err: error }, '[Version] 远程 VERSION 文件请求失败');
-    res.status(502).json({ version: null, error: 'fetch_failed' });
-  }
-});
+  })
+);
 
 export default router;

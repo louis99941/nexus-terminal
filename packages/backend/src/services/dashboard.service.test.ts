@@ -31,6 +31,7 @@ const { mockDbInstance, mockGetDb, mockAllDb, mockClientStates, mockFs, mockOs, 
       totalmem: vi.fn(),
       freemem: vi.fn(),
       loadavg: vi.fn(),
+      tmpdir: vi.fn().mockReturnValue('/tmp'),
     },
     mockNet: {
       Socket: vi.fn(),
@@ -56,6 +57,20 @@ vi.mock('fs', () => ({
 vi.mock('os', () => ({
   ...mockOs,
   default: mockOs,
+}));
+
+// Mock paths.ts 避免模块加载时 os.tmpdir() 调用失败
+vi.mock('../config/paths', () => ({
+  DATA_DIR: '/mock/data',
+  DB_DIR: '/mock/data',
+  DB_PATH: '/mock/data/nexus-terminal.db',
+  SESSIONS_DIR: '/mock/data/sessions',
+  UPLOADS_DIR: '/mock/data/uploads',
+  BACKGROUND_DIR: '/mock/data/background',
+  CUSTOM_HTML_THEMES_DIR: '/mock/data/custom_html_theme',
+  PRESET_HTML_THEMES_DIR: '/mock/html-presets',
+  SSH_LOG_DIR: '/mock/data/temp_suspended_ssh_logs',
+  TEMP_UPLOAD_DIR: '/tmp/nexus-temp-uploads',
 }));
 
 vi.mock('net', () => ({

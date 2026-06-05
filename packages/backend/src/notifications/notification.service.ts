@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios';
+import { safeHttpGet, safeHttpPost } from '../utils/ssrf-guard';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -229,7 +230,24 @@ export class NotificationService {
 
     try {
       logger.debug(`[通知测试 - Webhook] 发送测试 Webhook 到 ${config.url}`);
-      const response = await axios(requestConfig);
+      // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+      const requestMethod = (config.method || 'POST').toUpperCase();
+      const baseOptions = {
+        headers: requestConfig.headers,
+        timeout: 15000,
+      };
+      const response = ['POST', 'PUT', 'PATCH'].includes(requestMethod)
+        ? await safeHttpPost(
+            config.url,
+            requestBody,
+            { ...baseOptions, method: requestMethod },
+            'Notification-Webhook-Test'
+          )
+        : await safeHttpGet(
+            config.url,
+            { ...baseOptions, method: requestMethod },
+            'Notification-Webhook-Test'
+          );
       logger.debug(
         `[通知测试 - Webhook] 测试 Webhook 成功发送到 ${config.url}。状态: ${response.status}`
       );
@@ -349,14 +367,16 @@ export class NotificationService {
 
     try {
       logger.debug(`[通知测试 - Telegram] 发送测试 Telegram 消息到聊天 ID ${config.chatId}`);
-      const response = await axios.post(
+      // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+      const response = await safeHttpPost(
         telegramApiUrl,
         {
           chat_id: config.chatId,
           text: messageText,
           parse_mode: 'Markdown',
         },
-        { timeout: 15000 }
+        { timeout: 15000 },
+        'Notification-Telegram-Test'
       );
 
       if (response.data?.ok) {
@@ -533,7 +553,24 @@ export class NotificationService {
 
     try {
       logger.debug(`[通知] 发送 Webhook 到 ${config.url} (事件: ${payload.event})`);
-      const response = await axios(requestConfig);
+      // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+      const requestMethod = (config.method || 'POST').toUpperCase();
+      const baseOptions = {
+        headers: requestConfig.headers,
+        timeout: 10000,
+      };
+      const response = ['POST', 'PUT', 'PATCH'].includes(requestMethod)
+        ? await safeHttpPost(
+            config.url,
+            requestBody,
+            { ...baseOptions, method: requestMethod },
+            'Notification-Webhook'
+          )
+        : await safeHttpGet(
+            config.url,
+            { ...baseOptions, method: requestMethod },
+            'Notification-Webhook'
+          );
       logger.debug(`[通知] Webhook 成功发送到 ${config.url}。状态: ${response.status}`);
     } catch (error: unknown) {
       const errorMessage =
@@ -769,9 +806,15 @@ export class NotificationService {
         `[_sendTelegram] Sending request to Telegram API:`,
         JSON.stringify(requestBody, null, 2)
       );
-      const response = await axios.post(telegramApiUrl, requestBody, {
-        timeout: 10000,
-      });
+      // 使用安全 HTTP 客户端，自动进行 SSRF 验证和 DNS 绑定
+      const response = await safeHttpPost(
+        telegramApiUrl,
+        requestBody,
+        {
+          timeout: 10000,
+        },
+        'Telegram'
+      );
       logger.debug(`[通知] Telegram 消息发送成功。响应 OK:`, response.data?.ok);
     } catch (error: unknown) {
       const errorMessage =

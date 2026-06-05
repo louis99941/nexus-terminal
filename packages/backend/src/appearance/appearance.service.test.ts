@@ -1,9 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const { mockAxiosGet } = vi.hoisted(() => ({
+  mockAxiosGet: vi.fn(),
+}));
+
 vi.mock('axios', () => ({
   default: {
-    get: vi.fn(),
+    get: mockAxiosGet,
+    isAxiosError: vi.fn(
+      (val: unknown) => val !== null && typeof val === 'object' && 'isAxiosError' in (val as object)
+    ),
   },
+}));
+
+// Mock ssrf-guard：让 safeHttpGet 直接调用 mock 的 axios.get，跳过 SSRF 验证
+vi.mock('../utils/ssrf-guard', () => ({
+  safeHttpGet: vi.fn((url: string, options: Record<string, unknown> = {}) => {
+    return mockAxiosGet(url, options);
+  }),
 }));
 
 vi.mock('fs/promises', () => ({

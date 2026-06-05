@@ -68,6 +68,7 @@ import { logger } from '../utils/logger';
 type ConnectionRequestMeta = {
   clientType?: unknown;
   isRdpProxy?: unknown;
+  isWebRTCSignaling?: unknown;
   clientIpAddress?: unknown;
 };
 
@@ -95,6 +96,7 @@ export function initializeConnectionHandler(
     const {
       clientType: clientTypeParam,
       isRdpProxy,
+      isWebRTCSignaling,
       clientIpAddress,
     } = getConnectionRequestMeta(request);
 
@@ -138,6 +140,36 @@ export function initializeConnectionHandler(
       multiplexTransport = createMultiplexTransport(ws);
       registerTransport(ws, multiplexTransport);
       logger.info(`[WebSocket] 多路复用传输已创建 (用户: ${ws.username}, ID: ${ws.userId})`);
+    }
+
+    // WebRTC 信令连接处理
+    if (isWebRTCSignaling) {
+      // 动态导入避免循环依赖
+      import('../webrtc/signaling.js')
+        .then(({ handleSignalingConnectionRequest }) => {
+          handleSignalingConnectionRequest(ws);
+        })
+        .catch((err) => {
+          logger.error('[WebSocket] 加载 WebRTC 信令模块失败:', err);
+          ws.close(1011, 'WebRTC signaling module load failed');
+        });
+
+      // 信令连接的 close/error 清理：注销 userSocketsMap 防止内存泄漏
+      ws.on('close', () => {
+        if (ws.userId) {
+          unregisterUserSocket(ws.userId, ws);
+        }
+        logger.debug(`[WebSocket] WebRTC 信令连接已断开 (用户: ${ws.userId})`);
+      });
+
+      ws.on('error', (error) => {
+        logger.error(`[WebSocket] WebRTC 信令连接错误 (用户: ${ws.userId}):`, error);
+        if (ws.userId) {
+          unregisterUserSocket(ws.userId, ws);
+        }
+      });
+
+      return;
     }
 
     if (isRdpProxy) {
