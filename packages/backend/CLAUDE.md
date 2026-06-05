@@ -124,7 +124,7 @@ packages/backend/
 │   │   ├── default-themes.ts       # 预设终端主题
 │   │   ├── env.validator.ts        # 环境变量验证
 │   │   ├── app.config.ts           # 应用配置（Passkey RP 等）
-│   │   ├── middleware.ts           # 安全中间件（Helmet、CORS、限流）
+│   │   ├── middleware.ts           # 安全中间件（Helmet、CORS、限流、HSTS、Permissions-Policy、COOP、CORP）
 │   │   ├── routes.ts               # 集中式路由注册
 │   │   └── swagger.config.ts       # OpenAPI/Swagger 配置
 │   │
@@ -133,7 +133,9 @@ packages/backend/
 │   │   └── redaction.ts            # 敏感信息脱敏（16 正则）
 │   │
 │   ├── middleware/                  # 中间件
-│   │   └── error.middleware.ts     # 全局错误处理（标准化错误响应）
+│   │   ├── error.middleware.ts     # 全局错误处理（标准化错误响应）
+│   │   ├── log-context.middleware.ts # AsyncLocalStorage 日志上下文传播
+│   │   └── request-logger.middleware.ts # 请求级日志中间件
 │   │
 │   ├── types/                      # TypeScript 类型定义
 │   │   ├── connection.types.ts
@@ -277,14 +279,22 @@ packages/backend/
 
 ### 监控与日志
 
-- `src/metrics/metrics.service.ts` - Prometheus 指标采集（HTTP 延迟、WebSocket 连接数）
+- `src/metrics/metrics.service.ts` - Prometheus 指标采集（HTTP 延迟、WebSocket 连接数、SSH 连接耗时、SFTP 传输字节、认证失败次数、SSH 连接池）
 - `src/metrics/metrics.controller.ts` - 指标数据端点
 - `src/metrics/metrics.routes.ts` - 路由定义
+- `src/middleware/log-context.middleware.ts` - AsyncLocalStorage 日志上下文传播（requestId、userId、protocol 自动注入）
+- `src/middleware/request-logger.middleware.ts` - 请求级日志中间件
 - `src/logging/logger.ts` - 日志 re-export（脱敏逻辑在 `redaction.ts`）
 - `src/logging/redaction.ts` - 敏感信息脱敏（16 正则 + 循环引用检测）
 - `src/middleware/error.middleware.ts` - 全局错误处理中间件
 - `src/types/error.types.ts` - ErrorCode 枚举与 ErrorResponse 类型
 - `src/utils/AppError.ts` - 自定义应用错误类
+
+### 监控文档
+
+- `docs/monitoring/index.md` - 监控与告警配置指南
+- `docs/monitoring/grafana-dashboard.json` - Grafana Dashboard 模板（可直接导入）
+- `docs/monitoring/alert-rules.yml` - Prometheus 告警规则（认证失败率、SSH 延迟、5xx 错误率等）
 
 ---
 
@@ -325,6 +335,7 @@ npm start
 | `LOG_REDACT`         | true        | 日志脱敏开关（false 可关闭敏感信息脱敏）                              |
 | `LOG_TZ`             | -           | 日志时间戳时区（优先级高于 TZ）                                       |
 | `ENABLE_REQUEST_LOG` | true        | 启用请求访问日志（false 关闭"请求开始/完成"日志，减少容器日志量）     |
+| `ENABLE_HSTS`        | false       | 启用 HSTS 安全头（Strict-Transport-Security），仅生产 HTTPS 环境开启  |
 
 ### 安全配置常量（`src/config/security.config.ts`）
 

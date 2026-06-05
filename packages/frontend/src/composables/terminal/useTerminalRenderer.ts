@@ -7,6 +7,7 @@
 import { ref, onBeforeUnmount, type Ref } from 'vue';
 import type { Terminal } from '@xterm/xterm';
 import { WebglAddon } from '@xterm/addon-webgl';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { log } from '@/utils/log';
 
 // 渲染模式类型
@@ -298,6 +299,17 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
   function initRenderer(): void {
     const term = terminal.value;
     if (!term) return;
+
+    // 加载 Unicode11Addon 支持 CJK 宽字符对齐
+    try {
+      const unicode11Addon = new Unicode11Addon();
+      term.loadAddon(unicode11Addon);
+      term.unicode.activeVersion = '11';
+      log.info(`[Terminal ${sessionId}] Unicode11Addon 已加载，CJK 宽字符对齐已启用`);
+    } catch (error: unknown) {
+      log.warn(`[Terminal ${sessionId}] Unicode11Addon 加载失败:`, error);
+    }
+
     applyRendererMode(term);
   }
 

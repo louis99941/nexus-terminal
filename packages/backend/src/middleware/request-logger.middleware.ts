@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { logger } from '../utils/logger';
+import { withLogContext } from './log-context.middleware';
 
 declare global {
   namespace Express {
@@ -26,48 +27,50 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   const requestId = crypto.randomBytes(8).toString('hex');
   req.requestId = requestId;
 
-  // 未启用请求日志时仅注入 requestId，不输出日志
-  if (!ENABLE_REQUEST_LOG) {
-    next();
-    return;
-  }
-
-  const startTime = Date.now();
-
-  // 跳过健康检查等高频低价值端点（前缀匹配）
-  const skip = SKIP_PATH_PREFIXES.some((prefix) => req.path.startsWith(prefix));
-
-  if (!skip) {
-    logger.info({ requestId, method: req.method, path: req.path }, '请求开始');
-  }
-
-  // 防止 finish + close 双触发导致重复日志
-  let isLogged = false;
-  const logCompletion = () => {
-    if (skip || isLogged) return;
-    isLogged = true;
-    const duration = Date.now() - startTime;
-    let level: 'error' | 'warn' | 'info' = 'info';
-    if (res.statusCode >= 500) {
-      level = 'error';
-    } else if (res.statusCode >= 400) {
-      level = 'warn';
+  // 将 requestId 注入 AsyncLocalStorage，后续所有日志自动携带
+  withLogContext({ requestId, protocol: 'http' }, () => {
+    // 未启用请求日志时仅注入 requestId，不输出日志
+    if (!ENABLE_REQUEST_LOG) {
+      next();
+      return;
     }
-    logger[level](
-      {
-        requestId,
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        duration,
-      },
-      '请求完成'
-    );
-  };
 
-  // 监听 finish（正常完成）和 close（客户端中断）
-  res.on('finish', logCompletion);
-  res.on('close', logCompletion);
+    const startTime = Date.now();
 
-  next();
+    // 跳过健康检查等高频低价值端点（前缀匹配）
+    const skip = SKIP_PATH_PREFIXES.some((prefix) => req.path.startsWith(prefix));
+
+    if (!skip) {
+      logger.info({ method: req.method, path: req.path }, '请求开始');
+    }
+
+    // 防止 finish + close 双触发导致重复日志
+    let isLogged = false;
+    const logCompletion = () => {
+      if (skip || isLogged) return;
+      isLogged = true;
+      const duration = Date.now() - startTime;
+      let level: 'error' | 'warn' | 'info' = 'info';
+      if (res.statusCode >= 500) {
+        level = 'error';
+      } else if (res.statusCode >= 400) {
+        level = 'warn';
+      }
+      logger[level](
+        {
+          method: req.method,
+          path: req.path,
+          statusCode: res.statusCode,
+          duration,
+        },
+        '请求完成'
+      );
+    };
+
+    // 监听 finish（正常完成）和 close（客户端中断）
+    res.on('finish', logCompletion);
+    res.on('close', logCompletion);
+
+    next();
+  });
 };

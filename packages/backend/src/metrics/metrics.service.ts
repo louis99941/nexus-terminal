@@ -68,6 +68,64 @@ export const sshActiveSessions = new promClient.Gauge({
 });
 
 /**
+ * SSH 连接建立耗时直方图
+ * 标签：status（success / failure）
+ * 用于监控 SSH 连接性能和失败率
+ */
+export const sshConnectDuration = new promClient.Histogram({
+  name: 'ssh_connect_duration_seconds',
+  help: 'SSH 连接建立耗时分布（秒）',
+  labelNames: ['status'] as const,
+  buckets: [0.1, 0.5, 1, 2, 5, 10, 30],
+  registers: [registry],
+});
+
+/**
+ * SFTP 传输字节计数器
+ * 标签：direction（upload / download）
+ * 用于监控文件传输量
+ */
+export const sftpTransferredBytes = new promClient.Counter({
+  name: 'sftp_transferred_bytes_total',
+  help: 'SFTP 传输总字节数',
+  labelNames: ['direction'] as const,
+  registers: [registry],
+});
+
+/**
+ * 认证失败次数计数器
+ * 标签：method（password / passkey / 2fa）
+ * 用于监控异常登录行为和安全告警
+ * 注意：禁止将 username、IP 作为标签（高基数风险）
+ */
+export const authFailuresTotal = new promClient.Counter({
+  name: 'auth_failures_total',
+  help: '认证失败总次数',
+  labelNames: ['method'] as const,
+  registers: [registry],
+});
+
+/**
+ * 活跃 SSH 连接池连接数（仪表盘指标）
+ * 通过 collect 回调在每次抓取时实时计算
+ */
+export const sshPoolConnections = new promClient.Gauge({
+  name: 'ssh_pool_connections',
+  help: '当前 SSH 连接池连接数',
+  registers: [registry],
+  collect() {
+    // 统计所有拥有 sshClient 的客户端状态
+    let count = 0;
+    clientStates.forEach((state) => {
+      if (state.sshClient) {
+        count++;
+      }
+    });
+    this.set(count);
+  },
+});
+
+/**
  * 获取注册表实例，供路由层使用
  */
 export { registry };

@@ -129,6 +129,7 @@ cd packages/frontend && npm run build
 | `ENABLE_GEO_LOOKUP`       | true           | IP 地理位置查询                  |
 | `LOG_LEVEL`               | info           | 日志等级                         |
 | `ENABLE_REQUEST_LOG`      | true           | 启用请求访问日志（false 可关闭） |
+| `ENABLE_HSTS`             | false          | 启用 HSTS 安全头（仅生产 HTTPS） |
 
 ---
 

@@ -210,6 +210,10 @@ ENCRYPTION_KEY=
 
 # 会话密钥（自动生成）
 SESSION_SECRET=
+
+# HSTS 安全头（仅生产 HTTPS 环境开启）
+# 开启后浏览器会强制使用 HTTPS 访问，开发环境勿启用
+ENABLE_HSTS=false
 ```
 
 ### Passkey 认证（可选）

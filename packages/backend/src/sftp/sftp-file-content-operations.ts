@@ -97,6 +97,13 @@ export const executeReadFileContentOperation = async (
       logger.debug(
         `[SFTP ${sessionId}] readFile ${path} success, size: ${fileData.length} bytes (ID: ${requestId}). Processing content...`
       );
+      // SFTP 下载字节指标（延迟导入避免循环依赖）
+      try {
+        const { sftpTransferredBytes } = require('../metrics/metrics.service');
+        sftpTransferredBytes.inc({ direction: 'download' }, fileData.length);
+      } catch {
+        // 指标模块未加载时静默忽略
+      }
       let encodingUsed = 'utf-8';
       try {
         const decodeResult = detectAndDecodeSftpFileContent({

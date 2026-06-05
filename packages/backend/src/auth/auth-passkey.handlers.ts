@@ -5,6 +5,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { getErrorMessage } from '../utils/AppError';
 import { getSingleHeaderToken } from '../utils/url';
+import { authFailuresTotal } from '../metrics/metrics.service';
 import { passkeyService } from '../passkey/passkey.service';
 import { passkeyRepository } from '../passkey/passkey.repository';
 import { userRepository } from '../user/user.repository';
@@ -273,6 +274,8 @@ export const verifyPasskeyAuthenticationHandler = async (
             reason: 'User not found after verification',
           }
         );
+        authFailuresTotal.inc({ method: 'passkey' });
+        authFailuresTotal.inc({ method: 'passkey' });
         eventService.emitEvent(AppEventType.PasskeyAuthFailure, {
           details: { reason: 'Passkey authentication failed' },
         });
@@ -317,6 +320,7 @@ export const verifyPasskeyAuthenticationHandler = async (
           reason: 'Verification failed',
         }
       );
+      authFailuresTotal.inc({ method: 'passkey' });
       eventService.emitEvent(AppEventType.PasskeyAuthFailure, {
         details: { reason: 'Passkey authentication failed' },
       });

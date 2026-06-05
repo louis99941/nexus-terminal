@@ -1,5 +1,6 @@
 import pino from 'pino';
 import { redactSensitiveData } from '../logging/redaction';
+import { getLogContext } from '../middleware/log-context.middleware';
 
 // 环境感知配置：延迟求值，确保 dotenv.config() 已加载 .env 文件
 // index.ts 在模块导入时触发 logger 模块求值，但 dotenv 在 main() 中才加载，
@@ -114,6 +115,10 @@ function createLogger() {
   const wrap =
     (methodGetter: () => (...args: unknown[]) => void) =>
     (...args: unknown[]) => {
+      // 自动注入 AsyncLocalStorage 中的日志上下文（requestId、userId、protocol 等）
+      const ctx = getLogContext();
+      const hasLogContext = Object.keys(ctx).length > 0;
+
       let normalizedArgs = args;
 
       if (args.length >= 2 && typeof args[0] === 'string') {
@@ -147,6 +152,21 @@ function createLogger() {
           if (extraStrings.length > 0) {
             normalizedArgs = [args[0] + ' ' + extraStrings.join(' ')];
           }
+        }
+      }
+
+      // 将日志上下文字段合并到 mergeObject 中（仅存在上下文时）
+      if (hasLogContext && normalizedArgs.length >= 1) {
+        const first = normalizedArgs[0];
+        if (first instanceof Error) {
+          // Error 对象：将 err 放入合并对象，保留 Error 语义（pino 会序列化 err.*）
+          normalizedArgs = [{ ...ctx, err: first }, ...normalizedArgs.slice(1)];
+        } else if (typeof first === 'object' && first !== null && !Array.isArray(first)) {
+          // 普通对象：合并上下文字段
+          normalizedArgs = [{ ...ctx, ...first }, ...normalizedArgs.slice(1)];
+        } else {
+          // 原始类型：上下文作为第一个参数插入
+          normalizedArgs = [ctx, ...normalizedArgs];
         }
       }
 

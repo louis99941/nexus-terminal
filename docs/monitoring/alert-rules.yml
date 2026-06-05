@@ -1,0 +1,59 @@
+# Nexus Terminal Prometheus 告警规则
+# 部署方式：复制到 Prometheus rules 目录或通过 Grafana Alerting 导入
+
+groups:
+  - name: nexus-terminal-alerts
+    rules:
+      # 认证失败率过高（5 分钟内超过 20 次）
+      - alert: HighAuthFailureRate
+        expr: increase(auth_failures_total[5m]) > 20
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "认证失败率过高"
+          description: "5 分钟内认证失败次数超过 20 次，可能存在暴力破解攻击。"
+
+      # SSH 连接延迟过高（P95 > 10 秒）
+      - alert: SshConnectLatencyHigh
+        expr: histogram_quantile(0.95, rate(ssh_connect_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSH 连接延迟过高"
+          description: "SSH 连接 P95 延迟超过 10 秒，可能存在网络或资源瓶颈。"
+
+      # WebSocket 连接数异常（单实例超过 500）
+      - alert: WebSocketConnectionsHigh
+        expr: websocket_active_connections > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket 连接数过高"
+          description: "当前 WebSocket 连接数超过 500，需关注资源使用。"
+
+      # Node.js 内存使用率过高
+      - alert: HighMemoryUsage
+        expr: nodejs_heap_used_bytes / nodejs_heap_total_bytes > 0.85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node.js 堆内存使用率过高"
+          description: "堆内存使用率超过 85%，可能存在内存泄漏。"
+
+      # HTTP 5xx 错误率过高（按总请求比例计算）
+      - alert: HighHttp5xxRate
+        expr: >
+          sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count[5m]))
+          > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx 错误率过高"
+          description: "5 分钟内 5xx 错误占总请求比例超过 10%，服务可能存在严重问题。"

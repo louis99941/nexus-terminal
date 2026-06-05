@@ -62,6 +62,7 @@ export default defineConfig({
             '@xterm/addon-search',
             '@xterm/addon-webgl',
             '@xterm/addon-web-links',
+            '@xterm/addon-unicode11',
           ],
           guacamole: ['guacamole-common-js'],
           chart: ['chart.js', 'vue-chartjs'],

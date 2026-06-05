@@ -3,6 +3,7 @@ import { settingsService } from '../settings/settings.service';
 import eventService, { AppEventType } from '../services/event.service';
 import { getErrorMessage } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { authFailuresTotal } from '../metrics/metrics.service';
 
 // 黑名单相关设置的 Key
 const MAX_LOGIN_ATTEMPTS_KEY = 'maxLoginAttempts';
@@ -82,6 +83,9 @@ export class IpBlacklistService {
    * @param ip IP 地址
    */
   async recordFailedAttempt(ip: string): Promise<void> {
+    // 认证失败指标（无条件记录，不受黑名单开关影响）
+    authFailuresTotal.inc({ method: 'password' });
+
     // 首先检查功能是否启用
     if (!(await settingsService.isIpBlacklistEnabled())) {
       // logger.info('[IP Blacklist] 功能已禁用，跳过 recordFailedAttempt。');

@@ -2,6 +2,25 @@
 
 本页面记录 Nexus Terminal 的重要版本更新和变更。
 
+## v1.5.4（2026-06-05）
+
+### 安全加固
+
+- 🔒 新增安全响应头：HSTS（`ENABLE_HSTS` 环境变量控制）、`Permissions-Policy`、`Cross-Origin-Opener-Policy`、`Cross-Origin-Resource-Policy`
+
+### 可观测性
+
+- 📊 Prometheus 指标增强：新增 SSH 连接耗时、SFTP 传输字节、认证失败次数、SSH 连接池 4 个业务指标
+- 📊 新增 Grafana Dashboard 模板和 Prometheus 告警规则（`docs/monitoring/`）
+- 📝 结构化日志增强：AsyncLocalStorage 日志上下文自动传播（requestId、userId、sessionId、protocol）
+
+### 体验提升
+
+- 🎨 终端渲染优化：Unicode11Addon 支持 CJK 宽字符对齐
+- 🎨 新增异步搜索 Web Worker
+- 📱 移动端优化：VisualViewport 键盘避让、触摸手势增强（双指缩放字号）
+- 📱 PWA manifest 完善：新增快捷方式、display_override
+
 ## v1.5.3（2026-05-27）
 
 ### 修复
