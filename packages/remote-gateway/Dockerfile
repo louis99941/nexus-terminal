@@ -17,7 +17,7 @@ RUN npm run build
 RUN npm prune --production
 
 # --- Stage 2: 基于 guacd 镜像构建最终镜像 ---
-FROM guacamole/guacd:latest
+FROM guacamole/guacd:1.6.0
 
 # 安装 Node.js 20.x（Alpine-based guacd 镜像）
 # guacd 镜像以非 root 用户运行，需要显式切 root 安装依赖
