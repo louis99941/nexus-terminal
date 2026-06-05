@@ -103,11 +103,7 @@ export async function bridgeDataChannelToGateway(
     }
 
     // 转发到 remote-gateway
-    if (typeof msg === 'string') {
-      gatewayWs.send(msg);
-    } else {
-      gatewayWs.send(msg);
-    }
+    gatewayWs.send(msg);
   });
 
   // remote-gateway → DataChannel（服务器 → 浏览器）

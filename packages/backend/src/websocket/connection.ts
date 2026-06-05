@@ -153,6 +153,22 @@ export function initializeConnectionHandler(
           logger.error('[WebSocket] 加载 WebRTC 信令模块失败:', err);
           ws.close(1011, 'WebRTC signaling module load failed');
         });
+
+      // 信令连接的 close/error 清理：注销 userSocketsMap 防止内存泄漏
+      ws.on('close', () => {
+        if (ws.userId) {
+          unregisterUserSocket(ws.userId, ws);
+        }
+        logger.debug(`[WebSocket] WebRTC 信令连接已断开 (用户: ${ws.userId})`);
+      });
+
+      ws.on('error', (error) => {
+        logger.error(`[WebSocket] WebRTC 信令连接错误 (用户: ${ws.userId}):`, error);
+        if (ws.userId) {
+          unregisterUserSocket(ws.userId, ws);
+        }
+      });
+
       return;
     }
 

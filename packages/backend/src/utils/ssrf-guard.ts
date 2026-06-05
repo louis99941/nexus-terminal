@@ -42,6 +42,12 @@ async function getOrResolveHost(
   sourceTag: string
 ): Promise<SsrfValidationResult> {
   const urlObj = new URL(targetUrl);
+
+  // 协议校验：仅允许 http/https，防止 file:/gopher:/ftp: 等非预期协议
+  if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+    throw new Error(`不支持的协议类型: ${urlObj.protocol}，仅允许 http: 和 https:`);
+  }
+
   const hostname = urlObj.hostname.replace(/^\[(.*)\]$/, '$1');
 
   // 检查缓存（直接 IP 地址跳过缓存，因为不涉及 DNS）
@@ -216,9 +222,9 @@ export function cleanupDnsCache(): void {
 /**
  * 获取 DNS 缓存统计信息（用于监控）
  */
-export function getDnsCacheStats(): { size: number; hostname: string } {
+export function getDnsCacheStats(): { size: number; hostnames: string[] } {
   return {
     size: dnsCache.size,
-    hostname: '',
+    hostnames: Array.from(dnsCache.keys()),
   };
 }

@@ -22,12 +22,15 @@ interface SignalingMessage {
   type: 'offer' | 'answer' | 'ice-candidate' | 'error' | 'ready';
   payload?: unknown;
   sessionId?: string;
+  remoteGatewayUrl?: string;
 }
 
 /** WebRTC Tunnel 配置 */
 export interface WebRTCTunnelConfig {
   /** 信令 WebSocket URL */
   signalingUrl: string;
+  /** 远程网关 WebSocket URL（用于后端桥接） */
+  tunnelUrl: string;
   /** ICE 服务器配置 */
   iceServers?: Array<{
     urls: string | string[];
@@ -76,6 +79,7 @@ export class WebRTCTunnel {
   constructor(config: WebRTCTunnelConfig) {
     this.config = {
       signalingUrl: config.signalingUrl,
+      tunnelUrl: config.tunnelUrl,
       iceServers: config.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }],
       connectTimeout: config.connectTimeout || 10000,
     };
@@ -103,6 +107,7 @@ export class WebRTCTunnel {
       this.dc = this.pc.createDataChannel('guacamole', {
         ordered: true,
       });
+      this.dc.binaryType = 'arraybuffer';
 
       this.setupDataChannel();
 
@@ -141,6 +146,7 @@ export class WebRTCTunnel {
 
   /**
    * 通过 DataChannel 发送 Guacamole 消息
+   * Guacamole 协议格式: len.value,len.value,...;
    */
   sendMessage(...elements: string[]): void {
     if (!this.dc || this.dc.readyState !== 'open') {
@@ -148,12 +154,13 @@ export class WebRTCTunnel {
       return;
     }
 
-    const message = elements.join(',');
+    // 编码为 Guacamole 指令帧：len.value,len.value,...;
+    const message = elements.map((el) => `${el.length}.${el}`).join(',') + ';';
     this.dc.send(message);
     this.msgsSent++;
 
     if (this.msgsSent % 100 === 0) {
-      console.debug(`[WebRTCTunnel] 已发送 ${this.msgsSent} 条消息, sessionId=${this.sessionId}`);
+      log.debug(`[WebRTCTunnel] 已发送 ${this.msgsSent} 条消息, sessionId=${this.sessionId}`);
     }
   }
 
@@ -208,9 +215,21 @@ export class WebRTCTunnel {
 
     this.dc.onmessage = (event) => {
       this.msgsReceived++;
-      // Guacamole Client 会通过 Tunnel 的 oninstruction 处理消息
-      // 这里需要将消息转发到 Guacamole 的消息处理管道
-      this.handleDataChannelMessage(event.data as string);
+      // 二进制数据解码：后端可能发送 ArrayBuffer（如 WebSocket 库的二进制帧）
+      let data: string;
+      if (event.data instanceof ArrayBuffer) {
+        data = new TextDecoder().decode(event.data);
+      } else if (event.data instanceof Blob) {
+        // Blob 需异步读取，此处降级为 ArrayBuffer 处理
+        event.data.arrayBuffer().then((buf) => {
+          const decoded = new TextDecoder().decode(buf);
+          this.handleDataChannelMessage(decoded);
+        });
+        return;
+      } else {
+        data = event.data as string;
+      }
+      this.handleDataChannelMessage(data);
     };
 
     this.dc.onclose = () => {
@@ -228,20 +247,16 @@ export class WebRTCTunnel {
 
   /**
    * 处理 DataChannel 上接收到的 Guacamole 消息
+   * Guacamole 协议以分号 ';' 作为指令终止符，多条指令连续发送
    */
   private handleDataChannelMessage(data: string): void {
-    // Guacamole 协议使用逗号分隔的指令
-    // 每条指令格式: arg0,arg1,arg2,...
-    // 多条指令由服务器连续发送
-    // WebSocketTunnel 内部会解析这些指令并调用 Client 的回调
-    // 这里需要模拟 WebSocketTunnel 的消息解析行为
-
-    // 简单处理：将消息按换行分割，每行一条指令
-    const lines = data.split('\n');
-    for (const line of lines) {
-      if (line.trim()) {
+    // 按分号分割 Guacamole 指令
+    const instructions = data.split(';');
+    for (const instruction of instructions) {
+      const trimmed = instruction.trim();
+      if (trimmed) {
         // 触发 Guacamole Client 的 oninstruction 回调
-        this.oninstruction?.(line);
+        this.oninstruction?.(trimmed);
       }
     }
   }
@@ -305,6 +320,7 @@ export class WebRTCTunnel {
       this.sendSignaling({
         type: 'offer',
         payload: this.pc.localDescription,
+        remoteGatewayUrl: this.config.tunnelUrl,
       });
     } catch (error) {
       this.handleError(`创建 SDP Offer 失败: ${error}`);
@@ -433,6 +449,7 @@ export function useWebRTCTunnel() {
         log.info('[useWebRTCTunnel] 尝试 WebRTC 连接...');
         const webrtcTunnel = new WebRTCTunnel({
           signalingUrl,
+          tunnelUrl,
           iceServers: rtcConfig?.iceServers,
           connectTimeout: 8000,
         });

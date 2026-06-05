@@ -145,6 +145,7 @@ async function handleOffer(
   // 创建 RTCPeerConnection
   const pc = new RTCPeerConnection({
     iceServers: iceConfig.iceServers.map((server) => ({
+      // werift 类型定义仅接受 string，数组需转为逗号分隔
       urls: Array.isArray(server.urls) ? server.urls.join(',') : server.urls,
       username: server.username,
       credential: server.credential,
@@ -178,8 +179,9 @@ async function handleOffer(
   };
 
   // 设置 DataChannel 回调（浏览器创建的 DataChannel）
+  // 注意：werift 使用全小写属性名 ondatachannel（非标准 WebRTC API 的 onDataChannel）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (pc as unknown as any).onDataChannel = (event: Record<string, unknown>) => {
+  (pc as unknown as any).ondatachannel = (event: Record<string, unknown>) => {
     const dc = event.channel as RTCDataChannel;
     session.dc = dc;
     logger.info(`[WebRTC Signaling] DataChannel 已建立: ${sessionId}`);
