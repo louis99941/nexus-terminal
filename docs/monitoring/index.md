@@ -14,8 +14,8 @@ METRICS_TOKEN=your-secret-token
 重启后验证指标是否正常暴露：
 
 ```bash
-# 生产环境（需要鉴权头）
-curl -H "X-Metrics-Token: your-secret-token" https://your-domain.com/api/v1/metrics
+# 生产环境（需要鉴权头，将 METRICS_TOKEN 替换为你的实际令牌）
+curl -H "X-Metrics-Token: $METRICS_TOKEN" https://your-domain.com/api/v1/metrics
 
 # 开发环境（无需鉴权）
 curl http://localhost:3001/api/v1/metrics

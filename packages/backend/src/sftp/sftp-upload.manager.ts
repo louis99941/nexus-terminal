@@ -517,8 +517,8 @@ export class SftpUploadManager {
         try {
           const { sftpTransferredBytes } = require('../metrics/metrics.service');
           sftpTransferredBytes.inc({ direction: 'upload' }, chunkBuffer.length);
-        } catch (err) {
-          logger.warn('[SFTP Upload] 指标模块加载失败，上传字节未记录:', err);
+        } catch (metricsErr) {
+          logger.warn('[SFTP Upload] 指标模块加载失败，上传字节未记录:', metricsErr);
         }
 
         if (writeSuccess) {
