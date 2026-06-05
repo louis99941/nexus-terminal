@@ -16,21 +16,18 @@ import { resolveAndValidatePublicHost } from '../utils/url';
 import { createPinnedLookup } from '../utils/ssrf-guard';
 
 /**
- * 允许的内部网关地址前缀
- * remote-gateway 是内部服务，部署在 localhost 或 Docker 网络中
+ * 允许的内部网关主机名（remote-gateway 是内部服务）
+ * 使用主机名精确匹配，防止 userinfo 绕过（如 ws://attacker@localhost:8081）
  */
-const INTERNAL_GATEWAY_PATTERNS = [
-  'ws://localhost:',
-  'ws://127.0.0.1:',
-  'ws://[::1]:',
-  'ws://remote-gateway:',
-  'wss://localhost:',
-  'wss://127.0.0.1:',
-  'wss://[::1]:',
-];
+const INTERNAL_GATEWAY_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', 'remote-gateway']);
 
 function isInternalGatewayUrl(url: string): boolean {
-  return INTERNAL_GATEWAY_PATTERNS.some((pattern) => url.startsWith(pattern));
+  try {
+    const parsed = new URL(url);
+    return INTERNAL_GATEWAY_HOSTNAMES.has(parsed.hostname);
+  } catch {
+    return false;
+  }
 }
 
 /**

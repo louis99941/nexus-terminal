@@ -175,12 +175,13 @@ export async function safeHttpGet(
   // 3. 构造已验证的安全 URL（经 SSRF 校验和 DNS 绑定，安全可信）
   const safeUrl = new URL(url).toString();
 
-  // 4. 发起请求（禁用自动重定向）
+  // 4. 发起请求（禁用自动重定向和代理，确保 DNS pinning 生效）
   const response = await axios({
     ...options,
     url: safeUrl,
     method: options.method || 'GET',
     maxRedirects: 0, // 禁用 axios 自动重定向
+    proxy: false, // 禁用 HTTP_PROXY/HTTPS_PROXY，防止代理绕过 DNS pinning
     httpAgent: new http.Agent({ lookup }),
     httpsAgent: new https.Agent({ lookup }),
     validateStatus: () => true, // 不抛出 HTTP 错误，由后续逻辑处理

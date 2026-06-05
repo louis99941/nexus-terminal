@@ -94,6 +94,9 @@ class WebhookSenderService implements INotificationSender {
           `[WebhookSender] Webhook endpoint responded with status: ${response.status}`,
           response.data
         );
+        throw new Error(
+          `Webhook endpoint rejected the request (HTTP ${response.status}): ${JSON.stringify(response.data).substring(0, 200)}`
+        );
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {

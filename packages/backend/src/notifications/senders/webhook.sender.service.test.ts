@@ -357,12 +357,13 @@ describe('WebhookSenderService', () => {
       expect(mockLogger.info).toHaveBeenCalledTimes(10);
     });
 
-    it('非 2xx 状态码应记录警告但不抛出错误', async () => {
-      // console spy removed (was: warn);
+    it('非 2xx 状态码应记录警告并抛出错误', async () => {
       mockAxios.mockResolvedValue({ status: 302, data: { redirected: true } });
 
-      // 不应抛出错误
-      await webhookSenderService.send(mockNotification);
+      // 非 2xx 应抛出错误以触发重试/错误上报
+      await expect(webhookSenderService.send(mockNotification)).rejects.toThrow(
+        'Webhook endpoint rejected the request (HTTP 302)'
+      );
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('responded with status: 302'),

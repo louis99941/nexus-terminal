@@ -216,7 +216,9 @@ export class AiAuditService {
       // OpenAI 兼容
       headers['Authorization'] = `Bearer ${config.apiKey}`;
 
-      const endpoint = config.openaiEndpoint || '/v1/chat/completions';
+      const endpoint = config.openaiEndpoint?.startsWith('/')
+        ? config.openaiEndpoint
+        : `/${config.openaiEndpoint || 'v1/chat/completions'}`;
       const response = await safeHttpPost(
         `${baseUrl}${endpoint}`,
         {

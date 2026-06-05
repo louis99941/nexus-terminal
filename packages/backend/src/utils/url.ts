@@ -21,7 +21,11 @@ const SSRF_BLOCKED_RANGES = new Set([
 const checkAddressRange = (address: string): string | null => {
   try {
     const parsed = ipaddr.parse(address);
-    const range = parsed.range();
+    // IPv4-mapped IPv6（如 ::ffff:127.0.0.1）需提取内嵌 IPv4 再检查
+    let range = parsed.range();
+    if (range === 'ipv4Mapped' && parsed.kind() === 'ipv6') {
+      range = (parsed as ipaddr.IPv6).toIPv4Address().range();
+    }
     return SSRF_BLOCKED_RANGES.has(range) ? range : null;
   } catch {
     return null;

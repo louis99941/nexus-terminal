@@ -154,8 +154,9 @@ export class WebRTCTunnel {
       return;
     }
 
-    // 编码为 Guacamole 指令帧：len.value,len.value,...;
-    const message = elements.map((el) => `${el.length}.${el}`).join(',') + ';';
+    // 编码为 Guacamole 指令帧：len.value,len.value,...;（len 为 UTF-8 字节数）
+    const enc = new TextEncoder();
+    const message = elements.map((el) => `${enc.encode(el).length}.${el}`).join(',') + ';';
     this.dc.send(message);
     this.msgsSent++;
 
@@ -253,34 +254,49 @@ export class WebRTCTunnel {
   /**
    * 处理 DataChannel 上接收到的 Guacamole 消息
    * Guacamole 帧格式: len.value,len.value,...;
-   * 每条指令以分号终止，元素用逗号分隔，格式为 "长度.值"
+   * len 是 UTF-8 字节数，value 是原始字符串
+   * 使用长度前缀正确解析，而非简单按逗号/分号分割
    */
   private handleDataChannelMessage(data: string): void {
-    // 按分号分割 Guacamole 指令
-    const instructions = data.split(';');
-    for (const instruction of instructions) {
-      const trimmed = instruction.trim();
-      if (!trimmed) continue;
+    // 缓冲区可能包含多条指令，逐字节解析
+    let offset = 0;
+    while (offset < data.length) {
+      // 读取元素长度
+      const dotPos = data.indexOf('.', offset);
+      if (dotPos === -1) break;
 
-      // 解析 Guacamole 帧: "len.opcode,len.arg1,len.arg2,..."
-      const args: string[] = [];
-      const elements = trimmed.split(',');
-      for (const element of elements) {
-        const dotIndex = element.indexOf('.');
-        if (dotIndex === -1) {
-          // 无长度前缀，直接作为原始值
-          args.push(element);
-        } else {
-          // 提取 "len.value" 中的 value 部分
-          args.push(element.substring(dotIndex + 1));
-        }
+      const lenStr = data.substring(offset, dotPos);
+      const elementLen = parseInt(lenStr, 10);
+      if (isNaN(elementLen)) break;
+
+      // 提取元素值（长度为 UTF-8 字节数，但 DataChannel 传入的是已解码的字符串）
+      const valueStart = dotPos + 1;
+      const value = data.substring(valueStart, valueStart + elementLen);
+      offset = valueStart + elementLen;
+
+      // 读取后续逗号分隔的元素
+      const args: string[] = [value];
+      while (offset < data.length && data[offset] === ',') {
+        offset++; // 跳过逗号
+        const nextDot = data.indexOf('.', offset);
+        if (nextDot === -1) break;
+
+        const nextLen = parseInt(data.substring(offset, nextDot), 10);
+        if (isNaN(nextLen)) break;
+
+        const nextValueStart = nextDot + 1;
+        args.push(data.substring(nextValueStart, nextValueStart + nextLen));
+        offset = nextValueStart + nextLen;
+      }
+
+      // 跳过指令终止符 ';'
+      if (offset < data.length && data[offset] === ';') {
+        offset++;
       }
 
       // oninstruction(opcode, args) — 第一个元素是 opcode，其余是参数
       if (args.length > 0) {
-        const opcode = args[0];
-        const params = args.slice(1);
-        this.oninstruction?.(opcode, params);
+        this.oninstruction?.(args[0], args.slice(1));
       }
     }
   }
