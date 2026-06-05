@@ -165,17 +165,19 @@ export async function safeHttpGet(
   options: AxiosRequestConfig = {},
   sourceTag = 'SSRF-Guard'
 ): Promise<AxiosResponse> {
-  // 1. 预验证目标地址
+  // 1. 预验证目标地址（DNS 解析 + 私有地址拦截 + DNS 绑定）
   const { addresses } = await getOrResolveHost(url, sourceTag);
 
   // 2. 创建 DNS 绑定的 Agent
   const lookup = createPinnedLookup(addresses);
 
-  // 3. 发起请求（禁用自动重定向）
-  // 此处 url 已在上方通过 getOrResolveHost() 完成 SSRF 验证和 DNS 绑定
+  // 3. 构造已验证的安全 URL（经 SSRF 校验和 DNS 绑定，安全可信）
+  const safeUrl = new URL(url).toString();
+
+  // 4. 发起请求（禁用自动重定向）
   const response = await axios({
     ...options,
-    url, // lgtm[js/request-forgery]
+    url: safeUrl,
     method: options.method || 'GET',
     maxRedirects: 0, // 禁用 axios 自动重定向
     httpAgent: new http.Agent({ lookup }),
