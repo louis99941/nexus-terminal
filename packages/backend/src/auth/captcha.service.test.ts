@@ -4,7 +4,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 import { CaptchaService, captchaService } from './captcha.service';
-import { safeHttpPost } from '../utils/ssrf-guard';
 import { settingsService } from '../settings/settings.service';
 
 // Mock axios（保留 isAxiosError 用于错误处理）
