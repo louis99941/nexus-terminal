@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import axios from 'axios';
+import { safeHttpGet } from '../utils/ssrf-guard';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -42,10 +42,25 @@ router.get('/latest', async (_req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get(GITHUB_RELEASES_URL, {
-      timeout: 10000,
-      headers: { Accept: 'application/vnd.github.v3+json' },
-    });
+    const response = await safeHttpGet(
+      GITHUB_RELEASES_URL,
+      {
+        timeout: 10000,
+        headers: { Accept: 'application/vnd.github.v3+json' },
+      },
+      'Version'
+    );
+
+    if (response.status >= 400) {
+      const status = response.status;
+      logger.warn({ status }, '[Version] GitHub releases 请求失败');
+      res.status(status === 404 ? 200 : status).json({
+        tag: null,
+        htmlUrl: null,
+        error: status === 404 ? 'no_release' : 'fetch_failed',
+      });
+      return;
+    }
 
     const result = {
       tag: response.data?.tag_name ?? null,
@@ -55,18 +70,8 @@ router.get('/latest', async (_req: Request, res: Response) => {
     setCache('latest', result);
     res.json(result);
   } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status ?? 502;
-      logger.warn({ status }, '[Version] GitHub releases 请求失败');
-      res.status(status === 404 ? 200 : status).json({
-        tag: null,
-        htmlUrl: null,
-        error: status === 404 ? 'no_release' : 'fetch_failed',
-      });
-    } else {
-      logger.error({ err: error }, '[Version] 未知错误');
-      res.status(502).json({ tag: null, htmlUrl: null, error: 'fetch_failed' });
-    }
+    logger.error({ err: error }, '[Version] 未知错误');
+    res.status(502).json({ tag: null, htmlUrl: null, error: 'fetch_failed' });
   }
 });
 
@@ -82,9 +87,19 @@ router.get('/remote', async (_req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get(VERSION_FILE_URL, {
-      timeout: 10000,
-    });
+    const response = await safeHttpGet(
+      VERSION_FILE_URL,
+      {
+        timeout: 10000,
+      },
+      'Version'
+    );
+
+    if (response.status >= 400) {
+      logger.warn({ status: response.status }, '[Version] 远程 VERSION 文件请求失败');
+      res.status(502).json({ version: null, error: 'fetch_failed' });
+      return;
+    }
 
     const version = typeof response.data === 'string' ? response.data.trim() : null;
     const result = { version };

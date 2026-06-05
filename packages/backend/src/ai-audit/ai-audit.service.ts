@@ -20,7 +20,7 @@ import type {
   AnomalyStats,
   AuditDataSummary,
 } from './ai-audit.types';
-import axios from 'axios';
+import { safeHttpPost } from '../utils/ssrf-guard';
 
 export class AiAuditService {
   private repository: AiAuditRepository;
@@ -198,14 +198,15 @@ export class AiAuditService {
       headers['x-api-key'] = config.apiKey;
       headers['anthropic-version'] = '2023-06-01';
 
-      const response = await axios.post(
+      const response = await safeHttpPost(
         `${config.baseUrl}/v1/messages`,
         {
           model: config.model,
           max_tokens: 4096,
           messages: [{ role: 'user', content: prompt }],
         },
-        { headers, timeout: 30000 }
+        { headers, timeout: 30000 },
+        'AI-Audit'
       );
 
       return response.data.content?.[0]?.text || 'AI 分析完成';
@@ -214,7 +215,7 @@ export class AiAuditService {
       headers['Authorization'] = `Bearer ${config.apiKey}`;
 
       const endpoint = config.openaiEndpoint || '/v1/chat/completions';
-      const response = await axios.post(
+      const response = await safeHttpPost(
         `${config.baseUrl}${endpoint}`,
         {
           model: config.model,
@@ -225,7 +226,8 @@ export class AiAuditService {
           temperature: 0.3,
           max_tokens: 4096,
         },
-        { headers, timeout: 30000 }
+        { headers, timeout: 30000 },
+        'AI-Audit'
       );
 
       return response.data.choices?.[0]?.message?.content || 'AI 分析完成';

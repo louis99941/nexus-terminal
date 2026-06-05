@@ -9,6 +9,8 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import http from 'http';
+import https from 'https';
 import {
   AIProviderConfig,
   NL2CMDRequest,
@@ -27,9 +29,47 @@ import crypto from 'crypto';
 import { encrypt, decrypt } from '../utils/crypto';
 import { ErrorFactory } from '../utils/AppError';
 import { logger } from '../utils/logger';
-import { validateUrlNotPrivate } from '../utils/url';
+import { resolveAndValidatePublicHost } from '../utils/url';
 
 const AI_SETTINGS_KEY = 'aiProviderConfig';
+
+/**
+ * 创建 DNS 绑定的 lookup 函数
+ * 强制 axios 连接到已验证的 IP 地址，消除 TOCTOU 空窗
+ */
+function createPinnedLookup(allowedAddresses: string[]) {
+  return (
+    _hostname: string,
+    _options: unknown,
+    callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void
+  ): void => {
+    const address = allowedAddresses[0];
+    const family = address.includes(':') ? 6 : 4;
+    callback(null, address, family);
+  };
+}
+
+/**
+ * 获取 DNS 绑定的 Agent（带缓存）
+ * 对同一 baseURL 复用 Agent 实例，避免重复创建
+ */
+const pinnedAgentCache = new Map<string, { httpAgent: http.Agent; httpsAgent: https.Agent }>();
+
+function getPinnedAgents(
+  baseUrl: string,
+  addresses: string[]
+): { httpAgent: http.Agent; httpsAgent: https.Agent } {
+  const cached = pinnedAgentCache.get(baseUrl);
+  if (cached) return cached;
+
+  const lookup = createPinnedLookup(addresses);
+  const agents = {
+    httpAgent: new http.Agent({ lookup }),
+    httpsAgent: new https.Agent({ lookup }),
+  };
+  pinnedAgentCache.set(baseUrl, agents);
+  return agents;
+}
 
 /**
  * Provider 调用结果（含 token 用量）
@@ -61,11 +101,15 @@ function getCacheKey(baseUrl: string, apiKey: string, prefix?: string): string {
   return prefix ? `${prefix}:${baseUrl}::${keyHash}` : `${baseUrl}::${keyHash}`;
 }
 
-function getAxiosClient(baseUrl: string, apiKey: string): AxiosInstance {
+async function getAxiosClient(baseUrl: string, apiKey: string): Promise<AxiosInstance> {
   const cacheKey = getCacheKey(baseUrl, apiKey);
 
   let client = axiosClientCache.get(cacheKey);
   if (!client) {
+    // SSRF 防护：验证 baseURL 并获取已解析的 IP 地址
+    const { addresses } = await resolveAndValidatePublicHost(baseUrl, 'NL2CMD');
+    const { httpAgent, httpsAgent } = getPinnedAgents(baseUrl, addresses);
+
     client = axios.create({
       baseURL: baseUrl,
       headers: {
@@ -73,6 +117,9 @@ function getAxiosClient(baseUrl: string, apiKey: string): AxiosInstance {
         Authorization: `Bearer ${apiKey}`,
       },
       timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
+      httpAgent,
+      httpsAgent,
+      proxy: false,
     });
   }
   // LRU：命中时刷新访问顺序，未命中时创建后插入
@@ -243,7 +290,7 @@ async function callOpenAIChatCompletions(
   stream: boolean = false,
   endpointPath: string = '/chat/completions'
 ): Promise<ProviderResult> {
-  const client = getAxiosClient(config.baseUrl, config.apiKey);
+  const client = await getAxiosClient(config.baseUrl, config.apiKey);
 
   const requestBody: OpenAIChatRequest = {
     model: config.model,
@@ -432,14 +479,12 @@ export async function generateCommandStream(
       openaiEndpoint: settings.openaiEndpoint,
     };
     const prompt = buildNL2CMDPrompt(request);
-    await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommandStream');
-
     let providerResult: ProviderResult;
     const providerStart = Date.now();
 
     if (config.provider === 'openai' && !(config.openaiEndpoint || '').includes('responses')) {
       // 真 streaming：OpenAI Chat Completions
-      const client = getAxiosClient(config.baseUrl, config.apiKey);
+      const client = await getAxiosClient(config.baseUrl, config.apiKey);
       const requestBody: OpenAIChatRequest = {
         model: config.model,
         messages: [
@@ -527,7 +572,7 @@ async function callOpenAIResponses(
   prompt: string,
   endpointPath: string = '/responses'
 ): Promise<ProviderResult> {
-  const client = getAxiosClient(config.baseUrl, config.apiKey);
+  const client = await getAxiosClient(config.baseUrl, config.apiKey);
 
   const requestBody: OpenAIResponsesRequest = {
     model: config.model,
@@ -608,7 +653,7 @@ async function retryWithBackoff<T>(fn: () => Promise<T>): Promise<T> {
  * 调用 Claude API
  * 注意：Claude API 需要特定的 headers，不能使用共享的 getAxiosClient
  */
-function getClaudeClient(config: AIProviderConfig): AxiosInstance {
+async function getClaudeClient(config: AIProviderConfig): Promise<AxiosInstance> {
   // 兼容旧版 baseUrl（不含 /v1）：自动补全
   const normalizedBaseUrl =
     config.baseUrl.replace(/\/$/, '') + (config.baseUrl.includes('/v1') ? '' : '/v1');
@@ -620,28 +665,33 @@ function getClaudeClient(config: AIProviderConfig): AxiosInstance {
     axiosClientCache.set(cacheKey, client);
     return client;
   }
-  {
-    client = axios.create({
-      baseURL: normalizedBaseUrl,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': config.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
-    });
-    if (axiosClientCache.size >= AXIOS_CACHE_MAX_SIZE) {
-      const firstKey = axiosClientCache.keys().next().value;
-      if (firstKey) axiosClientCache.delete(firstKey);
-    }
-    axiosClientCache.set(cacheKey, client);
+  // SSRF 防护：验证 baseURL 并获取已解析的 IP 地址
+  const { addresses } = await resolveAndValidatePublicHost(normalizedBaseUrl, 'NL2CMD-Claude');
+  const { httpAgent, httpsAgent } = getPinnedAgents(normalizedBaseUrl, addresses);
+
+  client = axios.create({
+    baseURL: normalizedBaseUrl,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    timeout: NL2CMD_CONFIG.REQUEST_TIMEOUT_MS,
+    httpAgent,
+    httpsAgent,
+    proxy: false,
+  });
+  if (axiosClientCache.size >= AXIOS_CACHE_MAX_SIZE) {
+    const firstKey = axiosClientCache.keys().next().value;
+    if (firstKey) axiosClientCache.delete(firstKey);
   }
+  axiosClientCache.set(cacheKey, client);
   return client;
 }
 
 async function callClaude(config: AIProviderConfig, prompt: string): Promise<ProviderResult> {
-  const client = getClaudeClient(config);
+  const client = await getClaudeClient(config);
 
   const requestBody: ClaudeRequest = {
     model: config.model,
@@ -812,9 +862,6 @@ export async function generateCommand(
     const providerStart = Date.now();
     let providerResult: ProviderResult;
 
-    // SSRF 防护：验证 AI Provider baseUrl 不指向私有/内部网络
-    await validateUrlNotPrivate(config.baseUrl, 'NL2CMD generateCommand');
-
     const endpointPath = (() => {
       const ep = config.openaiEndpoint || '/chat/completions';
       const normalizedEp = ep.startsWith('/') ? ep : `/${ep}`;
@@ -936,9 +983,6 @@ export async function testAIConnection(
     };
 
     const prompt = buildNL2CMDPrompt(testRequest);
-
-    // SSRF 防护：验证 AI Provider baseUrl 不指向私有/内部网络
-    await validateUrlNotPrivate(config.baseUrl, 'NL2CMD testAIConnection');
 
     const providerStart = Date.now();
     const endpointPath = (() => {

@@ -4,14 +4,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 import { CaptchaService, captchaService } from './captcha.service';
-
+import { safeHttpPost } from '../utils/ssrf-guard';
 import { settingsService } from '../settings/settings.service';
 
-// Mock axios
-vi.mock('axios', () => ({
-  default: {
-    post: vi.fn(),
-  },
+// Mock axios（保留 isAxiosError 用于错误处理）
+vi.mock('axios', () => {
+  const mockPost = vi.fn();
+  return {
+    default: {
+      post: mockPost,
+    },
+    isAxiosError: vi.fn(() => false),
+  };
+});
+
+// Mock ssrf-guard：让 safeHttpPost 直接调用 mock 的 axios.post，跳过 SSRF 验证
+vi.mock('../utils/ssrf-guard', () => ({
+  safeHttpPost: vi.fn((url: string, data?: unknown, options: Record<string, unknown> = {}) => {
+    return axios.post(url, data, options);
+  }),
 }));
 
 // Mock settings service
