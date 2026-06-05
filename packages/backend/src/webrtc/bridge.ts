@@ -7,10 +7,31 @@
  * 复用 remote-desktop.handler.ts 的握手过滤逻辑。
  */
 
+import http from 'http';
+import https from 'https';
 import WebSocket from 'ws';
 import { RTCDataChannel } from 'werift';
 import { logger } from '../utils/logger';
-import { validateUrlNotPrivate } from '../utils/url';
+import { resolveAndValidatePublicHost } from '../utils/url';
+import { createPinnedLookup } from '../utils/ssrf-guard';
+
+/**
+ * 允许的内部网关地址前缀
+ * remote-gateway 是内部服务，部署在 localhost 或 Docker 网络中
+ */
+const INTERNAL_GATEWAY_PATTERNS = [
+  'ws://localhost:',
+  'ws://127.0.0.1:',
+  'ws://[::1]:',
+  'ws://remote-gateway:',
+  'wss://localhost:',
+  'wss://127.0.0.1:',
+  'wss://[::1]:',
+];
+
+function isInternalGatewayUrl(url: string): boolean {
+  return INTERNAL_GATEWAY_PATTERNS.some((pattern) => url.startsWith(pattern));
+}
 
 /**
  * Guacamole 握手指令过滤器
@@ -35,22 +56,31 @@ export async function bridgeDataChannelToGateway(
     return;
   }
 
-  // SSRF 防护：验证 remoteGatewayUrl 不指向私有/内部地址
-  try {
-    await validateUrlNotPrivate(remoteGatewayUrl, `WebRTC-Bridge-${sessionId}`);
-  } catch (error) {
-    logger.error(`[WebRTC Bridge] SSRF 验证失败: ${sessionId}`, error);
-    dc.send(
-      JSON.stringify({
-        type: 'error',
-        payload: `remote-gateway URL 验证失败: ${error instanceof Error ? error.message : '未知错误'}`,
-      })
-    );
-    return;
+  // SSRF 防护：内部网关地址直接放行，外部地址需 DNS 验证 + 绑定
+  let agent: http.Agent | undefined;
+  if (!isInternalGatewayUrl(remoteGatewayUrl)) {
+    try {
+      const { addresses } = await resolveAndValidatePublicHost(
+        remoteGatewayUrl,
+        `WebRTC-Bridge-${sessionId}`
+      );
+      const lookup = createPinnedLookup(addresses);
+      const urlObj = new URL(remoteGatewayUrl);
+      agent = urlObj.protocol === 'wss:' ? new https.Agent({ lookup }) : new http.Agent({ lookup });
+    } catch (error) {
+      logger.error(`[WebRTC Bridge] SSRF 验证失败: ${sessionId}`, error);
+      dc.send(
+        JSON.stringify({
+          type: 'error',
+          payload: `remote-gateway URL 验证失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        })
+      );
+      return;
+    }
   }
 
-  // 连接到 remote-gateway
-  const gatewayWs = new WebSocket(remoteGatewayUrl);
+  // 连接到 remote-gateway（DNS pinning 消除 TOCTOU 竞态）
+  const gatewayWs = new WebSocket(remoteGatewayUrl, { agent });
   let gatewayReady = false;
   let dcClosed = false;
   let gwClosed = false;

@@ -221,10 +221,15 @@ export class WebRTCTunnel {
         data = new TextDecoder().decode(event.data);
       } else if (event.data instanceof Blob) {
         // Blob 需异步读取，此处降级为 ArrayBuffer 处理
-        event.data.arrayBuffer().then((buf) => {
-          const decoded = new TextDecoder().decode(buf);
-          this.handleDataChannelMessage(decoded);
-        });
+        event.data
+          .arrayBuffer()
+          .then((buf) => {
+            const decoded = new TextDecoder().decode(buf);
+            this.handleDataChannelMessage(decoded);
+          })
+          .catch((err) => {
+            log.error(`[WebRTCTunnel] Blob 解码失败, sessionId=${this.sessionId}:`, err);
+          });
         return;
       } else {
         data = event.data as string;
@@ -247,24 +252,45 @@ export class WebRTCTunnel {
 
   /**
    * 处理 DataChannel 上接收到的 Guacamole 消息
-   * Guacamole 协议以分号 ';' 作为指令终止符，多条指令连续发送
+   * Guacamole 帧格式: len.value,len.value,...;
+   * 每条指令以分号终止，元素用逗号分隔，格式为 "长度.值"
    */
   private handleDataChannelMessage(data: string): void {
     // 按分号分割 Guacamole 指令
     const instructions = data.split(';');
     for (const instruction of instructions) {
       const trimmed = instruction.trim();
-      if (trimmed) {
-        // 触发 Guacamole Client 的 oninstruction 回调
-        this.oninstruction?.(trimmed);
+      if (!trimmed) continue;
+
+      // 解析 Guacamole 帧: "len.opcode,len.arg1,len.arg2,..."
+      const args: string[] = [];
+      const elements = trimmed.split(',');
+      for (const element of elements) {
+        const dotIndex = element.indexOf('.');
+        if (dotIndex === -1) {
+          // 无长度前缀，直接作为原始值
+          args.push(element);
+        } else {
+          // 提取 "len.value" 中的 value 部分
+          args.push(element.substring(dotIndex + 1));
+        }
+      }
+
+      // oninstruction(opcode, args) — 第一个元素是 opcode，其余是参数
+      if (args.length > 0) {
+        const opcode = args[0];
+        const params = args.slice(1);
+        this.oninstruction?.(opcode, params);
       }
     }
   }
 
   /**
    * 指令接收回调（由 Guacamole.Client 设置）
+   * @param opcode 指令操作码
+   * @param args 指令参数列表
    */
-  oninstruction?: (instruction: string) => void;
+  oninstruction?: (opcode: string, args: string[]) => void;
 
   /**
    * 打开信令 WebSocket

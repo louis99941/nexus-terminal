@@ -82,9 +82,14 @@ export const resolveAndValidatePublicHost = async (
   // 如果主机名本身是 IP 地址，直接检查，无需 DNS 解析
   try {
     const parsed = ipaddr.parse(hostname);
-    const range = parsed.range();
-    if (SSRF_BLOCKED_RANGES.has(range)) {
-      logger.warn(`[SSRF] ${sourceTag} 阻止：主机名 ${hostname} 是私有/保留 IP (${range})`);
+    // IPv4-mapped IPv6（如 ::ffff:127.0.0.1）需先提取内嵌 IPv4 再检查范围
+    let checkRange = parsed.range();
+    if (checkRange === 'ipv4Mapped' && parsed.kind() === 'ipv6') {
+      const ipv4 = (parsed as ipaddr.IPv6).toIPv4Address();
+      checkRange = ipv4.range();
+    }
+    if (SSRF_BLOCKED_RANGES.has(checkRange)) {
+      logger.warn(`[SSRF] ${sourceTag} 阻止：主机名 ${hostname} 是私有/保留 IP (${checkRange})`);
       throw new Error('目标地址解析到不允许的网络范围，请求已阻止。');
     }
     return { hostname, addresses: [hostname] };

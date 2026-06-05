@@ -30,24 +30,9 @@ import { encrypt, decrypt } from '../utils/crypto';
 import { ErrorFactory } from '../utils/AppError';
 import { logger } from '../utils/logger';
 import { resolveAndValidatePublicHost } from '../utils/url';
+import { createPinnedLookup } from '../utils/ssrf-guard';
 
 const AI_SETTINGS_KEY = 'aiProviderConfig';
-
-/**
- * 创建 DNS 绑定的 lookup 函数
- * 强制 axios 连接到已验证的 IP 地址，消除 TOCTOU 空窗
- */
-function createPinnedLookup(allowedAddresses: string[]) {
-  return (
-    _hostname: string,
-    _options: unknown,
-    callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void
-  ): void => {
-    const address = allowedAddresses[0];
-    const family = address.includes(':') ? 6 : 4;
-    callback(null, address, family);
-  };
-}
 
 /**
  * 获取 DNS 绑定的 Agent（带缓存）

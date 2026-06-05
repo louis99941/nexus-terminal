@@ -75,8 +75,9 @@ async function getOrResolveHost(
 /**
  * 创建 DNS 绑定的 lookup 函数
  * 强制 HTTP/HTTPS Agent 连接到已验证的 IP 地址，消除 TOCTOU 空窗
+ * 可被其他模块复用（如 nl2cmd、bridge）
  */
-function createPinnedLookup(allowedAddresses: string[]) {
+export function createPinnedLookup(allowedAddresses: string[]) {
   return (
     _hostname: string,
     _options: unknown,

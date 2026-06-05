@@ -193,13 +193,15 @@ export class AiAuditService {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+    // 移除末尾斜杠避免双斜杠 URL
+    const baseUrl = config.baseUrl.replace(/\/+$/, '');
 
     if (config.provider === 'claude') {
       headers['x-api-key'] = config.apiKey;
       headers['anthropic-version'] = '2023-06-01';
 
       const response = await safeHttpPost(
-        `${config.baseUrl}/v1/messages`,
+        `${baseUrl}/v1/messages`,
         {
           model: config.model,
           max_tokens: 4096,
@@ -216,7 +218,7 @@ export class AiAuditService {
 
       const endpoint = config.openaiEndpoint || '/v1/chat/completions';
       const response = await safeHttpPost(
-        `${config.baseUrl}${endpoint}`,
+        `${baseUrl}${endpoint}`,
         {
           model: config.model,
           messages: [
