@@ -75,6 +75,7 @@ export function useSystemSettings() {
     'Asia/Dhaka',
     'Asia/Bangkok',
     'Asia/Shanghai',
+    'Asia/Taipei',
     'Asia/Tokyo',
     'Australia/Sydney',
     'Pacific/Auckland',
