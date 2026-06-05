@@ -101,8 +101,8 @@ export const executeReadFileContentOperation = async (
       try {
         const { sftpTransferredBytes } = require('../metrics/metrics.service');
         sftpTransferredBytes.inc({ direction: 'download' }, fileData.length);
-      } catch {
-        // 指标模块未加载时静默忽略
+      } catch (err) {
+        logger.warn(`[SFTP ${sessionId}] 指标模块加载失败，下载字节未记录:`, err);
       }
       let encodingUsed = 'utf-8';
       try {

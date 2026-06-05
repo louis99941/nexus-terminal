@@ -2,11 +2,14 @@
  * 终端异步搜索 Web Worker
  * 在独立线程中执行搜索操作，避免阻塞主线程 UI 渲染
  * 支持正则表达式搜索和分块索引
+ *
+ * 消息协议遵循 workers/types.ts 定义的 WorkerRequest/WorkerResponse 格式：
+ * - 请求：{ id, type, payload }
+ * - 响应：{ id, type, payload, error? }
  */
 
-/** 搜索请求消息 */
-interface SearchRequest {
-  type: 'search';
+/** 搜索请求 payload */
+interface SearchPayload {
   /** 终端缓冲区文本内容（按行分割） */
   lines: string[];
   /** 搜索关键词或正则表达式 */
@@ -17,9 +20,8 @@ interface SearchRequest {
   caseSensitive: boolean;
 }
 
-/** 索引构建请求消息 */
-interface IndexRequest {
-  type: 'index';
+/** 索引构建请求 payload */
+interface IndexPayload {
   /** 终端缓冲区文本内容 */
   lines: string[];
 }
@@ -30,14 +32,6 @@ interface SearchResult {
   charIndex: number;
   length: number;
   lineText: string;
-}
-
-/** Worker 响应消息 */
-interface SearchResponse {
-  type: 'search-result' | 'index-ready';
-  results?: SearchResult[];
-  totalLines?: number;
-  error?: string;
 }
 
 // 行索引缓存
@@ -67,6 +61,8 @@ function searchInLines(
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    // 防御性检查：跳过 undefined/非字符串元素（稀疏数组或未初始化缓冲区）
+    if (typeof line !== 'string') continue;
     let match: RegExpExecArray | null;
 
     // 重置 lastIndex 以确保全局搜索正确
@@ -109,38 +105,40 @@ function buildIndex(lines: string[]): void {
   indexedLines = lines;
 }
 
-// 消息处理
-self.onmessage = (event: MessageEvent<SearchRequest | IndexRequest>) => {
-  const data = event.data;
+// 消息处理（遵循 workers/types.ts 协议：{id, type, payload}）
+self.onmessage = (event: MessageEvent<{ id: string; type: string; payload: unknown }>) => {
+  const { id, type, payload } = event.data;
 
-  if (data.type === 'index') {
+  if (type === 'index') {
+    const data = payload as IndexPayload;
     buildIndex(data.lines);
-    const response: SearchResponse = {
+    self.postMessage({
+      id,
       type: 'index-ready',
-      totalLines: data.lines.length,
-    };
-    self.postMessage(response);
+      payload: { totalLines: data.lines.length },
+    });
     return;
   }
 
-  if (data.type === 'search') {
+  if (type === 'search') {
+    const data = payload as SearchPayload;
     const { lines, query, useRegex, caseSensitive } = data;
     const searchLines = lines.length > 0 ? lines : indexedLines;
 
     try {
       const results = searchInLines(searchLines, query, useRegex, caseSensitive);
-      const response: SearchResponse = {
+      self.postMessage({
+        id,
         type: 'search-result',
-        results,
-      };
-      self.postMessage(response);
+        payload: { results },
+      });
     } catch (error: unknown) {
-      const response: SearchResponse = {
+      self.postMessage({
+        id,
         type: 'search-result',
-        results: [],
+        payload: { results: [] },
         error: error instanceof Error ? error.message : '搜索失败',
-      };
-      self.postMessage(response);
+      });
     }
   }
 };

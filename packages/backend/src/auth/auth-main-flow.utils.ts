@@ -22,7 +22,7 @@ interface AuthEventServices {
 
 interface LoginFailureServices extends AuthEventServices {
   ipBlacklistService: {
-    recordFailedAttempt: (ip: string) => void;
+    recordFailedAttempt: (ip: string, method?: 'password' | '2fa') => void;
   };
 }
 
@@ -55,10 +55,11 @@ export const recordLoginFailureAttempt = (
     reason: string;
     clientIp: string;
     userId?: number;
+    method?: 'password' | '2fa';
   }
 ): void => {
-  const { username, reason, clientIp, userId } = payload;
-  services.ipBlacklistService.recordFailedAttempt(clientIp);
+  const { username, reason, clientIp, userId, method } = payload;
+  services.ipBlacklistService.recordFailedAttempt(clientIp, method);
   const eventPayload: Record<string, unknown> = {
     username,
     reason,

@@ -81,10 +81,11 @@ export class IpBlacklistService {
    * 记录一次登录失败尝试
    * 如果达到阈值，则封禁该 IP
    * @param ip IP 地址
+   * @param method 认证方法（password / 2fa），用于区分指标标签
    */
-  async recordFailedAttempt(ip: string): Promise<void> {
+  async recordFailedAttempt(ip: string, method: 'password' | '2fa' = 'password'): Promise<void> {
     // 认证失败指标（无条件记录，不受黑名单开关影响）
-    authFailuresTotal.inc({ method: 'password' });
+    authFailuresTotal.inc({ method });
 
     // 首先检查功能是否启用
     if (!(await settingsService.isIpBlacklistEnabled())) {

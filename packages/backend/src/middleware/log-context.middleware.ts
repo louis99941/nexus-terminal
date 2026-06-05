@@ -50,7 +50,9 @@ export const logContext = new AsyncLocalStorage<LogContext>();
  */
 export function withLogContext<T>(ctx: LogContext, fn: () => T): T {
   const parent = logContext.getStore() ?? {};
-  return logContext.run({ ...parent, ...ctx }, fn);
+  // 过滤 undefined 值，避免覆盖父上下文中的有效属性
+  const cleanCtx = Object.fromEntries(Object.entries(ctx).filter(([_, v]) => v !== undefined));
+  return logContext.run({ ...parent, ...cleanCtx }, fn);
 }
 
 /**

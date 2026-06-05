@@ -87,6 +87,24 @@ export function useVirtualKeyboard(containerRef?: Ref<HTMLElement | null>) {
     }, 300);
   };
 
+  /**
+   * 屏幕旋转时重新初始化视口高度基准值
+   */
+  const handleOrientationChange = () => {
+    // 延迟等待旋转动画完成后再读取高度
+    setTimeout(() => {
+      initialViewportHeight = viewport ? viewport.height : window.innerHeight;
+      // 重置键盘状态
+      isVisible.value = false;
+      keyboardHeight.value = 0;
+      viewportDelta.value = 0;
+      if (containerRef?.value) {
+        containerRef.value.style.height = '';
+        containerRef.value.style.maxHeight = '';
+      }
+    }, 300);
+  };
+
   onMounted(() => {
     if (typeof window === 'undefined') return;
 
@@ -103,8 +121,9 @@ export function useVirtualKeyboard(containerRef?: Ref<HTMLElement | null>) {
       window.addEventListener('resize', handleViewportResize);
     }
 
-    // 监听失焦事件
+    // 监听失焦事件和屏幕旋转
     window.addEventListener('blur', handleBlur);
+    window.addEventListener('orientationchange', handleOrientationChange);
   });
 
   onBeforeUnmount(() => {
@@ -115,6 +134,7 @@ export function useVirtualKeyboard(containerRef?: Ref<HTMLElement | null>) {
       window.removeEventListener('resize', handleViewportResize);
     }
     window.removeEventListener('blur', handleBlur);
+    window.removeEventListener('orientationchange', handleOrientationChange);
 
     // 恢复容器样式
     if (containerRef?.value) {

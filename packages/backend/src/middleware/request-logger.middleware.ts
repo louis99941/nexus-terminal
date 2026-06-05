@@ -58,6 +58,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
       }
       logger[level](
         {
+          requestId,
           method: req.method,
           path: req.path,
           statusCode: res.statusCode,

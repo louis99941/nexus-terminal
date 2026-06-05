@@ -275,7 +275,6 @@ export const verifyPasskeyAuthenticationHandler = async (
           }
         );
         authFailuresTotal.inc({ method: 'passkey' });
-        authFailuresTotal.inc({ method: 'passkey' });
         eventService.emitEvent(AppEventType.PasskeyAuthFailure, {
           details: { reason: 'Passkey authentication failed' },
         });

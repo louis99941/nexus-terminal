@@ -11,7 +11,15 @@ ENABLE_METRICS=true
 METRICS_TOKEN=your-secret-token
 ```
 
-重启后访问 `/api/v1/metrics` 验证指标是否正常暴露。
+重启后验证指标是否正常暴露：
+
+```bash
+# 生产环境（需要鉴权头）
+curl -H "X-Metrics-Token: your-secret-token" https://your-domain.com/api/v1/metrics
+
+# 开发环境（无需鉴权）
+curl http://localhost:3001/api/v1/metrics
+```
 
 ## 可用指标
 
@@ -60,7 +68,7 @@ rule_files:
 
 1. 打开 Grafana，进入 **Alerting → Alert rules**
 2. 点击 **Import rule**
-3. 上传 `alert-rules.yml` 文件
+3. 上传 `docs/monitoring/alert-rules.yml` 文件
 
 ### 告警规则说明
 
