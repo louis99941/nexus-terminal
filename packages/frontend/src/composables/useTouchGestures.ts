@@ -69,6 +69,12 @@ export function useTouchGestures(options: TouchGestureOptions) {
     // 菜单已可见时，终端内触摸应关闭菜单而非启动新的长按计时器
     if (isContextMenuVisible.value) {
       hideContextMenu();
+      // 重置触摸基准坐标，避免后续 touchmove 使用过期的 scrollY 导致跳动
+      const touch = event.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      lastScrollY = touch.clientY;
+      clearLongPressTimer();
       return;
     }
 

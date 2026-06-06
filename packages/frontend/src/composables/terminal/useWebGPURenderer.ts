@@ -106,7 +106,9 @@ export function useWebGPURenderer(): WebGPURenderer {
         log.warn('[WebGPU] GPUDevice 初始化失败，使用降级渲染:', error);
         return null;
       }
-    })();
+    })().finally(() => {
+      initPromise = null;
+    });
 
     return initPromise;
   }

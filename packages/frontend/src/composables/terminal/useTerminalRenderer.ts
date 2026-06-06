@@ -172,6 +172,7 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
   /**
    * 根据当前渲染模式处理 WebGL 上下文丢失后的恢复逻辑
    * - auto 模式：降级为 DOM 渲染器
+   * - webgpu 模式：WebGL 是实际渲染后端，尝试重新加载（最多 MAX_WEBGL_RECOVERY_ATTEMPTS 次）
    * - webgl 模式：尝试重新加载（最多 MAX_WEBGL_RECOVERY_ATTEMPTS 次）
    */
   function handleContextLossRecovery(term: Terminal): void {
@@ -180,8 +181,8 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
       activeRenderer.value = 'dom';
       contextState.value = 'unavailable';
       log.info(`[Terminal ${sessionId}] auto 模式：WebGL 上下文丢失后降级为 DOM 渲染器`);
-    } else if (renderMode.value === 'webgl') {
-      // webgl 强制模式：尝试重新加载
+    } else if (renderMode.value === 'webgpu' || renderMode.value === 'webgl') {
+      // webgpu/webgl 模式：WebGL 是实际渲染后端，尝试重新加载
       if (recoveryAttempts < MAX_WEBGL_RECOVERY_ATTEMPTS) {
         recoveryAttempts++;
         log.info(
@@ -190,7 +191,8 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
         const success = loadWebglAddon(term);
         if (success) {
           recoveryAttempts = 0;
-          activeRenderer.value = 'webgl';
+          // 恢复成功时保持当前渲染模式标识
+          activeRenderer.value = renderMode.value === 'webgpu' ? 'webgpu' : 'webgl';
         } else {
           // 恢复失败，降级为 DOM 渲染器
           activeRenderer.value = 'dom';
