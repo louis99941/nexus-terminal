@@ -467,6 +467,60 @@ describe('appearance.store', () => {
 
       expect(store.currentTerminalFontSize).toBe(14);
     });
+
+    it('terminalRenderMode 为 webgpu 时应正确设置 currentRenderMode', async () => {
+      mockGet.mockResolvedValueOnce({ data: { terminalRenderMode: 'webgpu' } });
+      mockGet.mockResolvedValueOnce({ data: [] });
+
+      const { useAppearanceStore } = await import('./appearance.store');
+      const store = useAppearanceStore();
+
+      await store.loadInitialAppearanceData();
+
+      expect(store.currentRenderMode).toBe('webgpu');
+    });
+
+    it('terminalRenderMode 为非法字符串时应回退到 auto', async () => {
+      mockGet.mockResolvedValueOnce({ data: { terminalRenderMode: 'invalid_mode' } });
+      mockGet.mockResolvedValueOnce({ data: [] });
+
+      const { useAppearanceStore } = await import('./appearance.store');
+      const store = useAppearanceStore();
+
+      await store.loadInitialAppearanceData();
+
+      expect(store.currentRenderMode).toBe('auto');
+    });
+
+    it('setRenderMode 成功应更新 currentRenderMode', async () => {
+      mockGet.mockResolvedValueOnce({ data: {} });
+      mockGet.mockResolvedValueOnce({ data: [] });
+      mockPut.mockResolvedValueOnce({ data: { terminalRenderMode: 'webgpu' } });
+
+      const { useAppearanceStore } = await import('./appearance.store');
+      const store = useAppearanceStore();
+
+      await store.loadInitialAppearanceData();
+      await store.setRenderMode('webgpu');
+
+      expect(store.currentRenderMode).toBe('webgpu');
+    });
+
+    it('setRenderMode 失败应回滚到之前的模式', async () => {
+      mockGet.mockResolvedValueOnce({ data: { terminalRenderMode: 'auto' } });
+      mockGet.mockResolvedValueOnce({ data: [] });
+      mockPut.mockRejectedValueOnce(new Error('update failed'));
+
+      const { useAppearanceStore } = await import('./appearance.store');
+      const store = useAppearanceStore();
+
+      await store.loadInitialAppearanceData();
+      expect(store.currentRenderMode).toBe('auto');
+
+      await store.setRenderMode('webgpu').catch(() => {});
+
+      expect(store.currentRenderMode).toBe('auto');
+    });
   });
 
   describe('子 Store 代理属性', () => {

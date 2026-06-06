@@ -60,6 +60,7 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
   let isAttached = false;
   let longPressTriggered = false;
   let suppressNextClickRelease = false;
+  let leftButtonSent = false;
 
   const getClient = () => options.guacClient?.value ?? options.client?.value ?? null;
   const getElement = () => options.displayEl?.value ?? options.element?.value ?? null;
@@ -197,13 +198,14 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
     lastTouch = { x: touch.clientX, y: touch.clientY };
     longPressTriggered = false;
     suppressNextClickRelease = false;
+    leftButtonSent = false;
 
-    sendState(point, { left: true });
+    // 不立即发送左键按下，避免长按场景触发意外的拖拽/选区。
+    // 左键会在 touchmove 超过拖拽阈值时发送（确认为拖拽），或在 touchend 时作为 tap 发送。
 
     clearLongPressTimer();
     longPressTimer = setTimeout(() => {
       const currentPoint = mode.value === 'relative' ? lastSentPosition : getAbsolutePoint(touch);
-      sendState(currentPoint, { left: false });
       sendClick(currentPoint, 'right');
       longPressTriggered = true;
       suppressNextClickRelease = true;
@@ -229,9 +231,20 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
       Math.hypot(touch.clientX - startTouch.x, touch.clientY - startTouch.y) > MOVE_CANCEL_THRESHOLD
     ) {
       clearLongPressTimer();
+      // 超过拖拽阈值，确认为拖拽：首次发送左键按下
+      if (!leftButtonSent && !longPressTriggered) {
+        const startPoint = getMappedPoint({
+          clientX: startTouch.x,
+          clientY: startTouch.y,
+        } as Touch);
+        sendState(startPoint, { left: true });
+        leftButtonSent = true;
+      }
     }
 
-    sendState(point, { left: !longPressTriggered });
+    if (leftButtonSent && !longPressTriggered) {
+      sendState(point, { left: true });
+    }
     lastTouch = { x: touch.clientX, y: touch.clientY };
   };
 
@@ -242,20 +255,31 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
       sendClick(getCenterPoint(event.changedTouches), 'right');
       lastTouch = null;
       startTouch = null;
+      leftButtonSent = false;
       return;
     }
 
     const touch = event.changedTouches[0];
-    if (touch && !suppressNextClickRelease) {
-      sendState(mode.value === 'relative' ? lastSentPosition : getAbsolutePoint(touch), {
-        left: false,
-      });
+
+    if (leftButtonSent && !longPressTriggered) {
+      // 拖拽结束：释放左键
+      const endPoint = touch
+        ? mode.value === 'relative'
+          ? lastSentPosition
+          : getAbsolutePoint(touch)
+        : lastSentPosition;
+      sendState(endPoint, { left: false });
+    } else if (!longPressTriggered && !suppressNextClickRelease && touch) {
+      // 未拖拽且未长按：作为 tap 发送（按下 + 释放）
+      const tapPoint = mode.value === 'relative' ? lastSentPosition : getAbsolutePoint(touch);
+      sendClick(tapPoint, 'left');
     }
 
     lastTouch = null;
     startTouch = null;
     suppressNextClickRelease = false;
     longPressTriggered = false;
+    leftButtonSent = false;
   };
 
   const attach = () => {
