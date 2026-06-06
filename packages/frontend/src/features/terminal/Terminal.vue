@@ -35,6 +35,7 @@ const { t } = useI18n();
 import { useTerminalFit } from '../../composables/terminal/useTerminalFit';
 import { useTerminalSocket } from '../../composables/terminal/useTerminalSocket';
 import { useTerminalRenderer } from '../../composables/terminal/useTerminalRenderer';
+import { useTouchGestures } from '../../composables/useTouchGestures';
 import { OutputEnhancerAddon } from './addons/output-enhancer';
 import PerformanceMonitor from './components/PerformanceMonitor.vue';
 import { log } from '@/utils/log';
@@ -162,6 +163,34 @@ const getScrollbackValue = (limit: number): number => {
   return Math.max(0, limit);
 };
 
+const sendPastedTextToTerminal = (text: string) => {
+  const processedText = text.replace(/\r\n?/g, '\n');
+  // 移动端菜单复用桌面粘贴策略，确保 bracketed paste 行为一致。
+  const data = terminalEnableBracketedPasteBoolean.value
+    ? `\x1b[200~${processedText}\x1b[201~`
+    : processedText;
+  emitWorkspaceEvent('terminal:input', {
+    sessionId: props.sessionId,
+    data,
+  });
+};
+
+const {
+  isContextMenuVisible: isTouchContextMenuVisible,
+  contextMenuPosition: touchContextMenuPosition,
+  hideContextMenu: hideTouchContextMenu,
+  handleCopy: handleTouchCopy,
+  handlePaste: handleTouchPaste,
+  handleSelectAll: handleTouchSelectAll,
+  attach: attachTouchGestures,
+  detach: detachTouchGestures,
+} = useTouchGestures({
+  terminal: terminalInstance,
+  terminalRef,
+  getSelection: () => terminalInstance.value?.getSelection() ?? null,
+  pasteText: sendPastedTextToTerminal,
+});
+
 const MIN_TERMINAL_COLS_NO_WRAP = 240;
 
 const syncNoWrapContentWidth = (term: Terminal) => {
@@ -244,16 +273,7 @@ const handleContextMenuPaste = async (event: MouseEvent) => {
   try {
     const text = await navigator.clipboard.readText();
     if (text) {
-      const processedText = text.replace(/\r\n?/g, '\n');
-      // 根据设置决定是否使用 Bracketed Paste Mode 包裹
-      // 关闭 bracketed paste 可解决基础 sh 环境下转义序列显示异常问题
-      const data = terminalEnableBracketedPasteBoolean.value
-        ? `\x1b[200~${processedText}\x1b[201~`
-        : processedText;
-      emitWorkspaceEvent('terminal:input', {
-        sessionId: props.sessionId,
-        data,
-      });
+      sendPastedTextToTerminal(text);
     }
   } catch (err: unknown) {
     log.error('[Terminal] Failed to paste via Right Click:', err);
@@ -586,6 +606,7 @@ onMounted(() => {
       terminalRef.value.addEventListener('touchmove', handleTouchMove, { passive: false });
       terminalRef.value.addEventListener('touchend', handleTouchEnd, { passive: false });
       terminalRef.value.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+      attachTouchGestures();
     }
   }
 });
@@ -621,6 +642,7 @@ onBeforeUnmount(() => {
     terminalRef.value.removeEventListener('touchmove', handleTouchMove);
     terminalRef.value.removeEventListener('touchend', handleTouchEnd);
     terminalRef.value.removeEventListener('touchcancel', handleTouchEnd);
+    detachTouchGestures();
   }
 
   if (terminalRef.value) {
@@ -727,6 +749,26 @@ watchEffect(() => {
     <div ref="terminalRef" class="terminal-inner-container"></div>
     <PerformanceMonitor :metrics="getMetrics()" :visible="isFpsEnabled" />
   </div>
+  <Teleport to="body">
+    <div
+      v-if="isTouchContextMenuVisible"
+      data-touch-context-menu="true"
+      class="terminal-touch-context-menu"
+      :style="{
+        left: `${touchContextMenuPosition.x}px`,
+        top: `${touchContextMenuPosition.y}px`,
+      }"
+      @touchstart.stop
+      @click.stop
+    >
+      <button type="button" @click="handleTouchCopy">{{ t('common.copy', '复制') }}</button>
+      <button type="button" @click="handleTouchPaste">{{ t('common.paste', '粘贴') }}</button>
+      <button type="button" @click="handleTouchSelectAll">
+        {{ t('common.selectAll', '全选') }}
+      </button>
+      <button type="button" @click="hideTouchContextMenu">{{ t('common.cancel', '取消') }}</button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -759,6 +801,37 @@ watchEffect(() => {
 .terminal-inner-container :deep(.xterm-screen canvas) {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+}
+
+.terminal-touch-context-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 132px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--header-bg-color);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  transform: translate(-8px, -8px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.terminal-touch-context-menu button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.terminal-touch-context-menu button:active {
+  background: var(--nav-item-active-bg-color);
 }
 
 .terminal-outer-wrapper.no-auto-wrap :deep(.xterm-viewport) {
