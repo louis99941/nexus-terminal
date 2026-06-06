@@ -166,6 +166,13 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
     return mode.value === 'relative' ? lastSentPosition : getAbsolutePoint(centerTouch);
   };
 
+  /** 获取释放左键时的坐标，避免嵌套三元表达式 */
+  const getEndPointForRelease = (touch: Touch | undefined): TouchPoint => {
+    if (!touch) return lastSentPosition;
+    if (mode.value === 'relative') return lastSentPosition;
+    return getAbsolutePoint(touch);
+  };
+
   const sendClick = (point: TouchPoint, button: 'left' | 'right') => {
     sendState(point, { [button]: true });
     sendState(point, { [button]: false });
@@ -192,7 +199,6 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
     }
 
     const touch = event.touches[0];
-    const point = getMappedPoint(touch);
 
     startTouch = { x: touch.clientX, y: touch.clientY };
     lastTouch = { x: touch.clientX, y: touch.clientY };
@@ -233,10 +239,14 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
       clearLongPressTimer();
       // 超过拖拽阈值，确认为拖拽：首次发送左键按下
       if (!leftButtonSent && !longPressTriggered) {
-        const startPoint = getMappedPoint({
-          clientX: startTouch.x,
-          clientY: startTouch.y,
-        } as Touch);
+        // relative 模式下使用 lastSentPosition，避免从触摸起点映射导致光标跳动
+        const startPoint =
+          mode.value === 'relative'
+            ? lastSentPosition
+            : getAbsolutePoint({
+                clientX: startTouch.x,
+                clientY: startTouch.y,
+              } as Touch);
         sendState(startPoint, { left: true });
         leftButtonSent = true;
       }
@@ -263,11 +273,7 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
 
     if (leftButtonSent && !longPressTriggered) {
       // 拖拽结束：释放左键
-      const endPoint = touch
-        ? mode.value === 'relative'
-          ? lastSentPosition
-          : getAbsolutePoint(touch)
-        : lastSentPosition;
+      const endPoint = getEndPointForRelease(touch);
       sendState(endPoint, { left: false });
     } else if (!longPressTriggered && !suppressNextClickRelease && touch) {
       // 未拖拽且未长按：作为 tap 发送（按下 + 释放）
