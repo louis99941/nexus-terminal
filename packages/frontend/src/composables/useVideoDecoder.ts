@@ -31,7 +31,7 @@ export interface VideoDecoderController {
 type RenderCanvas = HTMLCanvasElement | OffscreenCanvas;
 type Canvas2DContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-const DEFAULT_CODEC = 'avc1';
+const DEFAULT_CODEC = 'avc1.42001E';
 
 function isCanvasRef(
   canvas: Ref<HTMLCanvasElement | null> | HTMLCanvasElement | null
@@ -85,7 +85,12 @@ export function useVideoDecoder(options: UseVideoDecoderOptions): VideoDecoderCo
 
       if (canTransferOffscreen) {
         try {
-          renderCanvas = canvas.transferControlToOffscreen();
+          // 缓存已转换的 OffscreenCanvas 到 canvas 元素上，防止重复调用 transferControlToOffscreen
+          const customCanvas = canvas as HTMLCanvasElement & { _offscreenCanvas?: OffscreenCanvas };
+          if (!customCanvas._offscreenCanvas) {
+            customCanvas._offscreenCanvas = canvas.transferControlToOffscreen();
+          }
+          renderCanvas = customCanvas._offscreenCanvas;
           isUsingOffscreen.value = true;
         } catch (error: unknown) {
           renderCanvas = canvas;

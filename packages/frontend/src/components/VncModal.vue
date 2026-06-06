@@ -101,7 +101,12 @@ const sendInputTextToVnc = async () => {
 };
 const keyboard = ref<InstanceType<typeof Guacamole.Keyboard> | null>(null);
 const mouse = ref<InstanceType<typeof Guacamole.Mouse> | null>(null);
-let touchMouseMapping: ReturnType<typeof useTouchMouseMapping> | null = null;
+const touchMouseMapping = useTouchMouseMapping({
+  guacClient,
+  displayEl: vncTouchDisplayEl,
+  Guacamole,
+  initialMode: 'absolute',
+});
 // Initialize desiredModalWidth and desiredModalHeight from store or defaults
 const initialStoreWidth = settingsStore.settings.vncModalWidth
   ? parseInt(settingsStore.settings.vncModalWidth, 10)
@@ -373,15 +378,8 @@ const setupInputListeners = () => {
         };
 
     if (isMobile.value) {
-      touchMouseMapping?.detach();
       vncTouchDisplayEl.value = displayEl;
       // 移动端使用原生 Touch 事件映射 Guacamole 鼠标状态。
-      touchMouseMapping = useTouchMouseMapping({
-        guacClient,
-        displayEl: vncTouchDisplayEl,
-        Guacamole,
-        initialMode: 'absolute',
-      });
       touchMouseMapping.attach();
     }
 
@@ -409,8 +407,7 @@ const setupInputListeners = () => {
 };
 
 const removeInputListeners = () => {
-  touchMouseMapping?.detach();
-  touchMouseMapping = null;
+  touchMouseMapping.detach();
   vncTouchDisplayEl.value = null;
 
   // Remove host copy event listener

@@ -75,7 +75,7 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
   const setMode = (newMode: MouseMappingMode) => {
     mode.value = newMode;
     lastTouch = null;
-    lastSentPosition = { x: 0, y: 0 };
+    // 不重置 lastSentPosition，避免切换到 relative 模式后鼠标跳到左上角
   };
 
   const createMouseState = (
@@ -122,9 +122,19 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
     const rect = element?.getBoundingClientRect();
     if (!rect) return { x: touch.clientX, y: touch.clientY };
 
+    // 获取 Guacamole 画面缩放比例，将 CSS 像素坐标正确映射到远程桌面实际像素坐标
+    const client = getClient();
+    const displayGetter = client as unknown as {
+      getDisplay?: () => { getScale?: () => number };
+    } | null;
+    const scale =
+      displayGetter && typeof displayGetter.getDisplay === 'function'
+        ? (displayGetter.getDisplay().getScale?.() ?? 1)
+        : 1;
+
     return {
-      x: Math.min(Math.max(touch.clientX - rect.left, 0), rect.width),
-      y: Math.min(Math.max(touch.clientY - rect.top, 0), rect.height),
+      x: Math.min(Math.max((touch.clientX - rect.left) / scale, 0), rect.width / scale),
+      y: Math.min(Math.max((touch.clientY - rect.top) / scale, 0), rect.height / scale),
     };
   };
 
@@ -163,8 +173,14 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
   const handleTouchStart = (event: TouchEvent) => {
     if (event.touches.length === 2) {
       clearLongPressTimer();
+      // 释放第一根手指触发的左键按下状态，防止双指轻点时远端残留悬停的左键
+      const point = getCenterPoint(event.touches);
+      sendState(point, { left: false });
       lastTouch = null;
       startTouch = null;
+      if (event.cancelable) {
+        event.preventDefault();
+      }
       return;
     }
 

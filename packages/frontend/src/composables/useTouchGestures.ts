@@ -1,5 +1,6 @@
 import { getCurrentInstance, onBeforeUnmount, ref, type Ref } from 'vue';
 import type { Terminal } from '@xterm/xterm';
+import { log } from '@/utils/log';
 
 export interface ContextMenuPosition {
   x: number;
@@ -46,7 +47,13 @@ export function useTouchGestures(options: TouchGestureOptions) {
   };
 
   const showContextMenu = (x: number, y: number) => {
-    contextMenuPosition.value = { x, y };
+    // 限制菜单位置在视口范围内，防止在屏幕边缘长按时菜单被裁剪
+    const menuWidth = 140;
+    const menuHeight = 160;
+    const boundedX = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8));
+    const boundedY = Math.max(8, Math.min(y, window.innerHeight - menuHeight - 8));
+
+    contextMenuPosition.value = { x: boundedX, y: boundedY };
     isContextMenuVisible.value = true;
 
     // 长按反馈只在支持振动的移动设备上触发。
@@ -56,6 +63,12 @@ export function useTouchGestures(options: TouchGestureOptions) {
   const handleTouchStart = (event: TouchEvent) => {
     if (event.touches.length !== 1) {
       clearLongPressTimer();
+      return;
+    }
+
+    // 菜单已可见时，终端内触摸应关闭菜单而非启动新的长按计时器
+    if (isContextMenuVisible.value) {
+      hideContextMenu();
       return;
     }
 
@@ -125,21 +138,31 @@ export function useTouchGestures(options: TouchGestureOptions) {
       return;
     }
 
-    await navigator.clipboard.writeText(selectedText);
-    options.terminal.value?.clearSelection?.();
-    hideContextMenu();
+    try {
+      await navigator.clipboard.writeText(selectedText);
+      options.terminal.value?.clearSelection?.();
+    } catch (error: unknown) {
+      log.warn('[TouchGestures] 复制失败:', error);
+    } finally {
+      hideContextMenu();
+    }
   };
 
   const handlePaste = async () => {
-    const text = await navigator.clipboard.readText();
-    if (text) {
-      if (options.pasteText) {
-        options.pasteText(text);
-      } else {
-        options.terminal.value?.paste?.(text);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        if (options.pasteText) {
+          options.pasteText(text);
+        } else {
+          options.terminal.value?.paste?.(text);
+        }
       }
+    } catch (error: unknown) {
+      log.warn('[TouchGestures] 粘贴失败:', error);
+    } finally {
+      hideContextMenu();
     }
-    hideContextMenu();
   };
 
   const handleSelectAll = () => {

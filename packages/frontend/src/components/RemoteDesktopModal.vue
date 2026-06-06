@@ -45,7 +45,12 @@ const initialModalHeightForResize = ref(0);
 const statusMessage = ref('');
 const keyboard = ref<InstanceType<typeof Guacamole.Keyboard> | null>(null);
 const mouse = ref<InstanceType<typeof Guacamole.Mouse> | null>(null);
-let touchMouseMapping: ReturnType<typeof useTouchMouseMapping> | null = null;
+const touchMouseMapping = useTouchMouseMapping({
+  guacClient,
+  displayEl: rdpTouchDisplayEl,
+  Guacamole,
+  initialMode: 'absolute',
+});
 const desiredModalWidth = ref(1064);
 const desiredModalHeight = ref(858);
 
@@ -371,15 +376,8 @@ const setupInputListeners = () => {
         };
 
     if (isMobile.value) {
-      touchMouseMapping?.detach();
       rdpTouchDisplayEl.value = displayEl;
       // 移动端使用原生 Touch 事件映射 Guacamole 鼠标状态。
-      touchMouseMapping = useTouchMouseMapping({
-        guacClient,
-        displayEl: rdpTouchDisplayEl,
-        Guacamole,
-        initialMode: 'absolute',
-      });
       touchMouseMapping.attach();
     }
 
@@ -429,8 +427,7 @@ const setupInputListeners = () => {
 };
 
 const removeInputListeners = () => {
-  touchMouseMapping?.detach();
-  touchMouseMapping = null;
+  touchMouseMapping.detach();
   rdpTouchDisplayEl.value = null;
 
   // 恢复光标并尝试移除监听器

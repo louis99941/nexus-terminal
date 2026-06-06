@@ -40,6 +40,7 @@ export function useWebGPURenderer(): WebGPURenderer {
   const gpuDevice = ref<WebGPUDevice | null>(null);
 
   let gpuAdapter: WebGPUAdapter | null = null;
+  let initPromise: Promise<WebGPUDevice | null> | null = null;
 
   /**
    * 检测 WebGPU API 与适配器是否可用
@@ -82,23 +83,32 @@ export function useWebGPURenderer(): WebGPURenderer {
       return gpuDevice.value;
     }
 
-    const supported = await isWebGPUSupported();
-    if (!supported || !gpuAdapter) {
-      return null;
+    // 防止并发调用时创建多个 GPUDevice 实例
+    if (initPromise) {
+      return initPromise;
     }
 
-    try {
-      const device = await gpuAdapter.requestDevice();
-      gpuDevice.value = device;
-      webgpuState.value = 'active';
-      log.info('[WebGPU] GPUDevice 初始化成功');
-      return device;
-    } catch (error: unknown) {
-      gpuDevice.value = null;
-      webgpuState.value = 'error';
-      log.warn('[WebGPU] GPUDevice 初始化失败，使用降级渲染:', error);
-      return null;
-    }
+    initPromise = (async () => {
+      const supported = await isWebGPUSupported();
+      if (!supported || !gpuAdapter) {
+        return null;
+      }
+
+      try {
+        const device = await gpuAdapter.requestDevice();
+        gpuDevice.value = device;
+        webgpuState.value = 'active';
+        log.info('[WebGPU] GPUDevice 初始化成功');
+        return device;
+      } catch (error: unknown) {
+        gpuDevice.value = null;
+        webgpuState.value = 'error';
+        log.warn('[WebGPU] GPUDevice 初始化失败，使用降级渲染:', error);
+        return null;
+      }
+    })();
+
+    return initPromise;
   }
 
   /**
@@ -115,6 +125,7 @@ export function useWebGPURenderer(): WebGPURenderer {
     }
 
     gpuAdapter = null;
+    initPromise = null;
     webgpuState.value = 'unsupported';
   }
 
