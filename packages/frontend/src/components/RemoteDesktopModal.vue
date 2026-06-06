@@ -10,9 +10,13 @@ import { ConnectionInfo } from '../stores/connections.store';
 import { extractErrorMessage } from '../utils/errorExtractor';
 import { log } from '@/utils/log';
 import { useWebRTCTunnel } from '@/composables/useWebRTCTunnel';
+import { useVideoDecoder } from '@/composables/useVideoDecoder';
+import { useDeviceDetection } from '@/composables/useDeviceDetection';
+import { useTouchMouseMapping } from '@/composables/useTouchMouseMapping';
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
+const { isMobile } = useDeviceDetection();
 
 const props = defineProps<{
   connection: ConnectionInfo | null;
@@ -30,6 +34,7 @@ const maxAllowedHeight = computed(() => window.innerHeight - MODAL_CONTAINER_PAD
 
 const rdpDisplayRef = ref<HTMLDivElement | null>(null);
 const rdpContainerRef = ref<HTMLDivElement | null>(null);
+const rdpTouchDisplayEl = ref<HTMLElement | null>(null);
 const guacClient = ref<InstanceType<typeof Guacamole.Client> | null>(null);
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 const isResizing = ref(false);
@@ -40,11 +45,19 @@ const initialModalHeightForResize = ref(0);
 const statusMessage = ref('');
 const keyboard = ref<InstanceType<typeof Guacamole.Keyboard> | null>(null);
 const mouse = ref<InstanceType<typeof Guacamole.Mouse> | null>(null);
+const touchMouseMapping = useTouchMouseMapping({
+  guacClient,
+  displayEl: rdpTouchDisplayEl,
+  Guacamole,
+  initialMode: 'absolute',
+});
 const desiredModalWidth = ref(1064);
 const desiredModalHeight = ref(858);
 
 const tempInputWidth = ref<number | string>(desiredModalWidth.value);
 const tempInputHeight = ref<number | string>(desiredModalHeight.value);
+const videoDecoderCanvas = ref<HTMLCanvasElement | null>(null);
+const videoDecoder = useVideoDecoder({ canvas: videoDecoderCanvas });
 
 const isKeyboardDisabledForInput = ref(false); // 标记键盘是否因输入框聚焦而禁用
 const isMinimized = ref(false);
@@ -63,9 +76,55 @@ interface GuacamoleStatus {
   message?: string;
 }
 
+interface NavigatorWithDeviceMemory extends Navigator {
+  deviceMemory?: number;
+}
+
 // 统一使用当前页面地址构建 WebSocket URL，本地开发时 Vite 代理会转发到后端
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const backendBaseUrl = `${wsProtocol}//${window.location.host}/ws`;
+
+/**
+ * 判断是否属于低端设备
+ * 使用浏览器暴露的核心数和内存信息做保守判断，缺失信息时不误判为低端设备。
+ */
+const isLowEndDevice = computed<boolean>(() => {
+  const hardwareConcurrency = navigator.hardwareConcurrency || 0;
+  const deviceMemory = (navigator as NavigatorWithDeviceMemory).deviceMemory || 0;
+  return (
+    (hardwareConcurrency > 0 && hardwareConcurrency <= 4) || (deviceMemory > 0 && deviceMemory <= 4)
+  );
+});
+
+/**
+ * 在远程桌面 canvas 可用后按需初始化 WebCodecs 解码器
+ * 当前 Guacamole 仍负责实际画面渲染，这里只完成移动端/低端设备的视频解码能力准备。
+ */
+async function initVideoDecoderIfNeeded(): Promise<void> {
+  if (!isMobile.value && !isLowEndDevice.value) {
+    videoDecoder.dispose();
+    log.info('[RemoteDesktopModal] 非移动端或低端设备，跳过 WebCodecs 初始化');
+    return;
+  }
+
+  await nextTick();
+
+  const displayCanvas = rdpDisplayRef.value?.querySelector('canvas') || null;
+  if (!displayCanvas) {
+    log.warn('[RemoteDesktopModal] 未找到远程桌面 canvas，跳过 WebCodecs 初始化');
+    return;
+  }
+
+  const decoderCanvas = document.createElement('canvas');
+  // 使用独立辅助 canvas 初始化解码器，避免抢占 Guacamole 正在使用的显示 canvas。
+  decoderCanvas.width = displayCanvas.width || displayCanvas.clientWidth || 1;
+  decoderCanvas.height = displayCanvas.height || displayCanvas.clientHeight || 1;
+  videoDecoderCanvas.value = decoderCanvas;
+  const initialized = await videoDecoder.init();
+  log.info(
+    `[RemoteDesktopModal] WebCodecs supported=${videoDecoder.isSupported.value}, offscreen=${videoDecoder.isUsingOffscreen.value}, initialized=${initialized}`
+  );
+}
 
 const handleConnection = async () => {
   if (!props.connection || !rdpDisplayRef.value) {
@@ -185,6 +244,7 @@ const handleConnection = async () => {
                 canvases.forEach((canvas) => {
                   canvas.style.zIndex = '999';
                 });
+                void initVideoDecoderIfNeeded();
               }
             });
           }, 100);
@@ -315,6 +375,12 @@ const setupInputListeners = () => {
           }
         };
 
+    if (isMobile.value) {
+      rdpTouchDisplayEl.value = displayEl;
+      // 移动端使用原生 Touch 事件映射 Guacamole 鼠标状态。
+      touchMouseMapping.attach();
+    }
+
     keyboard.value = new Guacamole.Keyboard(displayEl); // 将监听器附加到 RDP 显示元素
 
     keyboard.value.onkeydown = (keysym: number) => {
@@ -361,6 +427,9 @@ const setupInputListeners = () => {
 };
 
 const removeInputListeners = () => {
+  touchMouseMapping.detach();
+  rdpTouchDisplayEl.value = null;
+
   // 恢复光标并尝试移除监听器
   if (guacClient.value) {
     try {
@@ -463,6 +532,8 @@ const handleClickRestoreButton = () => {
 };
 
 const disconnectGuacamole = () => {
+  videoDecoder.dispose();
+  videoDecoderCanvas.value = null;
   removeInputListeners();
   isKeyboardDisabledForInput.value = false; // 确保状态重置
   if (guacClient.value) {

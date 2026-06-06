@@ -25,7 +25,7 @@ import { createHtmlPresetsStore } from './appearance-html-presets.store';
 import { log } from '@/utils/log';
 
 // 终端渲染模式类型（内联定义，避免循环依赖）
-export type RenderMode = 'auto' | 'webgl' | 'canvas' | 'dom';
+export type RenderMode = 'auto' | 'webgpu' | 'webgl' | 'canvas' | 'dom';
 
 // 重新导出 safeJsonParse 供外部使用（如 StyleCustomizerUiTab.vue）
 export { safeJsonParse };
@@ -96,7 +96,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
   });
 
   // --- 渲染模式与 FPS ---
-  const VALID_RENDER_MODES: RenderMode[] = ['auto', 'webgl', 'canvas', 'dom'];
+  const VALID_RENDER_MODES: RenderMode[] = ['auto', 'webgpu', 'webgl', 'canvas', 'dom'];
   const isRenderMode = (value: unknown): value is RenderMode =>
     typeof value === 'string' && VALID_RENDER_MODES.includes(value as RenderMode);
 

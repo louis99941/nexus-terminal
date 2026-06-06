@@ -9,9 +9,12 @@ import type { ConnectionInfo } from '../stores/connections.store';
 import { extractErrorMessage } from '../utils/errorExtractor';
 import { log } from '@/utils/log';
 import { useWebRTCTunnel } from '@/composables/useWebRTCTunnel';
+import { useDeviceDetection } from '@/composables/useDeviceDetection';
+import { useTouchMouseMapping } from '@/composables/useTouchMouseMapping';
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
+const { isMobile } = useDeviceDetection();
 
 const props = defineProps<{
   connection: ConnectionInfo | null;
@@ -29,6 +32,7 @@ const maxAllowedHeight = computed(() => window.innerHeight - MODAL_CONTAINER_PAD
 
 const vncDisplayRef = ref<HTMLDivElement | null>(null);
 const vncContainerRef = ref<HTMLDivElement | null>(null);
+const vncTouchDisplayEl = ref<HTMLElement | null>(null);
 const guacClient = ref<InstanceType<typeof Guacamole.Client> | null>(null);
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 const isResizing = ref(false);
@@ -97,6 +101,12 @@ const sendInputTextToVnc = async () => {
 };
 const keyboard = ref<InstanceType<typeof Guacamole.Keyboard> | null>(null);
 const mouse = ref<InstanceType<typeof Guacamole.Mouse> | null>(null);
+const touchMouseMapping = useTouchMouseMapping({
+  guacClient,
+  displayEl: vncTouchDisplayEl,
+  Guacamole,
+  initialMode: 'absolute',
+});
 // Initialize desiredModalWidth and desiredModalHeight from store or defaults
 const initialStoreWidth = settingsStore.settings.vncModalWidth
   ? parseInt(settingsStore.settings.vncModalWidth, 10)
@@ -367,6 +377,12 @@ const setupInputListeners = () => {
           }
         };
 
+    if (isMobile.value) {
+      vncTouchDisplayEl.value = displayEl;
+      // 移动端使用原生 Touch 事件映射 Guacamole 鼠标状态。
+      touchMouseMapping.attach();
+    }
+
     keyboard.value = new Guacamole.Keyboard(displayEl);
 
     keyboard.value.onkeydown = (keysym: number) => {
@@ -391,6 +407,9 @@ const setupInputListeners = () => {
 };
 
 const removeInputListeners = () => {
+  touchMouseMapping.detach();
+  vncTouchDisplayEl.value = null;
+
   // Remove host copy event listener
   // document.removeEventListener('copy', handleHostCopy); // Removed this
   if (guacClient.value) {

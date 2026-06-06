@@ -2,6 +2,15 @@
 
 本页面记录 Nexus Terminal 的重要版本更新和变更。
 
+## [Unreleased]
+
+### 改进
+
+- 🎨 WebGPU 渲染支持（`useWebGPURenderer`）：新增 WebGPU 能力检测与 GPUDevice 管理，作为最高优先级渲染模式，不可用时自动降级到 WebGL/Canvas/DOM
+- 🎨 WebCodecs 视频解码（`useVideoDecoder`）：新增基于 WebCodecs API 的硬件加速视频解码 composable，支持 OffscreenCanvas 离屏渲染，移动端/低端设备条件启用
+- 📱 终端触摸手势增强（`useTouchGestures`）：单指长按 500ms 弹出复制/粘贴/全选快捷菜单，单指上下滑动精准控制终端滚动
+- 📱 RDP/VNC 触摸-鼠标映射（`useTouchMouseMapping`）：支持 Absolute（直接映射坐标）和 Relative（触控板模式）两种模式，单指 tap=左键、长按=右键、双指 tap=右键、拖拽=鼠标拖拽
+
 ## v1.5.4（2026-06-05）
 
 ### 修复

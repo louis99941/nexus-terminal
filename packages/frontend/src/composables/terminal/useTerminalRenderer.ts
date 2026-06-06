@@ -9,9 +9,10 @@ import type { Terminal } from '@xterm/xterm';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { log } from '@/utils/log';
+import { useWebGPURenderer } from './useWebGPURenderer';
 
 // 渲染模式类型
-export type RenderMode = 'auto' | 'webgl' | 'canvas' | 'dom';
+export type RenderMode = 'auto' | 'webgpu' | 'webgl' | 'canvas' | 'dom';
 
 // WebGL 上下文状态
 export type ContextState = 'active' | 'lost' | 'unavailable';
@@ -21,7 +22,9 @@ export interface RenderMetrics {
   /** 当前配置的渲染模式 */
   renderMode: RenderMode;
   /** 实际生效的渲染器类型 */
-  activeRenderer: 'webgl' | 'canvas' | 'dom';
+  activeRenderer: 'webgpu' | 'webgl' | 'canvas' | 'dom';
+  /** WebGPU 能力检测与设备初始化状态 */
+  webgpuState?: string;
   /** 当前 FPS（每 60 帧更新一次） */
   fps: number;
   /** 最近 60 帧的平均帧时间（毫秒） */
@@ -45,7 +48,7 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
   const renderMode = ref<RenderMode>('auto');
 
   /** 实际生效的渲染器类型 */
-  const activeRenderer = ref<'webgl' | 'canvas' | 'dom'>('dom');
+  const activeRenderer = ref<'webgpu' | 'webgl' | 'canvas' | 'dom'>('dom');
 
   /** WebGL 上下文状态 */
   const contextState = ref<ContextState>('unavailable');
@@ -58,6 +61,13 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
 
   /** 最近 60 帧的平均帧时间（毫秒） */
   const frameTime = ref(0);
+
+  const {
+    webgpuState,
+    isWebGPUSupported,
+    initGPUDevice,
+    dispose: disposeWebGPU,
+  } = useWebGPURenderer();
 
   // --- 内部状态 ---
 
@@ -122,8 +132,47 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
   }
 
   /**
+   * 应用 WebGPU 渲染模式
+   * 当前 @xterm/addon-webgpu 尚未接入，因此这里仅完成 WebGPU 能力检测与 GPUDevice 初始化；
+   * 实际终端画面仍复用现有 WebGL addon 渲染，方便后续无缝替换真实 WebGPU 渲染器。
+   */
+  async function applyWebGPURendererMode(term: Terminal): Promise<void> {
+    const supported = await isWebGPUSupported();
+    if (renderMode.value !== 'webgpu') return;
+
+    if (supported) {
+      const device = await initGPUDevice();
+      if (renderMode.value !== 'webgpu') return;
+
+      if (device) {
+        const success = loadWebglAddon(term);
+        if (success) {
+          activeRenderer.value = 'webgpu';
+          recoveryAttempts = 0;
+          log.info(`[Terminal ${sessionId}] WebGPU 设备已就绪，当前实际渲染暂由 WebGL addon 承担`);
+        } else {
+          activeRenderer.value = 'dom';
+          contextState.value = 'unavailable';
+        }
+        return;
+      }
+    }
+
+    // WebGPU 不可用或设备初始化失败时，沿用 webgl 强制模式的降级策略
+    const success = loadWebglAddon(term);
+    if (success) {
+      activeRenderer.value = 'webgl';
+      recoveryAttempts = 0;
+    } else {
+      activeRenderer.value = 'dom';
+      contextState.value = 'unavailable';
+    }
+  }
+
+  /**
    * 根据当前渲染模式处理 WebGL 上下文丢失后的恢复逻辑
    * - auto 模式：降级为 DOM 渲染器
+   * - webgpu 模式：WebGL 是实际渲染后端，尝试重新加载（最多 MAX_WEBGL_RECOVERY_ATTEMPTS 次）
    * - webgl 模式：尝试重新加载（最多 MAX_WEBGL_RECOVERY_ATTEMPTS 次）
    */
   function handleContextLossRecovery(term: Terminal): void {
@@ -132,8 +181,8 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
       activeRenderer.value = 'dom';
       contextState.value = 'unavailable';
       log.info(`[Terminal ${sessionId}] auto 模式：WebGL 上下文丢失后降级为 DOM 渲染器`);
-    } else if (renderMode.value === 'webgl') {
-      // webgl 强制模式：尝试重新加载
+    } else if (renderMode.value === 'webgpu' || renderMode.value === 'webgl') {
+      // webgpu/webgl 模式：WebGL 是实际渲染后端，尝试重新加载
       if (recoveryAttempts < MAX_WEBGL_RECOVERY_ATTEMPTS) {
         recoveryAttempts++;
         log.info(
@@ -142,7 +191,8 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
         const success = loadWebglAddon(term);
         if (success) {
           recoveryAttempts = 0;
-          activeRenderer.value = 'webgl';
+          // 恢复成功时保持当前渲染模式标识
+          activeRenderer.value = renderMode.value === 'webgpu' ? 'webgpu' : 'webgl';
         } else {
           // 恢复失败，降级为 DOM 渲染器
           activeRenderer.value = 'dom';
@@ -167,6 +217,10 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
     disposeWebglAddon();
 
     switch (renderMode.value) {
+      case 'webgpu': {
+        void applyWebGPURendererMode(term);
+        break;
+      }
       case 'webgl': {
         const success = loadWebglAddon(term);
         if (success) {
@@ -280,7 +334,7 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
    * 获取完整的渲染性能指标
    */
   function getMetrics(): RenderMetrics {
-    return {
+    const metrics: RenderMetrics = {
       renderMode: renderMode.value,
       activeRenderer: activeRenderer.value,
       fps: fps.value,
@@ -288,6 +342,12 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
       contextState: contextState.value,
       contextLossCount: contextLossCount.value,
     };
+
+    if (renderMode.value === 'webgpu' || webgpuState.value !== 'unsupported') {
+      metrics.webgpuState = webgpuState.value;
+    }
+
+    return metrics;
   }
 
   // --- 初始化与清理 ---
@@ -320,6 +380,7 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
   function cleanup(): void {
     stopMonitoring();
     disposeWebglAddon();
+    disposeWebGPU();
     contextState.value = 'unavailable';
   }
 
@@ -340,6 +401,8 @@ export function useTerminalRenderer(terminal: Ref<Terminal | null>, sessionId: s
     fps,
     /** 最近 60 帧的平均帧时间（毫秒） */
     frameTime,
+    /** WebGPU 能力检测与设备初始化状态 */
+    webgpuState,
 
     /** 设置渲染模式并应用 */
     setRenderMode,
