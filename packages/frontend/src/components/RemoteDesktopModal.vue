@@ -16,7 +16,7 @@ import { useTouchMouseMapping } from '@/composables/useTouchMouseMapping';
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
-const { isMobile } = useDeviceDetection();
+const { isMobile, isTouchDevice } = useDeviceDetection();
 
 const props = defineProps<{
   connection: ConnectionInfo | null;
@@ -375,9 +375,9 @@ const setupInputListeners = () => {
           }
         };
 
-    if (isMobile.value) {
+    if (isTouchDevice.value) {
       rdpTouchDisplayEl.value = displayEl;
-      // 移动端使用原生 Touch 事件映射 Guacamole 鼠标状态。
+      // 触屏设备使用原生 Touch 事件映射 Guacamole 鼠标状态。
       touchMouseMapping.attach();
     }
 

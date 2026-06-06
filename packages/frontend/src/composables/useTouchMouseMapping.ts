@@ -166,6 +166,22 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
     return mode.value === 'relative' ? lastSentPosition : getAbsolutePoint(centerTouch);
   };
 
+  /** touchcancel 处理：清除状态并释放已按下的左键，但不合成点击 */
+  const handleTouchCancel = (event: TouchEvent) => {
+    clearLongPressTimer();
+
+    // 如果左键已按下，释放它
+    if (leftButtonSent) {
+      sendState(lastSentPosition, { left: false });
+    }
+
+    lastTouch = null;
+    startTouch = null;
+    suppressNextClickRelease = false;
+    longPressTriggered = false;
+    leftButtonSent = false;
+  };
+
   /** 获取释放左键时的坐标，避免嵌套三元表达式 */
   const getEndPointForRelease = (touch: Touch | undefined): TouchPoint => {
     if (!touch) return lastSentPosition;
@@ -297,7 +313,7 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
     attachedElement.addEventListener('touchstart', handleTouchStart, { passive: false });
     attachedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
     attachedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-    attachedElement.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+    attachedElement.addEventListener('touchcancel', handleTouchCancel, { passive: false });
     isAttached = true;
   };
 
@@ -308,7 +324,7 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
       attachedElement.removeEventListener('touchstart', handleTouchStart);
       attachedElement.removeEventListener('touchmove', handleTouchMove);
       attachedElement.removeEventListener('touchend', handleTouchEnd);
-      attachedElement.removeEventListener('touchcancel', handleTouchEnd);
+      attachedElement.removeEventListener('touchcancel', handleTouchCancel);
     }
 
     attachedElement = null;
