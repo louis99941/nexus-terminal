@@ -2,68 +2,56 @@
 
 本页面记录 Nexus Terminal 的重要版本更新和变更。
 
-## [Unreleased]
-
-### 改进
-
-- 🎨 WebGPU 渲染支持（`useWebGPURenderer`）：新增 WebGPU 能力检测与 GPUDevice 管理，作为最高优先级渲染模式，不可用时自动降级到 WebGL/Canvas/DOM
-- 🎨 WebCodecs 视频解码（`useVideoDecoder`）：新增基于 WebCodecs API 的硬件加速视频解码 composable，支持 OffscreenCanvas 离屏渲染，移动端/低端设备条件启用
-- 📱 终端触摸手势增强（`useTouchGestures`）：单指长按 500ms 弹出复制/粘贴/全选快捷菜单，单指上下滑动精准控制终端滚动
-- 📱 RDP/VNC 触摸-鼠标映射（`useTouchMouseMapping`）：支持 Absolute（直接映射坐标）和 Relative（触控板模式）两种模式，单指 tap=左键、长按=右键、双指 tap=右键、拖拽=鼠标拖拽
-
-## v1.5.4（2026-06-05）
+## v1.5.4（2026-06-08）
 
 ### 修复
 
-- 🐛 修复 WebRTC 远程桌面桥接的 SSRF 防护漏洞（PR #92）— `bridgeDataChannelToGateway` 在建立 WebSocket 连接前，新增 `validateUrlNotPrivate` 验证 `remoteGatewayUrl`，阻止指向私有/内部地址的恶意网关 URL
-- 🐛 修复 SSRF DNS 缓存误缓存直接 IP 地址问题（PR #92）— 使用 `ipaddr.js` 明确检测 IP 地址格式，替代原先 `new URL()` 的间接判断方式，避免原始 IP 被错误写入 DNS 缓存
-- 🐛 修复 WebRTC 连接状态变更时定时器未清理问题（PR #92）— 前端 `WebRTCTunnel` 在 `connected`、`failed`、`disconnected` 状态变更时调用 `clearConnectTimer()`，防止连接超时计时器在已确定状态下继续触发
+- 🐛 修复 WebRTC 远程桌面安全漏洞 — 阻止恶意网关 URL 指向内部网络（PR #92）
+- 🐛 修复 WebRTC 连接超时计时器未清理问题 — 连接状态确定后不再重复触发超时（PR #92）
+- 🐛 修复 SFTP 大文件上传超时中断（Issue #95）— 88MB 以上文件传输不再被误判为超时而中断
 
 ### 改进
 
-- ♻️ WebRTC 信令协议增强（PR #92）— `SignalingMessage` 接口新增 `remoteGatewayUrl` 字段，offer 消息必须携带该字段；`handleOffer` 改为返回创建的会话对象，确保后续信令消息能正确关联会话上下文
-- 📊 Prometheus 指标增强：新增 SSH 连接耗时、SFTP 传输字节、认证失败次数、SSH 连接池 4 个业务指标
-- 📊 新增 Grafana Dashboard 模板和 Prometheus 告警规则（`docs/monitoring/`）
-- 📝 结构化日志增强：AsyncLocalStorage 日志上下文自动传播（requestId、userId、sessionId、protocol）
-- 🎨 终端渲染优化：Unicode11Addon 支持 CJK 宽字符对齐
+- ♻️ WebRTC 信令协议增强 — 连接建立流程更可靠（PR #92）
+- 📊 Prometheus 指标增强 — 新增 SSH 连接耗时、SFTP 传输字节、认证失败次数、连接池监控
+- 📊 新增 Grafana Dashboard 模板和告警规则
+- 📝 结构化日志增强 — 请求链路追踪更完善
+- 🎨 终端渲染优化 — CJK 宽字符对齐更准确
 - 🎨 新增异步搜索 Web Worker
-- 📱 移动端优化：VisualViewport 键盘避让、触摸手势增强（双指缩放字号）
-- 📱 PWA manifest 完善：新增快捷方式、display_override
+- 🎨 WebGPU 渲染支持 — 自动检测 GPU 能力，不可用时降级到 WebGL/Canvas
+- 🎨 WebCodecs 视频解码 — 硬件加速视频解码，移动端自动启用
+- 📱 移动端优化 — 键盘避让、触摸手势增强
+- 📱 终端触摸手势增强 — 长按弹出快捷菜单，滑动控制滚动
+- 📱 RDP/VNC 触摸-鼠标映射 — 支持绝对/相对两种模式，触控操作更自然
+- 📱 PWA manifest 完善 — 新增快捷方式
 
 ### 安全
 
-- 🔒 WebRTC 桥接层新增 SSRF 防护（PR #92）— 验证远程网关 URL 不指向私有网络地址，验证失败时通过 DataChannel 返回明确错误信息
-- 🔒 新增安全响应头：HSTS（`ENABLE_HSTS` 环境变量控制）、`Permissions-Policy`、`Cross-Origin-Opener-Policy`、`Cross-Origin-Resource-Policy`
+- 🔒 WebRTC 桥接层新增 SSRF 防护（PR #92）
+- 🔒 新增安全响应头：HSTS、Permissions-Policy、Cross-Origin-Opener-Policy、Cross-Origin-Resource-Policy
 
 ## v1.5.3（2026-05-27）
 
 ### 修复
 
-- 🐛 修复 RDP/VNC 远程桌面连接握手协议冲突（Issue #84）— 过滤浏览器 `guacamole-common-js` 发送的 `connect/select/size/audio/video/image/timezone` 等握手指令，避免与 `guacamole-lite` 内部已完成的 Guacd 握手产生协议状态冲突
-- 🐛 修复 SFTP 压缩/解压大文件超时误报问题（Issue #85）— 压缩成功但前端报"压缩超时"的根因：
-  - 后端解析 `tar/zip/unzip` 的 stderr 输出实时上报进度，每 3 秒节流发送 `sftp:compress:progress` / `sftp:decompress:progress`
-  - 新增 10 秒心跳保活机制，即使 stderr 长时间无输出（如压缩单个超大文件）也持续维持前端超时计时器
-  - 修复 `parseArchiveFileName` 使用废弃的 `RegExp.$1/$2` 全局状态变量问题，改用 `match()` 返回的局部数组，避免并发回调中正则状态污染
-  - 强化 `tar` stderr 文件名解析，过滤 `tar:` 前缀诊断信息，减少虚假进度计数
-  - 修复节流与计数耦合问题：`fileCount` 始终累加不丢失，只控制 WebSocket 发送频率，确保尾部文件被节流吞掉时计数仍准确
-  - 在 `stream.on('close')` 关闭时发送最终进度（含最近文件名），确保前端获取准确文件总数
-- 🐛 修复前端 SFTP `readFile` / `writeFile` 大文件 20 秒硬编码超时误报 — 提升至 120 秒，与压缩操作保持一致，避免编辑大日志/二进制文件时误报"读取/保存超时"导致数据状态不一致
-- 🐛 修复前端 SFTP 压缩/解压 `timeoutId` 闭包变量在严格 TypeScript 模式下"used before being assigned"警告
+- 🐛 修复 RDP/VNC 远程桌面连接握手冲突（Issue #84）— 连接建立不再因协议状态冲突而失败
+- 🐛 修复 SFTP 压缩/解压大文件超时误报（Issue #85）— 大文件操作不再显示虚假的"压缩超时"提示，进度上报更及时准确
+- 🐛 修复 SFTP 文件读写超时误报 — 编辑大文件不再误报"读取/保存超时"
 
 ### 改进
 
-- ♻️ RDP 代理消息转发日志采样优化 — 高频转发日志改为 1/100 采样，避免生产环境误开 `LOG_LEVEL=debug` 时刷爆容器日志卷
-- ♻️ RDP/客户端 WebSocket 关闭事件日志提升至 `info` 级别，便于排查异常断开
-- 🔒 后端归档进度上报新增 WebSocket 状态检查，避免向已关闭连接写消息引发异常
+- ♻️ RDP 代理日志优化 — 降低高频转发日志噪音，避免生产环境日志刷爆
+- ♻️ WebSocket 关闭事件日志提升至 info 级别，便于排查异常断开
+- 🔒 归档进度上报新增连接状态检查，避免向已断开连接发送消息
 
 ### 测试
 
-- ✅ 扩展 RDP handler 测试覆盖：新增 `select/size/audio/video/image` 握手指令过滤测试，新增用户键鼠输入指令（`key,...`）正常转发测试
-- ✅ 前端 SFTP 压缩/解压超时测试用例适配 120 秒新阈值
+- ✅ 扩展 RDP handler 测试覆盖
+- ✅ 前端 SFTP 超时测试用例适配新阈值
 
 ### 文档
 
-- 📝 更新 `docs/changelog.md` 同步 v1.5.3 修复内容
+- 📝 更新 changelog 同步 v1.5.3 修复内容
 
 ## v1.5.2（2026-05-26）
 
@@ -113,6 +101,12 @@
 - 🔧 chore: 发布 v1.5.2 版本并清理废弃运行时脚本
 
 - 🐛 fix: 修复 RDP 握手冲突、SFTP 大文件超时误报及进度计数丢失问题
+
+- 🔧 chore: 更新版本号至 1.5.4 并调整变更日志结构
+
+- 🔧 chore: 更新版本号至 1.5.4 并调整变更日志结构
+
+- 🔧 chore: 更新版本号至 1.5.4 并调整变更日志结构
 
 ## v1.5.1（2026-05-19）
 
