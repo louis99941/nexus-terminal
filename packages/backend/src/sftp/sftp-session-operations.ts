@@ -45,7 +45,11 @@ export const executeInitializeSftpSessionOperation = async (
       logger.info(`[SFTP] 为会话 ${sessionId} 初始化 SFTP 会话成功。`);
       state.sftp = sftpInstance;
       state.ws.send(
-        JSON.stringify({ type: 'sftp_ready', payload: { connectionId: state.dbConnectionId } })
+        JSON.stringify({
+          type: 'sftp_ready',
+          payload: { connectionId: state.dbConnectionId },
+          sid: sessionId,
+        })
       );
       eventService.emitEvent(AppEventType.SftpConnectSuccess, {
         details: {

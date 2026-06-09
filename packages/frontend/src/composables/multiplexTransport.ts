@@ -15,6 +15,14 @@ import { parseWebSocketMessage } from './useWebSocketConnection/messageParser';
 import { createReconnectManager } from './useWebSocketConnection/reconnect';
 import { log } from '@/utils/log';
 
+/**
+ * 检查前端多路复用是否启用
+ * 通过 VITE_ENABLE_MULTIPLEX 环境变量控制，默认关闭
+ */
+export function isMultiplexEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_MULTIPLEX === 'true';
+}
+
 /** 逻辑通道状态（使用 Ref 实现响应式） */
 export interface ChannelState {
   sid: string;
@@ -98,6 +106,18 @@ function dispatchToChannel(message: WebSocketMessage): void {
   if (message.type === 'ssh:connected') {
     channel.connectionStatus.value = 'connected';
     channel.statusMessage.value = '已连接';
+    // 多路复用握手：后端返回 backendSessionId，需要重映射通道 key
+    const payload = message.payload as Record<string, unknown> | undefined;
+    const backendSessionId = payload?.backendSessionId as string | undefined;
+    if (backendSessionId && backendSessionId !== sid) {
+      log.info(`[MultiplexTransport] 通道重映射: ${sid} → ${backendSessionId}`);
+      // 复制通道状态到新 key
+      channels.set(backendSessionId, channel);
+      // 更新通道内部 sid
+      channel.sid = backendSessionId;
+      // 删除旧 key
+      channels.delete(sid);
+    }
   } else if (message.type === 'ssh:disconnected') {
     channel.connectionStatus.value = 'disconnected';
     channel.statusMessage.value = typeof message.payload === 'string' ? message.payload : '已断开';
@@ -252,8 +272,11 @@ export function createChannel(
   }
 
   // 返回通道控制接口（直接暴露 Ref，保证响应式）
+  // 注意：sid 使用 getter 读取 channelState.sid，确保重映射后使用新 key
   return {
-    sid,
+    get sid() {
+      return channelState.sid;
+    },
     connectionStatus: readonly(channelState.connectionStatus),
     statusMessage: readonly(channelState.statusMessage),
     isSftpReady: readonly(channelState.isSftpReady),
@@ -267,12 +290,12 @@ export function createChannel(
     },
 
     disconnect: () => {
-      channels.delete(sid);
-      log.debug(`[MultiplexTransport] 通道 ${sid} 已断开`);
+      channels.delete(channelState.sid);
+      log.debug(`[MultiplexTransport] 通道 ${channelState.sid} 已断开`);
     },
 
     sendMessage: (message: WebSocketMessage) => {
-      sendToChannel(sid, message);
+      sendToChannel(channelState.sid, message);
     },
 
     onMessage: (

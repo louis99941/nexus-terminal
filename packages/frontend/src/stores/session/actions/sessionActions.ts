@@ -7,6 +7,7 @@ import { generateSessionId } from '../utils';
 import type { SessionState, SftpManagerInstance, WsManagerInstance } from '../types';
 
 import { createWebSocketConnectionManager } from '../../../composables/useWebSocketConnection';
+import { createChannel, isMultiplexEnabled } from '../../../composables/multiplexTransport';
 import type { MessagePayload } from '../../../types/websocket.types';
 import {
   createSshTerminalManager,
@@ -84,17 +85,28 @@ export const openNewSession = (
     disposables: [],
   };
 
-  const wsManager = createWebSocketConnectionManager(
-    newSessionId, // 这个 sessionId 在 wsManager 内部使用，可能与 SessionState.sessionId 不同步（如果后者被后端更新）
-    dbConnId,
-    t,
-    {
-      isResumeFlow: isResume,
-      getIsMarkedForSuspend: () => {
-        return !!newSessionPartial.isMarkedForSuspend;
-      },
-    }
-  );
+  // 多路复用模式：创建逻辑通道作为 transport
+  const multiplexTransport = isMultiplexEnabled()
+    ? (() => {
+        const channel = createChannel(newSessionId, dbConnId, { isResumeFlow: isResume });
+        log.info(`[SessionActions] 多路复用模式：已创建通道 ${newSessionId}`);
+        return {
+          sid: channel.sid,
+          sendMessage: channel.sendMessage,
+          onMessage: channel.onMessage,
+          connect: channel.connect,
+          disconnect: channel.disconnect,
+        };
+      })()
+    : undefined;
+
+  const wsManager = createWebSocketConnectionManager(newSessionId, dbConnId, t, {
+    isResumeFlow: isResume,
+    getIsMarkedForSuspend: () => {
+      return !!newSessionPartial.isMarkedForSuspend;
+    },
+    transport: multiplexTransport,
+  });
   newSessionPartial.wsManager = wsManager; // 将 wsManager 添加回部分对象
 
   const sshTerminalDeps: SshTerminalDependencies = {

@@ -34,6 +34,17 @@ vi.mock('../utils', () => ({
     if (!ports) return [];
     return ports.split(',').map((p) => ({ raw: p.trim() }));
   }),
+  sendWsMessage: vi.fn(
+    (
+      ws: { readyState: number; send: (data: string) => void },
+      type: string,
+      payload: Record<string, unknown>
+    ) => {
+      if (ws.readyState === 1) {
+        ws.send(JSON.stringify({ type, payload }));
+      }
+    }
+  ),
 }));
 
 // Mock SSH Client with exec method
