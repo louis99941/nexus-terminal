@@ -622,24 +622,29 @@ onBeforeUnmount(() => {
               </div>
 
               <!-- Terminal Instances -->
-              <template v-for="[sessionId, sessionState] in sessionStore.sessions" :key="sessionId">
+              <!-- 使用真实 DOM 容器包裹，避免 v-show 在多根组件 (Terminal.vue 含 Teleport) 上透传失效 -->
+              <div
+                v-for="[sessionId, sessionState] in sessionStore.sessions"
+                v-show="sessionId === activeSessionId"
+                :key="sessionId"
+                :class="[
+                  'terminal-instance-wrapper absolute inset-0 w-full h-full',
+                  { 'terminal-transparent': isTerminalBackgroundEnabled },
+                ]"
+                :style="{ zIndex: 3 }"
+              >
                 <template v-if="sessionState.terminalManager">
                   <keep-alive>
                     <component
                       :is="componentMap.terminal"
-                      v-show="sessionId === activeSessionId"
                       :session-id="sessionId"
                       :is-active="sessionId === activeSessionId"
-                      :class="[
-                        'terminal-instance-wrapper absolute inset-0 w-full h-full',
-                        { 'terminal-transparent': isTerminalBackgroundEnabled },
-                      ]"
-                      :style="{ zIndex: 3 }"
+                      class="w-full h-full"
                       :options="{}"
                     />
                   </keep-alive>
                 </template>
-              </template>
+              </div>
               <!-- Placeholder -->
               <div
                 v-if="!activeSessionId || !hasSshSessions"

@@ -366,18 +366,11 @@ const toggleVirtualKeyboard = () => {
   <!-- *** 动态 class 绑定，添加 is-mobile 类 *** -->
   <div :class="['workspace-view', { 'with-header': isHeaderVisible, 'is-mobile': isMobile }]">
     <!-- TerminalTabBar 始终渲染, 传递 isMobile 状态 -->
+    <!-- TerminalTabBar 所有业务事件均通过 workspace event bus 发射，此处仅传递数据 props -->
     <TerminalTabBar
       :sessions="sessionTabsWithStatus"
       :active-session-id="activeSessionId"
       :is-mobile="isMobile"
-      @activate-session="sessionStore.activateSession"
-      @close-session="sessionStore.closeSession"
-      @open-layout-configurator="handleOpenLayoutConfigurator"
-      @request-add-connection-from-popup="handleRequestAddConnection"
-      @request-edit-connection-from-popup="handleRequestEditConnection"
-      @close-other-sessions="handleCloseOtherSessions"
-      @close-sessions-to-right="handleCloseSessionsToRight"
-      @close-sessions-to-left="handleCloseSessionsToLeft"
     />
 
     <!-- --- 桌面端布局 --- -->

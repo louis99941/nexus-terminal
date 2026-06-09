@@ -107,7 +107,8 @@ describe('WebSocket Connection Handler', () => {
     expect(handleSshExecSilent).toHaveBeenCalledWith(
       ws,
       { command: 'pwd', timeoutMs: 5000 },
-      'req-ssh-silent-1'
+      'req-ssh-silent-1',
+      undefined
     );
   });
 

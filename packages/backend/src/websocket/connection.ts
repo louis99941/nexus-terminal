@@ -269,13 +269,21 @@ export function initializeConnectionHandler(
                   );
                   break;
                 case 'ssh:input':
-                  handleSshInput(ws, payload as Parameters<typeof handleSshInput>[1]);
+                  handleSshInput(
+                    ws,
+                    payload as Parameters<typeof handleSshInput>[1],
+                    effectiveSessionId
+                  );
                   break;
                 case 'ssh:resize':
-                  handleSshResize(ws, payload as Parameters<typeof handleSshResize>[1]);
+                  handleSshResize(
+                    ws,
+                    payload as Parameters<typeof handleSshResize>[1],
+                    effectiveSessionId
+                  );
                   break;
                 case 'ssh:exec_silent':
-                  handleSshExecSilent(ws, payload, requestId);
+                  handleSshExecSilent(ws, payload, requestId, effectiveSessionId);
                   break;
 
                 // Telnet Cases

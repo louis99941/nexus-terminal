@@ -488,9 +488,10 @@ const sendSilentExecResponse = (
 export function handleSshExecSilent(
   ws: AuthenticatedWebSocket,
   rawPayload: unknown,
-  requestIdFromMessage?: string
+  requestIdFromMessage?: string,
+  overrideSessionId?: string
 ): void {
-  const sessionId = ws.sessionId;
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
   const requestId =
     typeof requestIdFromMessage === 'string' && requestIdFromMessage.trim()
@@ -950,8 +951,12 @@ export async function handleSshConnect(
   }
 }
 
-export function handleSshInput(ws: AuthenticatedWebSocket, payload: SshInputPayload): void {
-  const { sessionId } = ws;
+export function handleSshInput(
+  ws: AuthenticatedWebSocket,
+  payload: SshInputPayload,
+  overrideSessionId?: string
+): void {
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!state || !state.sshShellStream) {
@@ -970,8 +975,12 @@ export function handleSshInput(ws: AuthenticatedWebSocket, payload: SshInputPayl
   }
 }
 
-export function handleSshResize(ws: AuthenticatedWebSocket, payload: SshResizePayload): void {
-  const { sessionId } = ws;
+export function handleSshResize(
+  ws: AuthenticatedWebSocket,
+  payload: SshResizePayload,
+  overrideSessionId?: string
+): void {
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!state || !state.sshClient) {
