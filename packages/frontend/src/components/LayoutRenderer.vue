@@ -73,6 +73,7 @@ const appearanceStore = useAppearanceStore();
 const {
   terminalBackgroundImage,
   isTerminalBackgroundEnabled,
+  shouldRenderTerminalBackground,
   currentTerminalBackgroundOverlayOpacity,
   terminalCustomHTML,
 } = storeToRefs(appearanceStore);
@@ -458,7 +459,7 @@ onMounted(() => {
 // +++ Background Image Style +++
 const terminalBackgroundImageStyle = computed((): CSSProperties => {
   if (
-    isTerminalBackgroundEnabled.value &&
+    shouldRenderTerminalBackground.value &&
     terminalBackgroundImage.value &&
     props.layoutNode.component === 'terminal'
   ) {
@@ -574,13 +575,13 @@ onBeforeUnmount(() => {
             <div
               class="terminal-pane-container relative flex-grow overflow-hidden"
               :class="{
-                'has-global-terminal-background': isTerminalBackgroundEnabled,
-                'bg-background': !isTerminalBackgroundEnabled,
+                'has-global-terminal-background': shouldRenderTerminalBackground,
+                'bg-background': !shouldRenderTerminalBackground,
               }"
             >
               <!-- Shared Background Layers -->
               <div
-                v-if="isTerminalBackgroundEnabled"
+                v-if="shouldRenderTerminalBackground"
                 class="shared-terminal-background-layers"
                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0"
               >

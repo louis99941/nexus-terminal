@@ -94,6 +94,48 @@ describe('appearance-background.store', () => {
       expect(store.isTerminalBackgroundEnabled.value).toBe(true);
     });
 
+    it('shouldRenderTerminalBackground 用户禁用时应返回 false', () => {
+      const deps = createMockDeps({
+        terminalBackgroundEnabled: false,
+        terminalBackgroundImage: '/img/term.png',
+      });
+      const store = createBackgroundStore(deps);
+      expect(store.shouldRenderTerminalBackground.value).toBe(false);
+    });
+
+    it('shouldRenderTerminalBackground 启用但无图片无 HTML 时应返回 false（避免空蒙版全黑）', () => {
+      const deps = createMockDeps({ terminalBackgroundEnabled: true });
+      const store = createBackgroundStore(deps);
+      expect(store.shouldRenderTerminalBackground.value).toBe(false);
+    });
+
+    it('shouldRenderTerminalBackground 启用且有背景图片时应返回 true', () => {
+      const deps = createMockDeps({
+        terminalBackgroundEnabled: true,
+        terminalBackgroundImage: '/img/term.png',
+      });
+      const store = createBackgroundStore(deps);
+      expect(store.shouldRenderTerminalBackground.value).toBe(true);
+    });
+
+    it('shouldRenderTerminalBackground 启用且有非空 HTML 时应返回 true', () => {
+      const deps = createMockDeps({
+        terminalBackgroundEnabled: true,
+        terminal_custom_html: '<div style="background:red">hello</div>',
+      });
+      const store = createBackgroundStore(deps);
+      expect(store.shouldRenderTerminalBackground.value).toBe(true);
+    });
+
+    it('shouldRenderTerminalBackground 启用但 HTML 为空白时应返回 false', () => {
+      const deps = createMockDeps({
+        terminalBackgroundEnabled: true,
+        terminal_custom_html: '   ',
+      });
+      const store = createBackgroundStore(deps);
+      expect(store.shouldRenderTerminalBackground.value).toBe(false);
+    });
+
     it('currentTerminalBackgroundOverlayOpacity 有效值应返回', () => {
       const deps = createMockDeps({ terminalBackgroundOverlayOpacity: 0.8 });
       const store = createBackgroundStore(deps);

@@ -278,6 +278,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
     pageBackgroundImage: backgroundStore.pageBackgroundImage,
     terminalBackgroundImage: backgroundStore.terminalBackgroundImage,
     isTerminalBackgroundEnabled: backgroundStore.isTerminalBackgroundEnabled,
+    shouldRenderTerminalBackground: backgroundStore.shouldRenderTerminalBackground,
     currentTerminalBackgroundOverlayOpacity:
       backgroundStore.currentTerminalBackgroundOverlayOpacity,
     terminalCustomHTML: backgroundStore.terminalCustomHTML,
