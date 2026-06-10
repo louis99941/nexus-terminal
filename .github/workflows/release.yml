@@ -69,6 +69,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: 等待 kittylog.app 更新（最多 5 分钟）
+        id: wait_kittylog
         env:
           VERSION: ${{ steps.release_meta.outputs.VERSION }}
         run: |
@@ -84,7 +85,7 @@ jobs:
 
             if echo "$PAGE" | grep -qi "v${VERSION}"; then
               echo "✅ kittylog.app 已包含 v${VERSION} 更新日志"
-              echo "found=true" >> $GITHUB_OUTPUT
+              echo "found=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
@@ -94,8 +95,8 @@ jobs:
             fi
           done
 
-          echo "⚠️ 等待超时（${MAX_ATTEMPTS} 分钟），将使用本地 docs/changelog.md 作为兜底"
-          echo "found=false" >> $GITHUB_OUTPUT
+          echo "⚠️ 等待超时（${MAX_ATTEMPTS} 分钟），将使用 AI 保底生成"
+          echo "found=false" >> "$GITHUB_OUTPUT"
 
       - name: 从 kittylog.app 提取更新日志
         if: steps.wait_kittylog.outputs.found == 'true'
@@ -107,7 +108,7 @@ jobs:
           KITTYLOG_URL="https://kittylog.app/c/Silentely/nexus-terminal"
 
           # 设置默认值，防止步骤失败时输出为空
-          echo "found=false" >> $GITHUB_OUTPUT
+          echo "found=false" >> "$GITHUB_OUTPUT"
 
           PAGE=$(curl -sL --max-time 30 "$KITTYLOG_URL" 2>/dev/null || true)
 
@@ -132,83 +133,158 @@ jobs:
           ')
 
           if [ -n "$BODY" ]; then
+            # 使用随机 delimiter 避免内容冲突
+            DELIM="changelog_$(openssl rand -hex 8)"
             echo "✅ 从 kittylog.app 提取到 v${VERSION} 更新日志"
             {
-              echo 'body<<EOF'
+              echo "body<<${DELIM}"
               echo "$BODY"
-              echo EOF
+              echo "$DELIM"
             } >> "$GITHUB_OUTPUT"
-            echo "found=true" >> $GITHUB_OUTPUT
+            echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "⚠️ kittylog.app 未找到 v${VERSION} 内容"
           fi
 
-      - name: 从本地 docs/changelog.md 提取更新日志（兜底）
-        if: steps.wait_kittylog.outputs.found != 'true' || steps.kittylog_extract.outputs.found != 'true'
-        id: local_notes
+      - name: AI 生成更新日志（兜底）
+        if: steps.kittylog_extract.outputs.found != 'true'
+        id: ai_changelog
         env:
           VERSION: ${{ steps.release_meta.outputs.VERSION }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || 'gpt-4o' }}
         run: |
-          set -euo pipefail
-
-          BODY=$(awk -v tag="$VERSION" '
-            BEGIN { found=0 }
-            /^## / {
-              if (found) { exit }
-              if (index($0, tag) > 0 || index($0, "v" tag) > 0) {
-                found=1
-                print $0
-                next
-              }
-            }
-            found && NF { print }
-          ' docs/changelog.md)
-
-          if [ -z "$BODY" ]; then
-            BODY="暂无更新日志内容"
+          if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+            echo "⚠️ 未配置 OPENAI_API_KEY，跳过 AI 生成"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          {
-            echo 'body<<EOF'
-            echo "$BODY"
-            echo EOF
-          } >> $GITHUB_OUTPUT
+          # 收集上个版本到 HEAD 的 commits（精确排除当前 tag）
+          PREV_TAG=$(git tag --sort=-version:refname | grep '^v' | grep -Fxv "v${VERSION}" | head -n 1 || true)
+          if [[ -z "$PREV_TAG" ]]; then
+            echo "⚠️ 无法找到上个版本标签，跳过 AI 生成"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          COMMITS=$(git log "${PREV_TAG}..HEAD" --format="%h|%s" --no-merges)
+          DIFF_STAT=$(git diff --stat "${PREV_TAG}..HEAD" | tail -5)
+          TODAY=$(date +%Y-%m-%d)
+
+          if [[ -z "$COMMITS" ]]; then
+            echo "⚠️ 无 commits 变更，跳过 AI 生成"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 构建提示词
+          PROMPT=$(cat <<'PROMPT_EOF'
+          你是 Nexus Terminal 项目的技术文档工程师。请根据以下 commits 和变更统计，生成更新日志。
+
+          格式要求：
+          - 版本头：## vVERSION_PLACEHOLDER（DATE_PLACEHOLDER）
+          - 分类：### 新增 | 修复 | 改进 | 安全 | 测试 | 文档 | 杂项
+          - 条目：- <emoji> <中文描述>
+          - Emoji 映射：✨新增 🐛修复 ♻️改进 🔒安全 ✅测试 📝文档 🔧杂项 ⚡性能 📊监控 📱移动端 🎨UI
+          - 合并同一功能的多个 commit 为一个条目
+          - 仅输出 Markdown 格式的更新日志内容，不要添加其他说明
+
+          Commits：
+          COMMITS_PLACEHOLDER
+
+          变更统计：
+          DIFF_PLACEHOLDER
+
+          请直接输出 Markdown 格式的更新日志：
+          PROMPT_EOF
+          )
+
+          # 替换占位符
+          PROMPT="${PROMPT//VERSION_PLACEHOLDER/$VERSION}"
+          PROMPT="${PROMPT//DATE_PLACEHOLDER/$TODAY}"
+          PROMPT="${PROMPT//COMMITS_PLACEHOLDER/$COMMITS}"
+          PROMPT="${PROMPT//DIFF_PLACEHOLDER/$DIFF_STAT}"
+
+          # 调用 OpenAI 兼容 API（显式捕获失败，避免 set -e 中断）
+          BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+          if ! RESPONSE=$(curl -sS --max-time 90 "${BASE_URL}/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+            -d "$(jq -n \
+              --arg model "${OPENAI_MODEL:-gpt-4o}" \
+              --arg content "$PROMPT" \
+              '{
+                model: $model,
+                messages: [{role: "user", content: $content}],
+                max_tokens: 4096,
+                temperature: 0.3
+              }')"); then
+            echo "⚠️ OpenAI API 请求失败（网络/超时）"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BODY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [[ -n "$BODY" ]]; then
+            # 移除可能的 markdown 代码块包裹
+            BODY=$(echo "$BODY" | sed '/^```/d')
+            # 使用随机 delimiter 避免内容冲突
+            DELIM="changelog_$(openssl rand -hex 8)"
+            echo "✅ AI 生成更新日志成功"
+            {
+              echo "body<<${DELIM}"
+              echo "$BODY"
+              echo "$DELIM"
+              echo "found=true"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠️ AI 生成失败：$(echo "$RESPONSE" | jq -r '.error.message // "未知错误"')"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: 合并更新日志内容
         id: release_notes
         env:
           KITTYLOG_FOUND: ${{ steps.kittylog_extract.outputs.found }}
           KITTYLOG_BODY: ${{ steps.kittylog_extract.outputs.body }}
-          LOCAL_BODY: ${{ steps.local_notes.outputs.body }}
+          AI_FOUND: ${{ steps.ai_changelog.outputs.found }}
+          AI_BODY: ${{ steps.ai_changelog.outputs.body }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.TAG }}
         run: |
-          # 优先使用 kittylog.app 内容，否则使用本地兜底
+          # 优先级：kittylog.app > AI 生成 > 暂无内容
           if [[ "$KITTYLOG_FOUND" == "true" ]]; then
             BODY="$KITTYLOG_BODY"
             SOURCE="kittylog.app"
+          elif [[ "$AI_FOUND" == "true" ]]; then
+            BODY="$AI_BODY"
+            SOURCE="AI 生成"
           else
-            BODY="$LOCAL_BODY"
-            SOURCE="本地 docs/changelog.md"
+            BODY="暂无更新日志内容"
+            SOURCE="默认"
           fi
 
           echo "📝 使用更新日志来源：$SOURCE"
+          DELIM="changelog_$(openssl rand -hex 8)"
           {
-            echo 'body<<EOF'
+            echo "body<<${DELIM}"
             echo "$BODY"
-            echo EOF
-          } >> $GITHUB_OUTPUT
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
 
           # 生成完整更新日志链接
           OWNER="${GITHUB_REPOSITORY%/*}"
           REPO="${GITHUB_REPOSITORY#*/}"
           CURRENT_TAG="$RELEASE_TAG"
-          PREV_TAG=$(git tag --sort=-version:refname | grep '^v' | grep -v "$CURRENT_TAG" | head -n 1 || true)
+          PREV_TAG=$(git tag --sort=-version:refname | grep '^v' | grep -Fxv "$CURRENT_TAG" | head -n 1 || true)
           if [ -n "$PREV_TAG" ]; then
             CHANGELOG_URL="https://github.com/${OWNER}/${REPO}/compare/${PREV_TAG}...${CURRENT_TAG}"
           else
             CHANGELOG_URL="https://github.com/${OWNER}/${REPO}/commits/${CURRENT_TAG}"
           fi
-          echo "CHANGELOG_URL=$CHANGELOG_URL" >> $GITHUB_OUTPUT
+          echo "CHANGELOG_URL=$CHANGELOG_URL" >> "$GITHUB_OUTPUT"
 
       - name: 同步更新日志到 docs/changelog.md
         env:
@@ -219,8 +295,8 @@ jobs:
 
           echo "📝 将更新日志同步到 docs/changelog.md..."
 
-          # 检查 docs/changelog.md 是否已包含该版本
-          if grep -q "## v${VERSION}" docs/changelog.md 2>/dev/null; then
+          # 精确检查 docs/changelog.md 是否已包含该版本（避免 v1.5 匹配 v1.5.4）
+          if grep -Eq "^## v${VERSION}([[:space:]]|（|\\()" docs/changelog.md 2>/dev/null; then
             echo "ℹ️ docs/changelog.md 已包含 v${VERSION}，跳过同步"
             exit 0
           fi
