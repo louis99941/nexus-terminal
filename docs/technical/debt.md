@@ -6,11 +6,11 @@
 
 ## 覆盖率现状
 
-| 模块               | 行覆盖率 | 分支覆盖率 | 函数覆盖率 | 门禁阈值                           | 状态      |
-| ------------------ | -------- | ---------- | ---------- | ---------------------------------- | --------- |
-| **backend**        | 43.98%   | 78.22%     | 83.64%     | lines≥40%, branches≥50%, funcs≥70% | ✅ 达标   |
-| **frontend**       | 29.65%   | 78.56%     | 63.08%     | lines≥90%, branches≥90%, funcs≥90% | ❌ 未达标 |
-| **remote-gateway** | 33.19%   | 61.11%     | 75%        | —                                  | ⚠️ 待评估 |
+| 模块 | 行覆盖率 | 分支覆盖率 | 函数覆盖率 | 门禁阈值 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| **backend** | 43.98% | 78.22% | 83.64% | lines≥40%, branches≥50%, funcs≥70% | ✅ 达标 |
+| **frontend** | 29.65% | 78.56% | 63.08% | lines≥90%, branches≥90%, funcs≥90% | ❌ 未达标 |
+| **remote-gateway** | 33.19% | 61.11% | 75% | — | ⚠️ 待评估 |
 
 ---
 
@@ -133,29 +133,29 @@ controller 属薄层委托，测试通过 service 层间接覆盖。如需直接
 
 ### High（21/21）
 
-| ID   | 问题                               | 修复方式                                                      |
-| ---- | ---------------------------------- | ------------------------------------------------------------- |
-| H-1  | SSRF 域名后缀匹配可绕过            | 精确匹配 `hostname === domain`                                |
-| H-2  | Docker 命令注入                    | 共享 `sanitizeDockerContainerId()` + `isValidDockerCommand()` |
-| H-3  | 批量命令无审计日志                 | 集成 `AuditLogService.logAction()`                            |
-| H-4  | SFTP shell 转义不一致              | 统一 `shellEscape()`                                          |
-| H-5  | glob 依赖漏洞                      | 升级至安全版本                                                |
-| H-6  | 31 处空 catch 块                   | 统一 `console.debug/warn` 记录                                |
-| H-7  | 170 个 catch 块未 `error: unknown` | 全面规范类型                                                  |
-| H-8  | `auth.controller.ts` 1445 行       | 拆分为 login/2fa/passkey handlers                             |
-| H-9  | `useAddConnectionForm.ts` 1204 行  | 拆分为 Parsers/Submit/Tags/Test 子模块                        |
-| H-10 | `useSftpActions.ts` 1319 行        | 拆分为 Operations + MessageHandlers                           |
-| H-11 | `StatusMonitorService` 507 行      | 拆分为 HealthCheck/Aggregator/Service                         |
-| H-12 | `ssh.service.ts` 递归跳板 207 行   | 拆分为 6 个辅助函数                                           |
-| H-13 | 6 个后端模块缺 repository 层       | 分析确认 4 个无 DB 访问，2 个通过 service 层访问              |
-| H-14 | `appearance.store.ts` 1073 行      | 拆分为 theme/font/background/html-presets 子 store            |
-| H-15 | `settings.store.ts` 1025 行        | 拆分为 system/security/layout 子 store                        |
-| H-16 | SSH 挂起移交竞态                   | `isMarkedForSuspend` CAS 模式                                 |
-| H-17 | Silent exec 请求被覆盖             | 改用 requestId 作键                                           |
-| H-18 | Silent exec 超时未发 Ctrl+C        | 超时后先发 `\x03`                                             |
-| H-19 | 定时器会话断开未清理               | `cleanupClientConnection` 遍历清理                            |
-| H-20 | `cleanupClientConnection` 未 catch | 所有调用点添加 `.catch()`                                     |
-| H-21 | SSH shell ready 无超时             | 10s 超时 + 补充测试                                           |
+| ID | 问题 | 修复方式 |
+| --- | --- | --- |
+| H-1 | SSRF 域名后缀匹配可绕过 | 精确匹配 `hostname === domain` |
+| H-2 | Docker 命令注入 | 共享 `sanitizeDockerContainerId()` + `isValidDockerCommand()` |
+| H-3 | 批量命令无审计日志 | 集成 `AuditLogService.logAction()` |
+| H-4 | SFTP shell 转义不一致 | 统一 `shellEscape()` |
+| H-5 | glob 依赖漏洞 | 升级至安全版本 |
+| H-6 | 31 处空 catch 块 | 统一 `console.debug/warn` 记录 |
+| H-7 | 170 个 catch 块未 `error: unknown` | 全面规范类型 |
+| H-8 | `auth.controller.ts` 1445 行 | 拆分为 login/2fa/passkey handlers |
+| H-9 | `useAddConnectionForm.ts` 1204 行 | 拆分为 Parsers/Submit/Tags/Test 子模块 |
+| H-10 | `useSftpActions.ts` 1319 行 | 拆分为 Operations + MessageHandlers |
+| H-11 | `StatusMonitorService` 507 行 | 拆分为 HealthCheck/Aggregator/Service |
+| H-12 | `ssh.service.ts` 递归跳板 207 行 | 拆分为 6 个辅助函数 |
+| H-13 | 6 个后端模块缺 repository 层 | 分析确认 4 个无 DB 访问，2 个通过 service 层访问 |
+| H-14 | `appearance.store.ts` 1073 行 | 拆分为 theme/font/background/html-presets 子 store |
+| H-15 | `settings.store.ts` 1025 行 | 拆分为 system/security/layout 子 store |
+| H-16 | SSH 挂起移交竞态 | `isMarkedForSuspend` CAS 模式 |
+| H-17 | Silent exec 请求被覆盖 | 改用 requestId 作键 |
+| H-18 | Silent exec 超时未发 Ctrl+C | 超时后先发 `\x03` |
+| H-19 | 定时器会话断开未清理 | `cleanupClientConnection` 遍历清理 |
+| H-20 | `cleanupClientConnection` 未 catch | 所有调用点添加 `.catch()` |
+| H-21 | SSH shell ready 无超时 | 10s 超时 + 补充测试 |
 
 ### Medium（30/30）
 
@@ -240,35 +240,35 @@ controller 属薄层委托，测试通过 service 层间接覆盖。如需直接
 
 ## 前端代码质量追加项（2026-05-05）
 
-| ID      | 级别     | 问题                        | 修复方式                                                            |
-| ------- | -------- | --------------------------- | ------------------------------------------------------------------- |
-| FA-P0-1 | CRITICAL | 11 个测试用例失败           | 修正断言类名：bg-green→bg-success, border-red→border-error          |
-| FA-P0-2 | CRITICAL | 测试行覆盖率仅 15.34%       | 分层提升目标：Utils→90%、Store→80%、Component→60%（见上方分层计划） |
-| FA-P1-1 | HIGH     | 56 处源码 `as any`          | 实测源码 0 处（grep 确认），已全部清理                              |
-| FA-P2-1 | MEDIUM   | Pinia Store 过度原子化      | 已评估：当前拆分粒度对模块化有利，暂不合并                          |
-| FA-P2-2 | MEDIUM   | mitt 事件订阅缺强制清理机制 | 新增 `useOnWorkspaceEvent` composable，onBeforeUnmount 自动清理     |
-| FA-P3-1 | LOW      | 重型依赖体积庞大            | 已评估：当前已有路由级 code split，进一步优化需 Vite 分析后决定     |
+| ID | 级别 | 问题 | 修复方式 |
+| --- | --- | --- | --- |
+| FA-P0-1 | CRITICAL | 11 个测试用例失败 | 修正断言类名：bg-green→bg-success, border-red→border-error |
+| FA-P0-2 | CRITICAL | 测试行覆盖率仅 15.34% | 分层提升目标：Utils→90%、Store→80%、Component→60%（见上方分层计划） |
+| FA-P1-1 | HIGH | 56 处源码 `as any` | 实测源码 0 处（grep 确认），已全部清理 |
+| FA-P2-1 | MEDIUM | Pinia Store 过度原子化 | 已评估：当前拆分粒度对模块化有利，暂不合并 |
+| FA-P2-2 | MEDIUM | mitt 事件订阅缺强制清理机制 | 新增 `useOnWorkspaceEvent` composable，onBeforeUnmount 自动清理 |
+| FA-P3-1 | LOW | 重型依赖体积庞大 | 已评估：当前已有路由级 code split，进一步优化需 Vite 分析后决定 |
 
 ---
 
 ## 后端性能与代码质量追加项（2026-05-06）
 
-| ID      | 级别   | 问题                                  | 修复方式                                                   |
-| ------- | ------ | ------------------------------------- | ---------------------------------------------------------- |
-| BP-P1-1 | HIGH   | 批量任务创建无事务                    | `RepositoryUtils.executeInTransaction` 事务包装            |
-| BP-P1-2 | HIGH   | 批量任务列表 N+1 查询                 | 两段查询：先分页任务 ID，再 LEFT JOIN 拉取子任务           |
-| BP-P1-3 | HIGH   | AI 热门连接 N+1 查询                  | 单 SQL LEFT JOIN 替代 Promise.all 嵌套查询                 |
-| BP-P1-4 | HIGH   | IP 白名单每请求 2 次 DB 读取          | 本地缓存 10s TTL + `Promise.all` 并行查询                  |
-| BP-P1-5 | HIGH   | 覆盖率门禁失效（配置 90% 实际 43.8%） | 阈值调整为现实值（lines 40%, branches 50%, functions 70%） |
-| BP-P2-1 | MEDIUM | 批处理输出反复拼接写库                | 已有 OUTPUT_THROTTLE_MS 100ms 节流                         |
-| BP-P2-2 | MEDIUM | 批处理高频写入                        | 已有节流机制，标记为已评估                                 |
-| BP-P2-3 | MEDIUM | 指标端点无认证                        | 新增 `metricsAuth` 中间件                                  |
-| BP-P2-4 | MEDIUM | IP 地理查询默认 HTTP 明文             | 支持环境变量切换提供商                                     |
-| BP-P2-5 | MEDIUM | 分层不一致                            | 标记为已评估，当前规模可接受                               |
-| BP-P2-6 | MEDIUM | Express 5 运行时 + Express 4 类型定义 | 等待 @types/express@5 发布后升级                           |
-| BP-P2-7 | MEDIUM | AI axios 客户端缓存无淘汰策略         | 新增 LRU 淘汰（上限 16）                                   |
-| BP-P3-1 | LOW    | 限流配置双来源                        | 统一为 300                                                 |
-| BP-P3-2 | LOW    | index.ts 重复生产环境密钥检查         | 合并为单次检查                                             |
+| ID | 级别 | 问题 | 修复方式 |
+| --- | --- | --- | --- |
+| BP-P1-1 | HIGH | 批量任务创建无事务 | `RepositoryUtils.executeInTransaction` 事务包装 |
+| BP-P1-2 | HIGH | 批量任务列表 N+1 查询 | 两段查询：先分页任务 ID，再 LEFT JOIN 拉取子任务 |
+| BP-P1-3 | HIGH | AI 热门连接 N+1 查询 | 单 SQL LEFT JOIN 替代 Promise.all 嵌套查询 |
+| BP-P1-4 | HIGH | IP 白名单每请求 2 次 DB 读取 | 本地缓存 10s TTL + `Promise.all` 并行查询 |
+| BP-P1-5 | HIGH | 覆盖率门禁失效（配置 90% 实际 43.8%） | 阈值调整为现实值（lines 40%, branches 50%, functions 70%） |
+| BP-P2-1 | MEDIUM | 批处理输出反复拼接写库 | 已有 OUTPUT_THROTTLE_MS 100ms 节流 |
+| BP-P2-2 | MEDIUM | 批处理高频写入 | 已有节流机制，标记为已评估 |
+| BP-P2-3 | MEDIUM | 指标端点无认证 | 新增 `metricsAuth` 中间件 |
+| BP-P2-4 | MEDIUM | IP 地理查询默认 HTTP 明文 | 支持环境变量切换提供商 |
+| BP-P2-5 | MEDIUM | 分层不一致 | 标记为已评估，当前规模可接受 |
+| BP-P2-6 | MEDIUM | Express 5 运行时 + Express 4 类型定义 | 等待 @types/express@5 发布后升级 |
+| BP-P2-7 | MEDIUM | AI axios 客户端缓存无淘汰策略 | 新增 LRU 淘汰（上限 16） |
+| BP-P3-1 | LOW | 限流配置双来源 | 统一为 300 |
+| BP-P3-2 | LOW | index.ts 重复生产环境密钥检查 | 合并为单次检查 |
 
 ---
 
@@ -317,26 +317,25 @@ controller 属薄层委托，测试通过 service 层间接覆盖。如需直接
 
 ## 收敛记录
 
-| 日期       | 轮次   | 内容                                                         | 提交                          |
-| ---------- | ------ | ------------------------------------------------------------ | ----------------------------- |
-| 2026-05-09 | —      | 技术债务报告重构：去除冗余，新增覆盖率分层目标与测试行动计划 | 待提交                        |
-| 2026-05-06 | 第11轮 | 前端 10 项全量修复（FA-P0~P3 + FP-P1~P3）                    | 待提交                        |
-| 2026-05-06 | 第10轮 | 后端性能与代码质量 14 项全量修复（BP-P1~P3）                 | `61ac728` `c14c412`           |
-| 2026-05-03 | 第7轮  | composable 拆分 + TranslateFn 类型统一 + Codex 审查修复      | `f464ea9e` `c0efd10c`         |
-| 2026-05-03 | 第6轮  | 常量提取 + catch 审计 + 辅助函数                             | 4 轮提交                      |
-| 2026-05-03 | 第5轮  | 事件监听清理 + utils 测试覆盖                                | `bc44514e` `3296d99d`         |
-| 2026-05-03 | 第4轮  | Codex 审查补漏 + 模块完整性验证                              | 多轮提交                      |
-| 2026-05-03 | 第3轮  | 代码质量批量验证 + 测试补充                                  | 多轮提交                      |
-| 2026-05-03 | 第2轮  | 输入验证增强 + 空 catch 块批量修复                           | `3296d99d`                    |
-| 2026-05-03 | 第1轮  | 输入验证 + 事件监听 + composable 类型修复                    | `bc44514e`                    |
-| 2026-05-02 | —      | 84 项全面修复 + Codex 审查补漏（7 项）                       | 多轮提交                      |
-| 2026-05-02 | —      | L6 移动端体验 + WebSocket 类型泛型化                         | `c2101b0` `1162be0` `270ad5d` |
-| 2026-04-28 | —      | SFTP/文件管理器修复                                          | `bd11d6e` `237eb7d` `fb725b2` |
-| 2026-04-25 | —      | 大组件拆分 + SFTP 流控                                       | `f994007` `7502a31` `521cfd7` |
-| 2026-04-24 | —      | 全面代码审计 26 项修复                                       | 多轮提交                      |
-| 2026-04-22 | —      | 基础设施整改                                                 | 多轮提交                      |
+| 日期 | 轮次 | 内容 | 提交 |
+| --- | --- | --- | --- |
+| 2026-05-09 | — | 技术债务报告重构：去除冗余，新增覆盖率分层目标与测试行动计划 | 待提交 |
+| 2026-05-06 | 第11轮 | 前端 10 项全量修复（FA-P0~P3 + FP-P1~P3） | 待提交 |
+| 2026-05-06 | 第10轮 | 后端性能与代码质量 14 项全量修复（BP-P1~P3） | `61ac728` `c14c412` |
+| 2026-05-03 | 第7轮 | composable 拆分 + TranslateFn 类型统一 + Codex 审查修复 | `f464ea9e` `c0efd10c` |
+| 2026-05-03 | 第6轮 | 常量提取 + catch 审计 + 辅助函数 | 4 轮提交 |
+| 2026-05-03 | 第5轮 | 事件监听清理 + utils 测试覆盖 | `bc44514e` `3296d99d` |
+| 2026-05-03 | 第4轮 | Codex 审查补漏 + 模块完整性验证 | 多轮提交 |
+| 2026-05-03 | 第3轮 | 代码质量批量验证 + 测试补充 | 多轮提交 |
+| 2026-05-03 | 第2轮 | 输入验证增强 + 空 catch 块批量修复 | `3296d99d` |
+| 2026-05-03 | 第1轮 | 输入验证 + 事件监听 + composable 类型修复 | `bc44514e` |
+| 2026-05-02 | — | 84 项全面修复 + Codex 审查补漏（7 项） | 多轮提交 |
+| 2026-05-02 | — | L6 移动端体验 + WebSocket 类型泛型化 | `c2101b0` `1162be0` `270ad5d` |
+| 2026-04-28 | — | SFTP/文件管理器修复 | `bd11d6e` `237eb7d` `fb725b2` |
+| 2026-04-25 | — | 大组件拆分 + SFTP 流控 | `f994007` `7502a31` `521cfd7` |
+| 2026-04-24 | — | 全面代码审计 26 项修复 | 多轮提交 |
+| 2026-04-22 | — | 基础设施整改 | 多轮提交 |
 
 ---
 
-**文档维护者**：工程治理
-**最后更新**：2026-05-09
+**文档维护者**：工程治理 **最后更新**：2026-05-09

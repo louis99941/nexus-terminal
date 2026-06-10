@@ -10,6 +10,7 @@ module.exports = {
   trailingComma: 'es5',
   arrowParens: 'always',
   endOfLine: 'lf',
+  proseWrap: 'never',
 
   // Vue 文件配置
   overrides: [

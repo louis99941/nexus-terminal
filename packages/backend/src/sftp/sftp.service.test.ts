@@ -6,6 +6,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { WebSocket } from 'ws';
 
+// Mock websocket/state 避免循环依赖（state.ts 在模块顶层实例化 SftpService）
+vi.mock('../websocket/state', () => ({
+  clientStates: new Map(),
+  transportChannels: new Map(),
+  registerChannel: vi.fn(),
+  sftpService: { cleanupSftpSession: vi.fn() },
+  statusMonitorService: { stopStatusPolling: vi.fn() },
+  auditLogService: { logAction: vi.fn() },
+  settingsService: { getSetting: vi.fn() },
+}));
+
 import { SftpService } from './sftp.service';
 import * as iconv from 'iconv-lite';
 

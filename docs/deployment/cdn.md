@@ -87,25 +87,25 @@ Edge Cache TTL: 1 month
 
 #### Behavior 2: WebSocket
 
-| 设置项                         | 值                                                                 |
-| :----------------------------- | :----------------------------------------------------------------- |
-| Path Pattern                   | `/ws/*`                                                            |
-| Viewer Protocol Policy         | Redirect HTTP to HTTPS                                             |
-| Allowed HTTP Methods           | GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE                       |
-| Cache Policy                   | Use Legacy Cache Policy (转发所有 headers, cookies, query strings) |
-| Origin Request Policy          | AllViewer                                                          |
-| Compress Objects Automatically | No                                                                 |
+| 设置项 | 值 |
+| :-- | :-- |
+| Path Pattern | `/ws/*` |
+| Viewer Protocol Policy | Redirect HTTP to HTTPS |
+| Allowed HTTP Methods | GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE |
+| Cache Policy | Use Legacy Cache Policy (转发所有 headers, cookies, query strings) |
+| Origin Request Policy | AllViewer |
+| Compress Objects Automatically | No |
 
 #### Behavior 3: API
 
-| 设置项                         | 值                                                                 |
-| :----------------------------- | :----------------------------------------------------------------- |
-| Path Pattern                   | `/api/*`                                                           |
-| Viewer Protocol Policy         | Redirect HTTP to HTTPS                                             |
-| Allowed HTTP Methods           | GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE                       |
-| Cache Policy                   | Use Legacy Cache Policy (转发所有 headers, cookies, query strings) |
-| Origin Request Policy          | AllViewer                                                          |
-| Compress Objects Automatically | No                                                                 |
+| 设置项 | 值 |
+| :-- | :-- |
+| Path Pattern | `/api/*` |
+| Viewer Protocol Policy | Redirect HTTP to HTTPS |
+| Allowed HTTP Methods | GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE |
+| Cache Policy | Use Legacy Cache Policy (转发所有 headers, cookies, query strings) |
+| Origin Request Policy | AllViewer |
+| Compress Objects Automatically | No |
 
 #### Behavior 4: 默认（HTML 页面）
 

@@ -231,9 +231,9 @@ export function initializeConnectionHandler(
             if (isMultiplexEnabled() && ws.isMultiplex) {
               const msgSid = (parsedMessage as Record<string, unknown>)?.sid as string | undefined;
               if (msgSid) {
-                // ssh:connect 是创建会话的消息，客户端临时 SID 不在 clientStates 中
-                // 直接使用 msgSid 作为 effectiveSessionId（传给 handleSshConnect 作为 clientSid）
-                if (type === 'ssh:connect') {
+                // ssh:connect 和 SSH_SUSPEND_RESUME_REQUEST 是创建会话的消息，
+                // 客户端临时 SID 不在 clientStates 中，直接使用 msgSid 作为 effectiveSessionId
+                if (type === 'ssh:connect' || type === 'SSH_SUSPEND_RESUME_REQUEST') {
                   effectiveSessionId = msgSid;
                 } else {
                   // 非 connect 消息：校验 sid 已存在于 clientStates
