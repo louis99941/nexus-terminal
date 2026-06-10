@@ -955,16 +955,19 @@ onBeforeUnmount(() => {
 }
 
 .terminal-pane-container.has-global-terminal-background
-  .terminal-outer-wrapper.terminal-transparent {
+  .terminal-instance-wrapper.terminal-transparent
+  .terminal-outer-wrapper {
   background-color: transparent !important; /* 使 Terminal.vue 的最外层容器背景透明 */
 }
 
 .terminal-pane-container.has-global-terminal-background
-  .terminal-outer-wrapper.terminal-transparent
+  .terminal-instance-wrapper.terminal-transparent
+  .terminal-outer-wrapper
   .terminal-inner-container
   .xterm-viewport,
 .terminal-pane-container.has-global-terminal-background
-  .terminal-outer-wrapper.terminal-transparent
+  .terminal-instance-wrapper.terminal-transparent
+  .terminal-outer-wrapper
   .terminal-inner-container
   .xterm-screen {
   background-color: transparent !important;
