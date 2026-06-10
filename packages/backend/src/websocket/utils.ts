@@ -1,4 +1,4 @@
-import { PortInfo } from './types';
+import { PortInfo, AuthenticatedWebSocket } from './types';
 import {
   auditLogService,
   clientStates,
@@ -6,10 +6,32 @@ import {
   statusMonitorService,
   settingsService,
 } from './state';
+import WebSocket from 'ws';
 import { sshSuspendService } from '../ssh-suspend/ssh-suspend.service';
 import { lookupGeoInfo } from '../auth/ip-geo.service';
 import { logger } from '../utils/logger';
 import eventService, { AppEventType } from '../services/event.service';
+
+/**
+ * 统一 WebSocket 消息发送 helper
+ * 自动注入 sid 字段，确保多路复用模式下前端能正确路由响应
+ *
+ * @param ws WebSocket 连接
+ * @param type 消息类型
+ * @param payload 消息负载
+ * @param sessionId 会话 ID（作为顶层 sid）
+ */
+export function sendWsMessage(
+  ws: AuthenticatedWebSocket,
+  type: string,
+  payload: unknown,
+  sessionId?: string
+): void {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  const message: Record<string, unknown> = { type, payload };
+  if (sessionId) message.sid = sessionId;
+  ws.send(JSON.stringify(message));
+}
 
 // H-19: 会话级清理回调注册表，避免模块间循环依赖
 type SessionCleanupCallback = (sessionId: string) => void;

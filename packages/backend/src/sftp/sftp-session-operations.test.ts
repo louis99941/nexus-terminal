@@ -38,7 +38,7 @@ describe('sftp-session-operations', () => {
     const mockSshClient = new MockSshClient();
     const send = vi.fn();
     const state = {
-      ws: { send },
+      ws: { send, readyState: 1 },
       sshClient: mockSshClient,
       sftp: undefined,
       dbConnectionId: 101,
@@ -60,7 +60,7 @@ describe('sftp-session-operations', () => {
     const mockSshClient = new MockSshClient();
     const send = vi.fn();
     const state = {
-      ws: { send },
+      ws: { send, readyState: 1 },
       sshClient: mockSshClient,
       sftp: undefined,
       dbConnectionId: 202,

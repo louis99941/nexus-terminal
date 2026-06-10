@@ -73,11 +73,11 @@ sequenceDiagram
 
 ## 模块索引
 
-| 模块               | 路径                      | TS 文件 | 职责                                                         | 文档                                                            |
-| ------------------ | ------------------------- | ------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
-| **backend**        | `packages/backend`        | 207+    | SSH/Telnet/SFTP 连接、认证、审计、AI 审计、通知、Docker 管理 | [backend/CLAUDE.md](./packages/backend/CLAUDE.md)               |
-| **frontend**       | `packages/frontend`       | 240+    | 终端界面、文件管理器、连接管理、AI 审计界面、主题定制        | [frontend/CLAUDE.md](./packages/frontend/CLAUDE.md)             |
-| **remote-gateway** | `packages/remote-gateway` | 2       | RDP/VNC 连接代理                                             | [remote-gateway/CLAUDE.md](./packages/remote-gateway/CLAUDE.md) |
+| 模块 | 路径 | TS 文件 | 职责 | 文档 |
+| --- | --- | --- | --- | --- |
+| **backend** | `packages/backend` | 207+ | SSH/Telnet/SFTP 连接、认证、审计、AI 审计、通知、Docker 管理 | [backend/CLAUDE.md](./packages/backend/CLAUDE.md) |
+| **frontend** | `packages/frontend` | 240+ | 终端界面、文件管理器、连接管理、AI 审计界面、主题定制 | [frontend/CLAUDE.md](./packages/frontend/CLAUDE.md) |
+| **remote-gateway** | `packages/remote-gateway` | 2 | RDP/VNC 连接代理 | [remote-gateway/CLAUDE.md](./packages/remote-gateway/CLAUDE.md) |
 
 ### 规划文档
 

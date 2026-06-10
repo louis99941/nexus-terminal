@@ -4,11 +4,11 @@
 
 ## 配置入口
 
-| 配置项    | 文档链接                                      | 说明                                                         |
-| --------- | --------------------------------------------- | ------------------------------------------------------------ |
-| 环境变量  | [Docker 环境变量配置](./configuration/docker) | 完整的环境变量参考，含 Backend 和 Remote Gateway             |
-| CORS 跨域 | [CORS 跨域配置](./configuration/cors)         | 自定义域名、多域名、开发环境 CORS 配置                       |
-| 本页      | 下方                                          | Passkey、API Token、速率限制、WebSocket、日志、HTTPS、防火墙 |
+| 配置项 | 文档链接 | 说明 |
+| --- | --- | --- |
+| 环境变量 | [Docker 环境变量配置](./configuration/docker) | 完整的环境变量参考，含 Backend 和 Remote Gateway |
+| CORS 跨域 | [CORS 跨域配置](./configuration/cors) | 自定义域名、多域名、开发环境 CORS 配置 |
+| 本页 | 下方 | Passkey、API Token、速率限制、WebSocket、日志、HTTPS、防火墙 |
 
 ---
 
@@ -52,8 +52,7 @@ remote-gateway:
 ::: tip 建议
 
 - 使用强随机字符串（建议 32+ 字符）
-- Backend 和 Remote Gateway 必须使用相同 Token
-  :::
+- Backend 和 Remote Gateway 必须使用相同 Token :::
 
 ## 速率限制
 
@@ -91,10 +90,20 @@ MAX_MISSED_PONGS_MOBILE=3          # 移动端最大丢包次数
 启用 WebSocket 多路复用，单个物理连接可承载多个 SSH 会话，减少浏览器连接数和服务器资源消耗。
 
 ```dotenv
-ENABLE_MULTIPLEX=false             # 默认关闭，设为 true 启用
+# 后端多路复用控制（运行时配置）
+ENABLE_MULTIPLEX=false             # 默认关闭，设为 true 启用后端会话路由
+
+# 前端多路复用控制（构建时配置）
+VITE_ENABLE_MULTIPLEX=false        # 默认关闭，设为 'true' 启用前端通道管理
 ```
 
-> 注意：多路复用模式下，多个终端标签共享同一个 WebSocket 连接。关闭时回退到传统的每会话一个连接模式。
+> 注意：
+>
+> - `ENABLE_MULTIPLEX`：控制后端会话路由和消息分发逻辑
+> - `VITE_ENABLE_MULTIPLEX`：控制前端通道重映射和会话路由（构建时变量，需设为字符串 `'true'`）
+> - **两个变量必须同时启用**才能实现完整多路复用功能
+> - 多路复用模式下，多个终端标签共享同一个 WebSocket 连接。关闭时回退到传统的每会话一个连接模式
+> - 详细协议规范参见 [WebSocket 多路复用协议](./technical/multiplex-protocol)
 
 ### Nginx 超时
 

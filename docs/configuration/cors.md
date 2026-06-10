@@ -10,9 +10,7 @@ Remote Gateway 服务支持灵活的 CORS（跨域资源共享）配置，可以
 
 ### 1. `CORS_ALLOWED_ORIGINS`
 
-**类型**: 字符串（逗号分隔）
-**默认值**: 空
-**描述**: 额外允许的 CORS 来源，支持多个域名（逗号分隔）
+**类型**: 字符串（逗号分隔） **默认值**: 空 **描述**: 额外允许的 CORS 来源，支持多个域名（逗号分隔）
 
 **示例**:
 
@@ -22,9 +20,7 @@ CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com,https://a
 
 ### 2. `CORS_ALLOW_ALL`
 
-**类型**: 布尔值（`true` 或 `false`）
-**默认值**: `false`
-**描述**: 是否允许所有来源访问（仅用于开发环境，**生产环境强烈不推荐**）
+**类型**: 布尔值（`true` 或 `false`） **默认值**: `false` **描述**: 是否允许所有来源访问（仅用于开发环境，**生产环境强烈不推荐**）
 
 **示例**:
 
@@ -34,8 +30,7 @@ CORS_ALLOW_ALL=true  # ⚠️ 仅用于开发/测试
 
 ### 3. `FRONTEND_URL` 和 `MAIN_BACKEND_URL`
 
-**类型**: 字符串（URL）
-**默认值**:
+**类型**: 字符串（URL） **默认值**:
 
 - `FRONTEND_URL`: `http://localhost:5173`
 - `MAIN_BACKEND_URL`: `http://localhost:3001`

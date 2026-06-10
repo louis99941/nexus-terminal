@@ -2,9 +2,7 @@
 
 ## Repository purpose
 
-Nexus Terminal is a modern web-based remote access platform for SSH, SFTP, RDP, and VNC.
-It includes a frontend application, a backend service, and a remote-gateway workspace.
-It also contains deployment and operation documentation for Docker, nginx reverse proxy, CORS, and environment configuration.
+Nexus Terminal is a modern web-based remote access platform for SSH, SFTP, RDP, and VNC. It includes a frontend application, a backend service, and a remote-gateway workspace. It also contains deployment and operation documentation for Docker, nginx reverse proxy, CORS, and environment configuration.
 
 ## Repository structure
 
@@ -183,8 +181,7 @@ For orchestrator / issue workflow usage:
 
 `/codex implement`（在 Issue 评论中输入此命令，触发 Codex 自动生成代码变更的 PR）
 
-**This rule applies only to issue automation / triage workflows.**
-**It does NOT block direct local repository coding requests.**
+**This rule applies only to issue automation / triage workflows.** **It does NOT block direct local repository coding requests.**
 
 ---
 

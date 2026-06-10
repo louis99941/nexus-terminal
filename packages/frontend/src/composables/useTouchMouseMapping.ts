@@ -167,7 +167,7 @@ export function useTouchMouseMapping(options: TouchMouseMappingOptions) {
   };
 
   /** touchcancel 处理：清除状态并释放已按下的左键，但不合成点击 */
-  const handleTouchCancel = (event: TouchEvent) => {
+  const handleTouchCancel = (_event: TouchEvent) => {
     clearLongPressTimer();
 
     // 如果左键已按下，释放它

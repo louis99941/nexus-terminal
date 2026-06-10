@@ -2,8 +2,7 @@
 
 本指南帮助您快速部署 Nexus Terminal，从零开始搭建完整的远程管理平台。
 
-::: danger ⚠️ v1.5.1 升级重要提示
-自 v1.5.1 起，**容器运行用户由 root 调整为非 root 用户**，以下端口发生变更：
+::: danger ⚠️ v1.5.1 升级重要提示自 v1.5.1 起，**容器运行用户由 root 调整为非 root 用户**，以下端口发生变更：
 
 | 服务                     | 旧端口 | 新端口 | 说明                     |
 | ------------------------ | ------ | ------ | ------------------------ |
@@ -12,8 +11,7 @@
 
 **升级时必须更新**：`docker-compose.yml` 端口映射、宿主机 Nginx 反向代理配置、`.env` 中的环境变量默认值。
 
-详见 [更新日志](./changelog) 中的 v1.5.1 破坏性变更说明。
-:::
+详见 [更新日志](./changelog) 中的 v1.5.1 破坏性变更说明。:::
 
 ## 前置要求
 
@@ -23,8 +21,7 @@
 - **Docker**：版本 20.10+
 - **Docker Compose**：版本 2.0+
 - **内存**：建议 2GB+（根据连接数量调整）
-- **磁盘**：至少 1GB 可用空间
-  :::
+- **磁盘**：至少 1GB 可用空间 :::
 
 ## 一键部署（推荐）
 
@@ -43,9 +40,7 @@ wget https://raw.githubusercontent.com/Silentely/nexus-terminal/refs/heads/main/
 wget https://raw.githubusercontent.com/Silentely/nexus-terminal/refs/heads/main/.env -O .env
 ```
 
-::: warning 注意
-当前默认镜像仓库为 GitHub Container Registry（GHCR），命名空间：`ghcr.io/silentely`
-:::
+::: warning 注意当前默认镜像仓库为 GitHub Container Registry（GHCR），命名空间：`ghcr.io/silentely` :::
 
 ### 第三步：启动服务
 
@@ -59,23 +54,19 @@ docker compose up -d
 
 打开浏览器，访问：**http://your-server-ip:18111**
 
-::: tip 提示
-默认端口为 `18111`，可在 `.env` 文件中修改。
-:::
+::: tip 提示默认端口为 `18111`，可在 `.env` 文件中修改。:::
 
 ## 架构说明
 
 Docker 部署包含三个容器，职责如下：
 
-| 容器               | 内部端口                      | 职责                                                                |
-| ------------------ | ----------------------------- | ------------------------------------------------------------------- |
-| **frontend**       | 8080                          | 静态资源托管 + 反向代理（转发 `/api/` → backend、`/ws/` → backend） |
-| **backend**        | 3001                          | API 服务、SSH/SFTP 连接管理、认证、审计                             |
-| **remote-gateway** | 8081 (WebSocket) / 9090 (API) | Guacamole 网关，处理 RDP/VNC 远程桌面连接                           |
+| 容器 | 内部端口 | 职责 |
+| --- | --- | --- |
+| **frontend** | 8080 | 静态资源托管 + 反向代理（转发 `/api/` → backend、`/ws/` → backend） |
+| **backend** | 3001 | API 服务、SSH/SFTP 连接管理、认证、审计 |
+| **remote-gateway** | 8081 (WebSocket) / 9090 (API) | Guacamole 网关，处理 RDP/VNC 远程桌面连接 |
 
-::: warning 注意
-前端容器的 nginx 默认只代理 `/api/` 和 `/ws/` 到 backend。**`/guacamole/` 不会自动转发到 remote-gateway**，需要在宿主机 Nginx 中单独处理（详见 [Nginx 反向代理配置](./deployment/nginx)）。
-:::
+::: warning 注意前端容器的 nginx 默认只代理 `/api/` 和 `/ws/` 到 backend。**`/guacamole/` 不会自动转发到 remote-gateway**，需要在宿主机 Nginx 中单独处理（详见 [Nginx 反向代理配置](./deployment/nginx)）。:::
 
 ## 手动 Docker Compose 部署
 
@@ -155,9 +146,7 @@ REMOTE_GATEWAY_API_TOKEN=
 EOF
 ```
 
-::: tip 提示
-首次启动后，`ENCRYPTION_KEY` 和 `SESSION_SECRET` 会自动生成并写入 `./data/.env`，无需手动配置。
-:::
+::: tip 提示首次启动后，`ENCRYPTION_KEY` 和 `SESSION_SECRET` 会自动生成并写入 `./data/.env`，无需手动配置。:::
 
 ### 第四步：启动服务
 
@@ -232,8 +221,7 @@ RP_ORIGIN=https://your-domain.com
 
 - `RP_ID` 应为您的域名（不带协议和端口）
 - `RP_ORIGIN` 应为完整的 URL（包含协议）
-- 启用 Passkey 后，确保 `/.well-known/webauthn` 可访问
-  :::
+- 启用 Passkey 后，确保 `/.well-known/webauthn` 可访问 :::
 
 ### Remote Gateway API 鉴权（推荐）
 
@@ -276,9 +264,7 @@ docker compose pull
 docker compose up -d
 ```
 
-::: tip 零停机更新
-`docker compose pull` 后再 `up -d`，会自动创建新容器替换旧容器。
-:::
+::: tip 零停机更新 `docker compose pull` 后再 `up -d`，会自动创建新容器替换旧容器。:::
 
 ### 查看日志
 
@@ -341,9 +327,7 @@ docker compose start backend
 
 ### ARMv7（armhf）
 
-::: warning ARMv7 限制
-Apache Guacamole 未提供 guacd 的 ARMv7 镜像，RDP 功能将被禁用。
-:::
+::: warning ARMv7 限制 Apache Guacamole 未提供 guacd 的 ARMv7 镜像，RDP 功能将被禁用。:::
 
 参考上方 Docker 部署章节中的详细说明。
 
@@ -401,5 +385,4 @@ docker compose up -d
 2. **配置防火墙**：仅开放必要端口（80/443）
 3. **定期备份**：建议每日自动备份数据
 4. **监控资源**：设置 CPU/内存/磁盘告警
-5. **日志轮转**：配置 Docker 日志驱动限制日志大小
-   :::
+5. **日志轮转**：配置 Docker 日志驱动限制日志大小 :::
