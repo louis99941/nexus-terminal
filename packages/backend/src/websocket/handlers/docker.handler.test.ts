@@ -38,10 +38,13 @@ vi.mock('../utils', () => ({
     (
       ws: { readyState: number; send: (data: string) => void },
       type: string,
-      payload: Record<string, unknown>
+      payload: Record<string, unknown>,
+      sessionId?: string
     ) => {
       if (ws.readyState === 1) {
-        ws.send(JSON.stringify({ type, payload }));
+        const message: Record<string, unknown> = { type, payload };
+        if (sessionId) message.sid = sessionId;
+        ws.send(JSON.stringify(message));
       }
     }
   ),
@@ -292,6 +295,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:status:error',
           payload: { message: 'Session state not found.' },
+          sid: 'non-existent-session',
         })
       );
     });
@@ -307,6 +311,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:status:error',
           payload: { message: 'SSH connection not active.' },
+          sid: 'test-session',
         })
       );
     });
@@ -327,6 +332,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:status:update',
           payload: { available: true, containers: [] },
+          sid: 'test-session',
         })
       );
     });
@@ -348,6 +354,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:command:error',
           payload: { command: 'start', message: 'SSH connection not active.' },
+          sid: 'non-existent-session',
         })
       );
     });
@@ -363,6 +370,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:command:error',
           payload: { command: 'start', message: 'Invalid containerId or command.' },
+          sid: 'test-session',
         })
       );
     });
@@ -381,6 +389,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:command:error',
           payload: { message: 'Invalid containerId or command.' },
+          sid: 'test-session',
         })
       );
     });
@@ -518,6 +527,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:stats:error',
           payload: { containerId: 'abc123', message: 'SSH connection not active.' },
+          sid: 'non-existent-session',
         })
       );
     });
@@ -533,6 +543,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:stats:error',
           payload: { containerId: undefined, message: 'Missing containerId.' },
+          sid: 'test-session',
         })
       );
     });
@@ -548,6 +559,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:stats:error',
           payload: { containerId: ';;;', message: 'Invalid container ID format.' },
+          sid: 'test-session',
         })
       );
     });
@@ -591,6 +603,7 @@ describe('Docker WebSocket Handler', () => {
             containerId: 'abc123',
             message: 'No stats data received (container might be stopped).',
           },
+          sid: 'test-session',
         })
       );
     });
@@ -608,6 +621,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:stats:error',
           payload: { containerId: 'abc123', message: 'Container not running' },
+          sid: 'test-session',
         })
       );
     });
@@ -625,6 +639,7 @@ describe('Docker WebSocket Handler', () => {
         JSON.stringify({
           type: 'docker:stats:error',
           payload: { containerId: 'abc123', message: 'Failed to parse stats data.' },
+          sid: 'test-session',
         })
       );
     });

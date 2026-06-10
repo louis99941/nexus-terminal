@@ -91,7 +91,9 @@ export const openNewSession = (
         const channel = createChannel(newSessionId, dbConnId, { isResumeFlow: isResume });
         log.info(`[SessionActions] 多路复用模式：已创建通道 ${newSessionId}`);
         return {
-          sid: channel.sid,
+          get sid() {
+            return channel.sid;
+          },
           sendMessage: channel.sendMessage,
           onMessage: channel.onMessage,
           connect: channel.connect,

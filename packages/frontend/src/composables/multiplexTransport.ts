@@ -110,12 +110,14 @@ function dispatchToChannel(message: WebSocketMessage): void {
     const payload = message.payload as Record<string, unknown> | undefined;
     const backendSessionId = payload?.backendSessionId as string | undefined;
     if (backendSessionId && backendSessionId !== sid) {
+      const existing = channels.get(backendSessionId);
+      if (existing && existing !== channel) {
+        log.error(`[MultiplexTransport] 重映射冲突，目标通道已存在: ${backendSessionId}`);
+        return;
+      }
       log.info(`[MultiplexTransport] 通道重映射: ${sid} → ${backendSessionId}`);
-      // 复制通道状态到新 key
       channels.set(backendSessionId, channel);
-      // 更新通道内部 sid
       channel.sid = backendSessionId;
-      // 删除旧 key
       channels.delete(sid);
     }
   } else if (message.type === 'ssh:disconnected') {

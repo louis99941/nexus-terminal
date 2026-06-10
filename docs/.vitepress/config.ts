@@ -124,7 +124,10 @@ export default defineConfig({
       },
       {
         text: '技术文档',
-        items: [{ text: '技术债务报告', link: '/technical/debt' }],
+        items: [
+          { text: '技术债务报告', link: '/technical/debt' },
+          { text: '多路复用协议', link: '/technical/multiplex-protocol' },
+        ],
       },
       {
         text: '帮助',

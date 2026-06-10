@@ -828,15 +828,7 @@ export async function handleSshConnect(
               'Shell channel closed before silent command completed.'
             );
             logger.debug(`SSH: 会话 ${newSessionId} 的 Shell 通道已关闭。`);
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(
-                JSON.stringify({
-                  type: 'ssh:disconnected',
-                  payload: 'Shell 通道已关闭。',
-                  sid: ws.sessionId,
-                })
-              );
-            }
+            sendWsMessage(ws, 'ssh:disconnected', 'Shell 通道已关闭。', newSessionId);
             cleanupClientConnection(newSessionId).catch((error: unknown) => {
               logger.debug(
                 '[WebSocket] Shell 通道关闭后清理连接失败:',
@@ -939,15 +931,7 @@ export async function handleSshConnect(
         `SSH client error before silent command completed: ${err.message}`
       );
       logger.error(`SSH: 会话 ${newSessionId} 的客户端连接错误:`, err);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            type: 'ssh:error',
-            payload: `SSH 连接错误: ${err.message}`,
-            sid: ws.sessionId,
-          })
-        );
-      }
+      sendWsMessage(ws, 'ssh:error', `SSH 连接错误: ${err.message}`, newSessionId);
       cleanupClientConnection(newSessionId).catch((error: unknown) => {
         logger.debug(
           '[WebSocket] SSH 客户端错误后清理连接失败:',
