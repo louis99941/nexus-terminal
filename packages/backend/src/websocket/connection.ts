@@ -396,6 +396,17 @@ export function initializeConnectionHandler(
                   );
                   break;
 
+                // --- 多路复用通道关闭 ---
+                case 'session:close':
+                  // 前端关闭多路复用通道时通知后端清理资源
+                  cleanupClientConnection(effectiveSessionId).catch((error: unknown) => {
+                    logger.debug(
+                      `[WebSocket] 多路复用通道关闭清理失败 (${effectiveSessionId}):`,
+                      error instanceof Error ? error.message : error
+                    );
+                  });
+                  break;
+
                 // --- SSH Suspend Cases ---
 
                 case 'SSH_SUSPEND_LIST_REQUEST': {

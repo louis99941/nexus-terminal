@@ -1052,9 +1052,9 @@ export function handleSshResize(
 export function handleSshResumeSuccess(sessionId: string): void {
   const state = clientStates.get(sessionId);
   if (state && state.sshClient) {
+    // 多路复用模式：将恢复的会话注册到物理连接的通道集合中
+    registerChannel(state.ws, sessionId);
     statusMonitorService.startStatusPolling(sessionId);
-    // 如果 Docker 状态也需要恢复，可以在这里添加
-    // startDockerStatusPolling(sessionId);
   } else {
     logger.error(
       `[SSH Handler ${sessionId}] 无法为恢复的会话启动状态轮询：未找到会话状态或 SSH 客户端。`

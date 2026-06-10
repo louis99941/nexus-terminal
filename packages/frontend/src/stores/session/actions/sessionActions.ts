@@ -299,7 +299,12 @@ export const closeSession = (sessionId: string) => {
     return;
   }
 
-  // 1. 调用实例上的清理和断开方法
+  // 1. 多路复用模式：通知后端清理资源，避免 SSH 连接泄漏
+  if (isMultiplexEnabled()) {
+    sessionToClose.wsManager.sendMessage({ type: 'session:close', payload: {} });
+  }
+
+  // 2. 调用实例上的清理和断开方法
   sessionToClose.wsManager.disconnect();
   log.info(`[SessionActions] 已为会话 ${sessionId} 调用 wsManager.disconnect()`);
   sessionToClose.sftpManagers.forEach((manager, instanceId) => {

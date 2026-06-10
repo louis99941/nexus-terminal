@@ -36,7 +36,7 @@ export interface ChannelState {
 
 /** 通道控制接口 */
 export interface MultiplexChannel {
-  sid: string;
+  readonly sid: string;
   connectionStatus: Readonly<Ref<ConnectionStatus>>;
   statusMessage: Readonly<Ref<string>>;
   isSftpReady: Readonly<Ref<boolean>>;
