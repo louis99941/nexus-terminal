@@ -12,3 +12,8 @@ package-lock.json
 packages/frontend/src/auto-imports.d.ts
 packages/frontend/src/components.d.ts
 ai/index_manifest.json
+
+# VitePress 文档（::: 容器语法会被 Prettier proseWrap 破坏）
+docs/**/*.md
+DESIGN.md
+AGENTS.md

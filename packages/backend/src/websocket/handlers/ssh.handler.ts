@@ -12,6 +12,7 @@ import {
 } from '../state';
 import * as SshService from '../../services/ssh.service';
 import { cleanupClientConnection, registerSessionCleanup, sendWsMessage } from '../utils';
+import { isMultiplexEnabled } from '../multiplex';
 import { temporaryLogStorageService } from '../../ssh-suspend/temporary-log-storage.service';
 import { startDockerStatusPolling } from './docker.handler';
 import { getErrorMessage } from '../../utils/AppError';
@@ -976,7 +977,10 @@ export async function handleSshConnect(
     });
     if (ws.readyState === WebSocket.OPEN)
       sendWsMessage(ws, 'ssh:error', `连接失败: ${connectErrMsg}`, clientSid ?? ws.sessionId);
-    ws.close(1011, `SSH Connection Failed: ${connectErrMsg}`);
+    // 多路复用模式下不关闭物理 WebSocket，仅发送错误到当前通道
+    if (!ws.isMultiplex || !isMultiplexEnabled()) {
+      ws.close(1011, `SSH Connection Failed: ${connectErrMsg}`);
+    }
   }
 }
 

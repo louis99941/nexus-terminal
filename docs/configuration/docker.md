@@ -2,9 +2,12 @@
 
 > 本文档整理可通过 Docker/Docker Compose 配置的环境变量。完整的变量参考请查看下方环境变量表格。
 
-::: warning ⚠️ `.env` 生效范围 `.env` 文件**仅对 backend 容器生效**（通过 `env_file` 加载）。Remote Gateway 的变量必须在 `docker-compose.yml` 的 `environment` 段中直接配置，或通过 `${VAR}` 语法从 `.env` 引用（仅 `REMOTE_GATEWAY_API_TOKEN` 等少量变量支持此方式）。:::
+::: warning ⚠️ `.env` 生效范围
+`.env` 文件**仅对 backend 容器生效**（通过 `env_file` 加载）。Remote Gateway 的变量必须在 `docker-compose.yml` 的 `environment` 段中直接配置，或通过 `${VAR}` 语法从 `.env` 引用（仅 `REMOTE_GATEWAY_API_TOKEN` 等少量变量支持此方式）。
+:::
 
-::: danger ⚠️ v1.5.1 环境变量变更自 v1.5.1 起，以下环境变量**默认值已变更**：
+::: danger ⚠️ v1.5.1 环境变量变更
+自 v1.5.1 起，以下环境变量**默认值已变更**：
 
 | 变量                           | 旧默认值                   | 新默认值                   |
 | ------------------------------ | -------------------------- | -------------------------- |
@@ -12,7 +15,8 @@
 | `REMOTE_GATEWAY_WS_URL_LOCAL`  | `ws://localhost:8080`      | `ws://localhost:8081`      |
 | `REMOTE_GATEWAY_WS_URL_DOCKER` | `ws://remote-gateway:8080` | `ws://remote-gateway:8081` |
 
-如果您的 `.env` 文件中显式设置了这些变量，请同步更新。:::
+如果您的 `.env` 文件中显式设置了这些变量，请同步更新。
+:::
 
 ---
 
@@ -38,29 +42,29 @@
 
 ### Passkey 认证配置
 
-| 变量名 | 默认值 | 必填 | 描述 |
-| --- | --- | --- | --- |
-| `RP_ID` | `localhost` | 否（Passkey 功能启用时必填） | WebAuthn RP ID。可单值（跨域共享 Passkey 推荐）或多值（按顺序映射） |
-| `RP_ORIGIN` | `http://localhost:5173` | 否（Passkey 功能启用时必填） | WebAuthn RP Origin。支持逗号分隔多值（完整 URL） |
+| 变量名      | 默认值                  | 必填                         | 描述                                                                |
+| ----------- | ----------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| `RP_ID`     | `localhost`             | 否（Passkey 功能启用时必填） | WebAuthn RP ID。可单值（跨域共享 Passkey 推荐）或多值（按顺序映射） |
+| `RP_ORIGIN` | `http://localhost:5173` | 否（Passkey 功能启用时必填） | WebAuthn RP Origin。支持逗号分隔多值（完整 URL）                    |
 
 > 若要实现“一个 Passkey 跨多个完全不同域名”，请使用单一 `RP_ID` + 多个 `RP_ORIGIN`，并确保 RP_ID 域名可访问 `/.well-known/webauthn`。
 
 ### 远程网关地址配置
 
-| 变量名 | 默认值 | 描述 |
-| --- | --- | --- |
-| `REMOTE_GATEWAY_API_BASE_LOCAL` | `http://localhost:9090` | 本地开发时远程网关 API 地址 |
-| `REMOTE_GATEWAY_API_BASE_DOCKER` | `http://remote-gateway:9090` | Docker 部署时远程网关 API 地址 |
-| `REMOTE_GATEWAY_WS_URL_LOCAL` | `ws://localhost:8081` | 本地开发时远程网关 WebSocket 地址 |
-| `REMOTE_GATEWAY_WS_URL_DOCKER` | `ws://remote-gateway:8081` | Docker 部署时远程网关 WebSocket 地址 |
+| 变量名                           | 默认值                       | 描述                                 |
+| -------------------------------- | ---------------------------- | ------------------------------------ |
+| `REMOTE_GATEWAY_API_BASE_LOCAL`  | `http://localhost:9090`      | 本地开发时远程网关 API 地址          |
+| `REMOTE_GATEWAY_API_BASE_DOCKER` | `http://remote-gateway:9090` | Docker 部署时远程网关 API 地址       |
+| `REMOTE_GATEWAY_WS_URL_LOCAL`    | `ws://localhost:8081`        | 本地开发时远程网关 WebSocket 地址    |
+| `REMOTE_GATEWAY_WS_URL_DOCKER`   | `ws://remote-gateway:8081`   | Docker 部署时远程网关 WebSocket 地址 |
 
 ### Remote Gateway API 鉴权（推荐）
 
 > ✅ 建议为远程网关 API 配置共享令牌，避免 token 生成接口在端口被误暴露时可被滥用。
 
-| 变量名 | 默认值 | 描述 |
-| --- | --- | --- |
-| `REMOTE_GATEWAY_API_TOKEN` | - | 共享令牌：backend 请求 Remote Gateway API 时会携带 `X-Remote-Gateway-Token` |
+| 变量名                     | 默认值 | 描述                                                                        |
+| -------------------------- | ------ | --------------------------------------------------------------------------- |
+| `REMOTE_GATEWAY_API_TOKEN` | -      | 共享令牌：backend 请求 Remote Gateway API 时会携带 `X-Remote-Gateway-Token` |
 
 ### 安全相关（自动生成）
 
@@ -73,31 +77,31 @@
 
 ### 可选配置
 
-| 变量名 | 默认值 | 描述 |
-| --- | --- | --- |
-| `ALLOWED_ORIGINS` | - | 额外允许的 CORS 来源（逗号分隔多个域名） |
-| `ALLOWED_WS_ORIGINS` | - | 额外允许的 WebSocket 来源（逗号分隔多个域名） |
-| `ENABLE_GEO_LOOKUP` | `true` | 登录事件 IP 地理位置查询开关。设为 `false` 可禁用（节省外部请求）。 |
-| `GEO_PROVIDER` | `ip-api` | IP 地理定位提供商：`ip-api`（默认，免费）、`ipinfo`（ipinfo.io）或 `iplocate`（iplocate.io）。 |
-| `IPINFO_TOKEN` | - | ipinfo.io API Token（可选，提升请求配额至 50k/月）。 |
-| `IPLOCATE_TOKEN` | - | iplocate.io API Key（可选，提升请求配额与速率限制）。 |
-| `IP_API_USE_HTTPS` | `false` | IP 地理定位 API 是否使用 HTTPS |
-| `HEARTBEAT_INTERVAL_DESKTOP` | `30000` | 桌面端心跳间隔（毫秒） |
-| `HEARTBEAT_INTERVAL_MOBILE` | `12000` | 移动端心跳间隔（毫秒） |
-| `MAX_MISSED_PONGS_DESKTOP` | `1` | 桌面端最大允许丢失 pong 次数，超过则断开连接 |
-| `MAX_MISSED_PONGS_MOBILE` | `3` | 移动端最大允许丢失 pong 次数，超过则断开连接 |
-| `ENABLE_MULTIPLEX` | `false` | WebSocket 多路复用开关。设为 `true` 启用单连接多会话模式 |
-| `TRUST_PROXY` | - | 是否信任代理 (`true`/`false`) |
-| `TRUST_PROXY_HOPS` | - | 信任的代理跳数 |
-| `SHELL` | - | 终端默认 Shell（如 `/bin/bash`） |
-| `METRICS_TOKEN` | - | Prometheus 指标端点访问令牌（保护 `/api/v1/metrics`） |
-| `LOG_LEVEL` | `info` | 后端日志等级（`debug/info/warn/error/silent`） |
-| `LOG_PRETTY` | - | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启 |
-| `LOG_REDACT` | - | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启） |
-| `LOG_TZ` | - | 日志时间戳时区（优先级高于 `TZ`） |
-| `ENABLE_REQUEST_LOG` | `true` | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量 |
-| `ENABLE_HSTS` | `false` | 启用 HSTS 安全头（Strict-Transport-Security）。仅生产 HTTPS 环境开启，开发环境勿启用 |
-| `TZ` | `UTC` | 后端进程默认时区 |
+| 变量名                       | 默认值   | 描述                                                                                           |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `ALLOWED_ORIGINS`            | -        | 额外允许的 CORS 来源（逗号分隔多个域名）                                                       |
+| `ALLOWED_WS_ORIGINS`         | -        | 额外允许的 WebSocket 来源（逗号分隔多个域名）                                                  |
+| `ENABLE_GEO_LOOKUP`          | `true`   | 登录事件 IP 地理位置查询开关。设为 `false` 可禁用（节省外部请求）。                            |
+| `GEO_PROVIDER`               | `ip-api` | IP 地理定位提供商：`ip-api`（默认，免费）、`ipinfo`（ipinfo.io）或 `iplocate`（iplocate.io）。 |
+| `IPINFO_TOKEN`               | -        | ipinfo.io API Token（可选，提升请求配额至 50k/月）。                                           |
+| `IPLOCATE_TOKEN`             | -        | iplocate.io API Key（可选，提升请求配额与速率限制）。                                          |
+| `IP_API_USE_HTTPS`           | `false`  | IP 地理定位 API 是否使用 HTTPS                                                                 |
+| `HEARTBEAT_INTERVAL_DESKTOP` | `30000`  | 桌面端心跳间隔（毫秒）                                                                         |
+| `HEARTBEAT_INTERVAL_MOBILE`  | `12000`  | 移动端心跳间隔（毫秒）                                                                         |
+| `MAX_MISSED_PONGS_DESKTOP`   | `1`      | 桌面端最大允许丢失 pong 次数，超过则断开连接                                                   |
+| `MAX_MISSED_PONGS_MOBILE`    | `3`      | 移动端最大允许丢失 pong 次数，超过则断开连接                                                   |
+| `ENABLE_MULTIPLEX`           | `false`  | WebSocket 多路复用开关。设为 `true` 启用单连接多会话模式                                       |
+| `TRUST_PROXY`                | -        | 是否信任代理 (`true`/`false`)                                                                  |
+| `TRUST_PROXY_HOPS`           | -        | 信任的代理跳数                                                                                 |
+| `SHELL`                      | -        | 终端默认 Shell（如 `/bin/bash`）                                                               |
+| `METRICS_TOKEN`              | -        | Prometheus 指标端点访问令牌（保护 `/api/v1/metrics`）                                          |
+| `LOG_LEVEL`                  | `info`   | 后端日志等级（`debug/info/warn/error/silent`）                                                 |
+| `LOG_PRETTY`                 | -        | 日志格式化开关。`true`=pino-pretty 彩色输出，`false`=JSON。dev 模式默认开启                    |
+| `LOG_REDACT`                 | -        | 日志脱敏开关。设为 `false` 可关闭敏感信息脱敏（默认开启）                                      |
+| `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                                              |
+| `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                       |
+| `ENABLE_HSTS`                | `false`  | 启用 HSTS 安全头（Strict-Transport-Security）。仅生产 HTTPS 环境开启，开发环境勿启用           |
+| `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
 
 ### NL2CMD 调试配置
 
@@ -113,7 +117,8 @@
 
 ## 2. Remote Gateway 服务变量
 
-> **配置方式**: 在 `docker-compose.yml` 的 `remote-gateway` 服务的 `environment` 中直接配置 **⚠️ 重要**: Remote Gateway **不读取 `.env` 文件**，仅 `docker-compose.yml` 中通过 `${VAR}` 语法引用的变量会从 `.env` 解析。其他变量必须直接写在 `environment` 段中。
+> **配置方式**: 在 `docker-compose.yml` 的 `remote-gateway` 服务的 `environment` 中直接配置
+> **⚠️ 重要**: Remote Gateway **不读取 `.env` 文件**，仅 `docker-compose.yml` 中通过 `${VAR}` 语法引用的变量会从 `.env` 解析。其他变量必须直接写在 `environment` 段中。
 
 ### 端口配置
 
@@ -332,10 +337,10 @@ networks:
 
 ### 前端构建时变量（可选）
 
-| 变量名 | 默认值 | 描述 |
-| --- | --- | --- |
+| 变量名                         | 默认值 | 描述                                                                  |
+| ------------------------------ | ------ | --------------------------------------------------------------------- |
 | `VITE_NOTIFICATION_TIMEOUT_MS` | `3000` | 前端通知自动关闭时间（毫秒）。仅支持正整数，缺省/非法值会回退默认值。 |
-| `VITE_API_BASE_URL` | - | 前端拼接后端静态资源地址的基础 URL（如背景图 URL）。 |
+| `VITE_API_BASE_URL`            | -      | 前端拼接后端静态资源地址的基础 URL（如背景图 URL）。                  |
 
 > 重要说明：
 >

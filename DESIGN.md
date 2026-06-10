@@ -59,7 +59,9 @@
 
 ### 数据流
 
-**SSH/Telnet 连接**：浏览器 → WebSocket → Backend（Node.js SSH2 客户端）→ 目标服务器 **SFTP 文件操作**：浏览器 → HTTP API → Backend（ssh2 SFTP 子系统）→ 目标服务器 **RDP/VNC 连接**：浏览器 → WebSocket → Remote Gateway（guacamole-lite）→ Guacd（内嵌）→ 目标服务器
+**SSH/Telnet 连接**：浏览器 → WebSocket → Backend（Node.js SSH2 客户端）→ 目标服务器
+**SFTP 文件操作**：浏览器 → HTTP API → Backend（ssh2 SFTP 子系统）→ 目标服务器
+**RDP/VNC 连接**：浏览器 → WebSocket → Remote Gateway（guacamole-lite）→ Guacd（内嵌）→ 目标服务器
 
 ---
 
@@ -170,15 +172,15 @@
 
 ### 威胁模型
 
-| 威胁 | 影响 | 缓解措施 |
-| --- | --- | --- |
-| 凭据泄露 | 远程服务器被未授权访问 | AES-256-GCM 加密存储，密钥轮换支持 |
-| 命令注入 | 通过 SFTP/Docker 接口执行任意命令 | 统一 `shellEscape()` 工具函数 + 白名单校验 |
-| SSRF 攻击 | 通过 URL 参数访问内网资源 | `validateUrlNotPrivate()` 域名精确匹配 |
-| XSS 攻击 | 窃取用户会话或执行恶意操作 | CSP 安全头 + Helmet 中间件 |
-| 暴力破解 | 暴力猜测密码 | bcrypt 12 轮 + IP 黑名单 + 速率限制 |
-| WebSocket 劫持 | 跨站 WebSocket 劫持（CSWSH） | Origin 白名单校验 |
-| 路径穿越 | 通过文件操作访问任意路径 | `VALID_TABLE_NAME` 正则白名单 + `VALID_SUSPEND_ID` 校验 |
+| 威胁           | 影响                              | 缓解措施                                                |
+| -------------- | --------------------------------- | ------------------------------------------------------- |
+| 凭据泄露       | 远程服务器被未授权访问            | AES-256-GCM 加密存储，密钥轮换支持                      |
+| 命令注入       | 通过 SFTP/Docker 接口执行任意命令 | 统一 `shellEscape()` 工具函数 + 白名单校验              |
+| SSRF 攻击      | 通过 URL 参数访问内网资源         | `validateUrlNotPrivate()` 域名精确匹配                  |
+| XSS 攻击       | 窃取用户会话或执行恶意操作        | CSP 安全头 + Helmet 中间件                              |
+| 暴力破解       | 暴力猜测密码                      | bcrypt 12 轮 + IP 黑名单 + 速率限制                     |
+| WebSocket 劫持 | 跨站 WebSocket 劫持（CSWSH）      | Origin 白名单校验                                       |
+| 路径穿越       | 通过文件操作访问任意路径          | `VALID_TABLE_NAME` 正则白名单 + `VALID_SUSPEND_ID` 校验 |
 
 ### 安全措施层次
 
@@ -216,12 +218,12 @@
 
 ## 技术债务（已知但暂不修复）
 
-| 债务 | 原因 | 计划 |
-| --- | --- | --- |
-| Express 5 运行时 + Express 4 类型定义 | `@types/express@5` 尚未发布 | 等待官方发布后升级 |
-| 前端测试覆盖率 29.65% | 历史欠账，模块数量多 | 分阶段提升，目标 v1.6.0 ≥60% |
-| Pinia Store 过度原子化 | 24 个 Store 粒度较细 | 已评估，当前粒度对模块化有利，暂不合并 |
-| Monaco Editor 独立 Worker 池 | Vite 构建下已自动池化 | 已评估，无需额外处理 |
+| 债务                                  | 原因                        | 计划                                   |
+| ------------------------------------- | --------------------------- | -------------------------------------- |
+| Express 5 运行时 + Express 4 类型定义 | `@types/express@5` 尚未发布 | 等待官方发布后升级                     |
+| 前端测试覆盖率 29.65%                 | 历史欠账，模块数量多        | 分阶段提升，目标 v1.6.0 ≥60%           |
+| Pinia Store 过度原子化                | 24 个 Store 粒度较细        | 已评估，当前粒度对模块化有利，暂不合并 |
+| Monaco Editor 独立 Worker 池          | Vite 构建下已自动池化       | 已评估，无需额外处理                   |
 
 ---
 

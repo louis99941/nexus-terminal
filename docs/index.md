@@ -47,7 +47,8 @@ features:
 
 ## 一键部署
 
-::: tip 三条命令即可启动 :::
+::: tip 三条命令即可启动
+:::
 
 ```bash
 mkdir nexus-terminal && cd nexus-terminal
