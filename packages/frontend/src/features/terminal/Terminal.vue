@@ -376,6 +376,8 @@ onMounted(() => {
       // 高 DPI 屏幕支持：解决字体发虚问题
       // 使用实际的设备像素比，确保字体清晰渲染
       ...props.options,
+      // allowProposedApi 必须在 props.options 之后，确保 Unicode11Addon 始终可用
+      allowProposedApi: true,
     });
 
     terminalInstance.value = term;
@@ -621,14 +623,21 @@ onBeforeUnmount(() => {
     textareaKeydownHandler.value = null;
   }
 
+  // OutputEnhancerAddon 会替换 terminal.write，需在 terminal 仍存活时先恢复原始方法。
+  // terminal.dispose() 也会清理已加载 addon，但此处提前 dispose 可避免 monkey-patch 残留。
+  if (outputEnhancerAddon) {
+    try {
+      outputEnhancerAddon.dispose();
+    } catch (error: unknown) {
+      log.warn(`[Terminal ${props.sessionId}] OutputEnhancerAddon dispose 失败:`, error);
+    } finally {
+      outputEnhancerAddon = null;
+    }
+  }
+
   if (terminalInstance.value) {
     terminalInstance.value.dispose();
     terminalInstance.value = null;
-  }
-
-  if (outputEnhancerAddon) {
-    outputEnhancerAddon.dispose();
-    outputEnhancerAddon = null;
   }
 
   if (selectionListenerDisposable) {

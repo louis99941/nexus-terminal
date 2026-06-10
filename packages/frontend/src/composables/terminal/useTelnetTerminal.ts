@@ -40,6 +40,7 @@ export function useTelnetTerminal() {
       cursorBlink: true,
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      allowProposedApi: true,
       theme: {
         background: '#1e1e1e',
         foreground: '#d4d4d4',
