@@ -79,6 +79,10 @@ export class WebRTCTunnel {
   private fallbackTunnel: any = null;
   /** 信令阶段消息队列（DataChannel 未就绪时暂存） */
   private pendingMessages: string[] = [];
+  /** 远程 ICE 候选缓冲区（在 remote description 设置前收到的 ICE candidate） */
+  private pendingIceCandidates: RTCIceCandidateInit[] = [];
+  /** 标记 remote description 是否已设置 */
+  private remoteDescriptionSet = false;
 
   constructor(config: WebRTCTunnelConfig) {
     this.config = {
@@ -188,6 +192,8 @@ export class WebRTCTunnel {
     this.clearConnectTimer();
     this.setState('disconnected');
     this.pendingMessages = [];
+    this.pendingIceCandidates = [];
+    this.remoteDescriptionSet = false;
 
     if (this.fallbackTunnel) {
       try {
@@ -436,7 +442,23 @@ export class WebRTCTunnel {
     try {
       this.sessionId = message.sessionId || null;
       await this.pc.setRemoteDescription(message.payload as RTCSessionDescriptionInit);
+      this.remoteDescriptionSet = true;
       console.debug(`[WebRTCTunnel] SDP Answer 已设置, sessionId=${this.sessionId}`);
+
+      // 刷新在 answer 到达前缓冲的 ICE candidates
+      if (this.pendingIceCandidates.length > 0) {
+        log.debug(
+          `[WebRTCTunnel] 刷新 ${this.pendingIceCandidates.length} 个缓冲的 ICE candidates`
+        );
+        for (const candidate of this.pendingIceCandidates) {
+          try {
+            await this.pc.addIceCandidate(candidate);
+          } catch (err) {
+            log.warn('[WebRTCTunnel] 刷新缓冲 ICE Candidate 失败:', err);
+          }
+        }
+        this.pendingIceCandidates = [];
+      }
     } catch (error) {
       this.handleError(`设置 SDP Answer 失败: ${error}`);
     }
@@ -444,12 +466,22 @@ export class WebRTCTunnel {
 
   /**
    * 处理远程 ICE Candidate
+   * 若 remote description 尚未设置，则缓冲 candidate 待 answer 到达后再添加
    */
   private async handleRemoteIceCandidate(message: SignalingMessage): Promise<void> {
     if (!this.pc || !message.payload) return;
 
+    const candidate = message.payload as RTCIceCandidateInit;
+
+    // remote description 尚未设置，缓冲 candidate
+    if (!this.remoteDescriptionSet) {
+      log.debug('[WebRTCTunnel] Remote description 尚未设置，缓冲 ICE candidate');
+      this.pendingIceCandidates.push(candidate);
+      return;
+    }
+
     try {
-      await this.pc.addIceCandidate(message.payload as RTCIceCandidateInit);
+      await this.pc.addIceCandidate(candidate);
     } catch (error) {
       log.warn('[WebRTCTunnel] 添加远程 ICE Candidate 失败:', error);
     }

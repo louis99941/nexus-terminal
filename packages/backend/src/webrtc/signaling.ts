@@ -76,6 +76,8 @@ export function getICEConfig(): WebRTCConfig {
 function handleSignalingConnection(clientWs: WebSocket): void {
   let session: ActiveWebRTCSession | null = null;
   let sessionId = '';
+  /** 在 session 建立前收到的 ICE candidates 缓冲 */
+  let pendingIceCandidates: RTCIceCandidateInit[] = [];
 
   clientWs.on('message', async (data: Buffer | string) => {
     try {
@@ -88,11 +90,45 @@ function handleSignalingConnection(clientWs: WebSocket): void {
             if (newSession) {
               sessionId = newSession.sessionId;
               session = newSession;
+              // 刷新在 offer 处理期间收到的 ICE candidates
+              if (pendingIceCandidates.length > 0) {
+                logger.debug(
+                  `[WebRTC Signaling] 刷新 ${pendingIceCandidates.length} 个缓冲的 ICE candidates: ${sessionId}`
+                );
+                for (const candidate of pendingIceCandidates) {
+                  try {
+                    await session.pc.addIceCandidate(candidate);
+                  } catch (error) {
+                    logger.warn(
+                      `[WebRTC Signaling] 刷新缓冲 ICE candidate 失败: ${sessionId}`,
+                      error
+                    );
+                  }
+                }
+                pendingIceCandidates = [];
+              }
             }
           }
           break;
         case 'ice-candidate':
-          await handleIceCandidate(clientWs, message);
+          {
+            const candidate = message.payload as RTCIceCandidateInit;
+            if (!candidate) break;
+
+            if (session) {
+              // session 已建立，直接添加
+              try {
+                await session.pc.addIceCandidate(candidate);
+                logger.debug(`[WebRTC Signaling] ICE candidate 已添加: ${sessionId}`);
+              } catch (error) {
+                logger.warn(`[WebRTC Signaling] 添加 ICE candidate 失败: ${sessionId}`, error);
+              }
+            } else {
+              // session 尚未建立（offer 正在处理中），缓冲 candidate
+              logger.debug('[WebRTC Signaling] Session 尚未建立，缓冲 ICE candidate');
+              pendingIceCandidates.push(candidate);
+            }
+          }
           break;
         default:
           sendError(clientWs, `未知消息类型: ${message.type}`);
@@ -213,32 +249,6 @@ async function handleOffer(
 
   logger.debug(`[WebRTC Signaling] SDP answer 已发送: ${sessionId}`);
   return session;
-}
-
-/**
- * 处理 ICE candidate：将浏览器的 ICE candidate 添加到后端 PeerConnection
- */
-async function handleIceCandidate(clientWs: WebSocket, message: SignalingMessage): Promise<void> {
-  const candidate = message.payload as RTCIceCandidateInit;
-  const sessionId = (message as unknown as Record<string, string>).sessionId;
-
-  if (!sessionId) {
-    sendError(clientWs, '缺少 sessionId');
-    return;
-  }
-
-  const session = activeSessions.get(sessionId);
-  if (!session) {
-    sendError(clientWs, `会话不存在: ${sessionId}`);
-    return;
-  }
-
-  try {
-    await session.pc.addIceCandidate(candidate);
-    logger.debug(`[WebRTC Signaling] ICE candidate 已添加: ${sessionId}`);
-  } catch (error) {
-    logger.warn(`[WebRTC Signaling] 添加 ICE candidate 失败: ${sessionId}`, error);
-  }
 }
 
 /**
