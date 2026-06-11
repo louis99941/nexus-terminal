@@ -9,8 +9,10 @@ services:
     ports:
       - "18111:8080"
     depends_on:
-      - backend
-      - remote-gateway
+      backend:
+        condition: service_healthy
+      remote-gateway:
+        condition: service_healthy
     networks:
       - nexus-terminal-network
     restart: unless-stopped
