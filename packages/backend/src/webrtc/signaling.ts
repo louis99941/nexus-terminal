@@ -33,6 +33,8 @@ export interface WebRTCConfig {
     username?: string;
     credential?: string;
   }>;
+  /** UDP 端口范围 (为 Docker 部署指定) */
+  portRange?: [number, number];
 }
 
 /** 活跃的 WebRTC 会话 */
@@ -67,7 +69,15 @@ export function getICEConfig(): WebRTCConfig {
     });
   }
 
-  return { iceServers };
+  const config: WebRTCConfig = { iceServers };
+
+  const portMin = parseInt(process.env.WEBRTC_PORT_MIN || '', 10);
+  const portMax = parseInt(process.env.WEBRTC_PORT_MAX || '', 10);
+  if (!isNaN(portMin) && !isNaN(portMax) && portMin <= portMax) {
+    config.portRange = [portMin, portMax];
+  }
+
+  return config;
 }
 
 /**
@@ -187,6 +197,7 @@ async function handleOffer(
       username: server.username,
       credential: server.credential,
     })),
+    portRange: iceConfig.portRange,
   });
 
   const session: ActiveWebRTCSession = {

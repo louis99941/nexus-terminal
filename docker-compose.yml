@@ -39,6 +39,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      WEBRTC_PORT_MIN: 10000
+      WEBRTC_PORT_MAX: 10009
+    ports:
+      - "10000-10009:10000-10009/udp"
     volumes:
       - ./data:/app/data
     networks:

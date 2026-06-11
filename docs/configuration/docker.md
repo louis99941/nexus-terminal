@@ -102,6 +102,8 @@
 | `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                       |
 | `ENABLE_HSTS`                | `false`  | 启用 HSTS 安全头（Strict-Transport-Security）。仅生产 HTTPS 环境开启，开发环境勿启用           |
 | `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
+| `WEBRTC_PORT_MIN`            | -        | WebRTC DataChannel 绑定的 UDP 端口范围起始值（用于 Docker 桥接网络模式暴露 UDP 端口）          |
+| `WEBRTC_PORT_MAX`            | -        | WebRTC DataChannel 绑定的 UDP 端口范围结束值                                                   |
 
 ### NL2CMD 调试配置
 
@@ -167,6 +169,7 @@
 | -------------- | ------------- | -------- | -------------------------------------------- |
 | frontend       | `18111`       | `8080`   | Web 应用访问端口                             |
 | backend        | `3001` (内部) | `3001`   | API 服务端口                                 |
+| backend        | `10000-10009` | `10000-10009` (UDP) | WebRTC UDP 数据通道（需与 `WEBRTC_PORT_MIN/MAX` 匹配） |
 | remote-gateway | - (内部)      | `8081`   | Guacamole WebSocket 端口（backend 内部代理） |
 | remote-gateway | - (内部)      | `9090`   | API 服务端口                                 |
 | guacd          | - (内部)      | `4822`   | Guacamole 协议端口                           |
@@ -298,6 +301,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      WEBRTC_PORT_MIN: 10000
+      WEBRTC_PORT_MAX: 10009
+    ports:
+      - '10000-10009:10000-10009/udp'
     volumes:
       - ./data:/app/data
     networks:
