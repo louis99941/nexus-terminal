@@ -80,12 +80,25 @@ async function getOrResolveHost(
 export function createPinnedLookup(allowedAddresses: string[]) {
   return (
     _hostname: string,
-    _options: unknown,
-    callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void
+    options: unknown,
+    callback: (err: NodeJS.ErrnoException | null, address: any, family?: number) => void
   ): void => {
-    const address = allowedAddresses[0];
-    const family = address.includes(':') ? 6 : 4;
-    callback(null, address, family);
+    // Node.js 20+ 的 http.Agent 会传入 options.all = true
+    // 此时 callback 期望收到 [{ address: string, family: number }] 数组
+    const isAll =
+      typeof options === 'object' && options !== null && (options as Record<string, unknown>).all;
+
+    if (isAll) {
+      const addresses = allowedAddresses.map((addr) => ({
+        address: addr,
+        family: addr.includes(':') ? 6 : 4,
+      }));
+      callback(null, addresses as any);
+    } else {
+      const address = allowedAddresses[0];
+      const family = address.includes(':') ? 6 : 4;
+      callback(null, address, family);
+    }
   };
 }
 

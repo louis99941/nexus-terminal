@@ -53,6 +53,19 @@ export async function bridgeDataChannelToGateway(
     return;
   }
 
+  // 优化：如果前端传入的 remoteGatewayUrl 是当前后端的 /rdp-proxy 或 /ws/rdp-proxy，
+  // 我们将其重写为内部地址（localhost:PORT）以避免 NAT hairpinning 问题和不必要的公网请求。
+  try {
+    const parsed = new URL(remoteGatewayUrl);
+    if (parsed.pathname === '/rdp-proxy' || parsed.pathname === '/ws/rdp-proxy') {
+      const port = process.env.PORT || 3001;
+      remoteGatewayUrl = `ws://localhost:${port}${parsed.pathname}${parsed.search}`;
+      logger.debug(`[WebRTC Bridge] 重写 remoteGatewayUrl 为内部地址: ${remoteGatewayUrl}`);
+    }
+  } catch (e) {
+    // 忽略解析错误
+  }
+
   // SSRF 防护：内部网关地址直接放行，外部地址需 DNS 验证 + 绑定
   let agent: http.Agent | undefined;
   if (!isInternalGatewayUrl(remoteGatewayUrl)) {
