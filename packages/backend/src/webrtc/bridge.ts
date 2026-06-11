@@ -56,14 +56,29 @@ export async function bridgeDataChannelToGateway(
   let rewrittenOrigin: string | undefined;
 
   // 优化：如果前端传入的 remoteGatewayUrl 是当前后端的 /rdp-proxy 或 /ws/rdp-proxy，
-  // 我们将其重写为内部地址（localhost:PORT）以避免 NAT hairpinning 问题和不必要的公网请求。
+  // 我们将其直接重写为 remote-gateway 的实际地址。
+  // 这避免了 WebRTC Bridge (没有携带用户 cookie) 被后端的 WebSocket Upgrade 认证中间件 401 拒绝，
+  // 同时也减少了一层不必要的后端代理转发。
   try {
     const parsed = new URL(remoteGatewayUrl);
     if (parsed.pathname === '/rdp-proxy' || parsed.pathname === '/ws/rdp-proxy') {
-      const port = process.env.PORT || 3001;
-      remoteGatewayUrl = `ws://localhost:${port}${parsed.pathname}${parsed.search}`;
-      rewrittenOrigin = `http://localhost:${port}`;
-      logger.debug(`[WebRTC Bridge] 重写 remoteGatewayUrl 为内部地址: ${remoteGatewayUrl}`);
+      const deploymentMode = process.env.DEPLOYMENT_MODE;
+      let targetBase: string;
+      if (deploymentMode === 'local') {
+        targetBase = process.env.REMOTE_GATEWAY_WS_URL_LOCAL || 'ws://localhost:8081';
+      } else if (deploymentMode === 'docker') {
+        targetBase = process.env.REMOTE_GATEWAY_WS_URL_DOCKER || 'ws://remote-gateway:8081';
+      } else {
+        targetBase = 'ws://localhost:8081';
+      }
+      const cleanBase = targetBase.endsWith('/') ? targetBase.slice(0, -1) : targetBase;
+      
+      // 前端已经附加了 ?token=...&width=... 等参数，我们直接替换 base url 即可
+      remoteGatewayUrl = `${cleanBase}/${parsed.search}`;
+      logger.debug(`[WebRTC Bridge] 重写 remoteGatewayUrl 直接指向网关: ${cleanBase}/?[REDACTED]`);
+      
+      // 因为是直连内部网关，不需要再设置 origin spoofing
+      rewrittenOrigin = undefined;
     }
   } catch (e) {
     // 忽略解析错误
