@@ -23,7 +23,7 @@ import {
 import { SshSuspendService } from '../ssh-suspend/ssh-suspend.service';
 import { SftpService } from '../sftp/sftp.service';
 import { cleanupClientConnection } from './utils';
-import { clientStates, registerUserSocket, unregisterUserSocket } from './state'; // 导入 userId 映射函数
+import { clientStates, registerUserSocket, unregisterUserSocket, transportChannels } from './state'; // 导入 userId 映射函数和通道追踪
 import { temporaryLogStorageService } from '../ssh-suspend/temporary-log-storage.service';
 import { resetHeartbeat, cleanupHeartbeat } from './heartbeat'; // 导入心跳函数
 import { validateWebSocketMessage, isLikelyValidJson } from './validate'; // 导入消息校验函数
@@ -231,28 +231,55 @@ export function initializeConnectionHandler(
             if (isMultiplexEnabled() && ws.isMultiplex) {
               const msgSid = (parsedMessage as Record<string, unknown>)?.sid as string | undefined;
               if (msgSid) {
-                // 所有权校验：确认该 sid 对应的会话属于当前用户
-                const targetState = clientStates.get(msgSid);
-                if (targetState && targetState.ws.userId === ws.userId) {
+                // ssh:connect 和 SSH_SUSPEND_RESUME_REQUEST 是创建会话的消息，
+                // 客户端临时 SID 不在 clientStates 中，直接使用 msgSid 作为 effectiveSessionId
+                if (type === 'ssh:connect' || type === 'SSH_SUSPEND_RESUME_REQUEST') {
                   effectiveSessionId = msgSid;
-                } else if (targetState) {
-                  // 会话存在但不属于当前用户
-                  logger.warn(
-                    `[WebSocket 安全] 用户 ${ws.userId} 尝试访问不属于自己的会话 ${msgSid}，已拒绝`
-                  );
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(
-                      JSON.stringify({ type: 'error', payload: '无权访问该会话', sid: msgSid })
-                    );
-                  }
-                  return;
                 } else {
-                  // 会话不存在（已清理或 sid 错误），拒绝而非静默回退
-                  logger.warn(`[WebSocket 多路复用] sid ${msgSid} 不存在，拒绝请求`);
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'error', payload: '会话不存在', sid: msgSid }));
+                  // 非 connect 消息：校验 sid 已存在于 clientStates
+                  const targetState = clientStates.get(msgSid);
+                  if (targetState && targetState.ws.userId === ws.userId) {
+                    // 通道成员校验：确认该 sid 注册在当前物理连接的通道中
+                    const myChannels = transportChannels.get(ws);
+                    if (myChannels && myChannels.has(msgSid)) {
+                      effectiveSessionId = msgSid;
+                    } else {
+                      // 同用户但不属于当前物理连接的通道
+                      logger.warn(
+                        `[WebSocket 安全] 用户 ${ws.userId} 尝试通过非所属物理连接访问会话 ${msgSid}，已拒绝`
+                      );
+                      if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(
+                          JSON.stringify({
+                            type: 'error',
+                            payload: '该会话不属于当前连接',
+                            sid: msgSid,
+                          })
+                        );
+                      }
+                      return;
+                    }
+                  } else if (targetState) {
+                    // 会话存在但不属于当前用户
+                    logger.warn(
+                      `[WebSocket 安全] 用户 ${ws.userId} 尝试访问不属于自己的会话 ${msgSid}，已拒绝`
+                    );
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.send(
+                        JSON.stringify({ type: 'error', payload: '无权访问该会话', sid: msgSid })
+                      );
+                    }
+                    return;
+                  } else {
+                    // 会话不存在（已清理或 sid 错误），拒绝而非静默回退
+                    logger.warn(`[WebSocket 多路复用] sid ${msgSid} 不存在，拒绝请求`);
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.send(
+                        JSON.stringify({ type: 'error', payload: '会话不存在', sid: msgSid })
+                      );
+                    }
+                    return;
                   }
-                  return;
                 }
               }
             }
@@ -262,20 +289,30 @@ export function initializeConnectionHandler(
                 // SSH Cases
                 case 'ssh:connect':
                   // Pass the original Express request object for IP and session
+                  // 多路复用模式：传递客户端 SID 用于握手响应
                   await handleSshConnect(
                     ws,
                     request,
-                    payload as Parameters<typeof handleSshConnect>[2]
+                    payload as Parameters<typeof handleSshConnect>[2],
+                    effectiveSessionId
                   );
                   break;
                 case 'ssh:input':
-                  handleSshInput(ws, payload as Parameters<typeof handleSshInput>[1]);
+                  handleSshInput(
+                    ws,
+                    payload as Parameters<typeof handleSshInput>[1],
+                    effectiveSessionId
+                  );
                   break;
                 case 'ssh:resize':
-                  handleSshResize(ws, payload as Parameters<typeof handleSshResize>[1]);
+                  handleSshResize(
+                    ws,
+                    payload as Parameters<typeof handleSshResize>[1],
+                    effectiveSessionId
+                  );
                   break;
                 case 'ssh:exec_silent':
-                  handleSshExecSilent(ws, payload, requestId);
+                  handleSshExecSilent(ws, payload, requestId, effectiveSessionId);
                   break;
 
                 // Telnet Cases
@@ -331,25 +368,43 @@ export function initializeConnectionHandler(
                     ws,
                     type,
                     payload as Parameters<typeof handleSftpOperation>[2],
-                    requestId
+                    requestId,
+                    effectiveSessionId
                   );
                   break;
 
                 // SFTP Upload Cases
                 case 'sftp:upload:start':
-                  handleSftpUploadStart(ws, payload as Parameters<typeof handleSftpUploadStart>[1]);
+                  handleSftpUploadStart(
+                    ws,
+                    payload as Parameters<typeof handleSftpUploadStart>[1],
+                    effectiveSessionId
+                  );
                   break;
                 case 'sftp:upload:chunk':
                   await handleSftpUploadChunk(
                     ws,
-                    payload as Parameters<typeof handleSftpUploadChunk>[1]
+                    payload as Parameters<typeof handleSftpUploadChunk>[1],
+                    effectiveSessionId
                   );
                   break;
                 case 'sftp:upload:cancel':
                   handleSftpUploadCancel(
                     ws,
-                    payload as Parameters<typeof handleSftpUploadCancel>[1]
+                    payload as Parameters<typeof handleSftpUploadCancel>[1],
+                    effectiveSessionId
                   );
+                  break;
+
+                // --- 多路复用通道关闭 ---
+                case 'session:close':
+                  // 前端关闭多路复用通道时通知后端清理资源
+                  cleanupClientConnection(effectiveSessionId).catch((error: unknown) => {
+                    logger.debug(
+                      `[WebSocket] 多路复用通道关闭清理失败 (${effectiveSessionId}):`,
+                      error instanceof Error ? error.message : error
+                    );
+                  });
                   break;
 
                 // --- SSH Suspend Cases ---
@@ -514,7 +569,7 @@ export function initializeConnectionHandler(
                         },
                       };
                       if (ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify(logChunkResponse));
+                        ws.send(JSON.stringify({ ...logChunkResponse, sid: newFrontendSessionId }));
                         // logger.info(`[WebSocket Handler][${type}] 已发送 SSH_OUTPUT_CACHED_CHUNK 给 ${newFrontendSessionId} (数据长度: ${result.logData.length})。`);
                       } else {
                         // logger.warn(`[WebSocket Handler][${type}] WebSocket 在发送 SSH_OUTPUT_CACHED_CHUNK 前已关闭 (会话 ${newFrontendSessionId})。`);
@@ -529,6 +584,7 @@ export function initializeConnectionHandler(
                               connectionId: newSessionState.dbConnectionId, // 使用已恢复的 dbConnectionId
                               sessionId: newFrontendSessionId, // 使用新的前端会话 ID
                             },
+                            sid: newFrontendSessionId,
                           })
                         );
                         logger.debug(
@@ -542,7 +598,9 @@ export function initializeConnectionHandler(
                         payload: { suspendSessionId, newFrontendSessionId, success: true },
                       };
                       if (ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify(responseNotification));
+                        ws.send(
+                          JSON.stringify({ ...responseNotification, sid: newFrontendSessionId })
+                        );
                         // logger.info(`[WebSocket Handler][${type}] 已发送 SSH_SUSPEND_RESUMED 给 ${newFrontendSessionId}。`);
                       } else {
                         // logger.warn(`[WebSocket Handler][${type}] WebSocket 在发送 SSH_SUSPEND_RESUMED 前已关闭 (会话 ${newFrontendSessionId})。`);
@@ -991,17 +1049,29 @@ export function initializeConnectionHandler(
           multiplexTransport.cleanup();
         }
 
-        // 清理该会话的批处理器（非多路复用模式）
-        if (ws.sessionId) {
+        // 多路复用模式：遍历所有注册通道，逐个清理 SSH/SFTP 资源
+        const channels = transportChannels.get(ws);
+        if (channels && channels.size > 0) {
+          for (const channelId of channels) {
+            destroyBatcher(channelId);
+            cleanupClientConnection(channelId).catch((error: unknown) => {
+              logger.debug(
+                `[WebSocket] 通道 ${channelId} 关闭后清理失败:`,
+                error instanceof Error ? error.message : error
+              );
+            });
+          }
+          transportChannels.delete(ws);
+        } else if (ws.sessionId) {
+          // 非多路复用模式：清理单个会话
           destroyBatcher(ws.sessionId);
+          cleanupClientConnection(ws.sessionId).catch((error: unknown) => {
+            logger.debug(
+              '[WebSocket] 连接关闭后清理失败:',
+              error instanceof Error ? error.message : error
+            );
+          });
         }
-
-        cleanupClientConnection(ws.sessionId).catch((error: unknown) => {
-          logger.debug(
-            '[WebSocket] 连接关闭后清理失败:',
-            error instanceof Error ? error.message : error
-          );
-        });
       });
 
       ws.on('error', (error) => {
@@ -1024,17 +1094,29 @@ export function initializeConnectionHandler(
           multiplexTransport.cleanup();
         }
 
-        // 清理该会话的批处理器（非多路复用模式）
-        if (ws.sessionId) {
+        // 多路复用模式：遍历所有注册通道，逐个清理 SSH/SFTP 资源
+        const channels = transportChannels.get(ws);
+        if (channels && channels.size > 0) {
+          for (const channelId of channels) {
+            destroyBatcher(channelId);
+            cleanupClientConnection(channelId).catch((cleanupError: unknown) => {
+              logger.debug(
+                `[WebSocket] 通道 ${channelId} 错误后清理失败:`,
+                cleanupError instanceof Error ? cleanupError.message : cleanupError
+              );
+            });
+          }
+          transportChannels.delete(ws);
+        } else if (ws.sessionId) {
+          // 非多路复用模式：清理单个会话
           destroyBatcher(ws.sessionId);
+          cleanupClientConnection(ws.sessionId).catch((cleanupError: unknown) => {
+            logger.debug(
+              '[WebSocket] 连接错误后清理失败:',
+              cleanupError instanceof Error ? cleanupError.message : cleanupError
+            );
+          });
         }
-
-        cleanupClientConnection(ws.sessionId).catch((cleanupError: unknown) => {
-          logger.debug(
-            '[WebSocket] 连接错误后清理失败:',
-            cleanupError instanceof Error ? cleanupError.message : cleanupError
-          );
-        });
       });
     }
   });

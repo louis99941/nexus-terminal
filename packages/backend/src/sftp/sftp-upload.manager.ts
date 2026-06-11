@@ -28,6 +28,10 @@ interface ActiveUpload {
   expectedChunkIndex: number;
   /** 刷写缓冲区的 Promise 锁（防止重入，排队等待当前刷写完成后再执行） */
   flushLock: Promise<void> | null;
+  /** stream.end() 后等待 close 事件的兜底定时器 */
+  closeTimeoutFallback: ReturnType<typeof setTimeout> | null;
+  /** 标记 stream.end() 是否已调用（防止重入） */
+  endRequested: boolean;
 }
 
 /** 滑动窗口大小：允许同时在途的最大块数量 */
@@ -174,11 +178,19 @@ export class SftpUploadManager {
         pendingChunks: new Map(),
         expectedChunkIndex: 0,
         flushLock: null,
+        closeTimeoutFallback: null,
+        endRequested: false,
       };
       this.activeUploads.set(uploadId, uploadState);
 
       stream.on('error', (err: Error) => {
         logger.error(`[SFTP Upload ${uploadId}] WriteStream error for ${remotePath}:`, err);
+        // 清理 close 兜底定时器（如有）
+        const errUploadState = this.activeUploads.get(uploadId);
+        if (errUploadState?.closeTimeoutFallback) {
+          clearTimeout(errUploadState.closeTimeoutFallback);
+          errUploadState.closeTimeoutFallback = null;
+        }
         state.ws.send(
           JSON.stringify({
             type: 'sftp:upload:error',
@@ -188,18 +200,13 @@ export class SftpUploadManager {
         this.activeUploads.delete(uploadId);
       });
 
-      // 超时回退：如果 stream.end() 后 close 事件未在 5s 内触发，强制销毁流并清理
-      const closeTimeoutFallback = setTimeout(() => {
-        const pendingState = this.activeUploads.get(uploadId);
-        if (pendingState && !pendingState.stream.destroyed) {
-          logger.warn(`[SFTP Upload ${uploadId}] stream close 事件超时 (5s)，强制销毁流。`);
-          pendingState.stream.destroy();
-          this.activeUploads.delete(uploadId);
-        }
-      }, 5000);
-
       stream.on('close', () => {
-        clearTimeout(closeTimeoutFallback);
+        // 清理 close 兜底定时器（如有）
+        const closingState = this.activeUploads.get(uploadId);
+        if (closingState?.closeTimeoutFallback) {
+          clearTimeout(closingState.closeTimeoutFallback);
+          closingState.closeTimeoutFallback = null;
+        }
         const finalState = this.activeUploads.get(uploadId);
         if (finalState) {
           if (finalState.bytesWritten >= finalState.totalSize) {
@@ -436,7 +443,24 @@ export class SftpUploadManager {
 
         // 检查是否所有字节已写入完毕
         if (uploadState.bytesWritten >= uploadState.totalSize) {
-          if (!uploadState.stream.writableEnded) {
+          if (!uploadState.endRequested && !uploadState.stream.writableEnded) {
+            uploadState.endRequested = true;
+
+            // 超时回退：stream.end() 后如果 close 事件未在 5s 内触发，强制销毁流并清理
+            uploadState.closeTimeoutFallback = setTimeout(() => {
+              const pendingState = this.activeUploads.get(uploadId);
+              if (pendingState && !pendingState.stream.destroyed) {
+                logger.warn(
+                  `[SFTP Upload ${uploadId}] stream close 事件超时 (5s)，强制销毁流。` +
+                    ` (bytesWritten=${pendingState.bytesWritten}/${pendingState.totalSize},` +
+                    ` expectedChunkIndex=${pendingState.expectedChunkIndex},` +
+                    ` pendingChunks=${pendingState.pendingChunks.size})`
+                );
+                pendingState.stream.destroy();
+                this.activeUploads.delete(uploadId);
+              }
+            }, 5000);
+
             uploadState.stream.end((endErr: (Error & { code?: string }) | undefined) => {
               if (endErr) {
                 if (
@@ -578,6 +602,11 @@ export class SftpUploadManager {
     const uploadState = this.activeUploads.get(uploadId);
     if (uploadState) {
       logger.info(`[SFTP Upload ${uploadId}] Cleaning upload state: ${reason}`);
+      // 清理 close 兜底定时器
+      if (uploadState.closeTimeoutFallback) {
+        clearTimeout(uploadState.closeTimeoutFallback);
+        uploadState.closeTimeoutFallback = null;
+      }
       const currentStream = uploadState.stream;
       if (currentStream && !currentStream.destroyed) {
         if (!currentStream.writableEnded) {

@@ -4,15 +4,15 @@
 
 ## 服务列表
 
-| 文件                                                                       | 职责               | 使用方                  |
-| -------------------------------------------------------------------------- | ------------------ | ----------------------- |
-| `event.service.ts`                                                         | 事件发布订阅总线   | 全局（导入即注册）      |
-| `dashboard.service.ts` / `dashboard.controller.ts` / `dashboard.routes.ts` | 仪表盘聚合数据     | 前端 Dashboard 页面     |
-| `ssh.service.ts`                                                           | SSH 连接工具函数   | WebSocket 处理器、SFTP  |
-| `guacamole.service.ts`                                                     | Guacamole 协议服务 | Remote Gateway 通信     |
-| `status-monitor.service.ts`                                                | 系统状态监控       | 前端 StatusMonitor 组件 |
-| `import-export.service.ts`                                                 | 连接数据导入导出   | Settings 控制器         |
-| `path-history.service.ts`                                                  | 路径浏览历史       | 前端文件管理器          |
+| 文件 | 职责 | 使用方 |
+| --- | --- | --- |
+| `event.service.ts` | 事件发布订阅总线 | 全局（导入即注册） |
+| `dashboard.service.ts` / `dashboard.controller.ts` / `dashboard.routes.ts` | 仪表盘聚合数据 | 前端 Dashboard 页面 |
+| `ssh.service.ts` | SSH 连接工具函数 | WebSocket 处理器、SFTP |
+| `guacamole.service.ts` | Guacamole 协议服务 | Remote Gateway 通信 |
+| `status-monitor.service.ts` | 系统状态监控 | 前端 StatusMonitor 组件 |
+| `import-export.service.ts` | 连接数据导入导出 | Settings 控制器 |
+| `path-history.service.ts` | 路径浏览历史 | 前端文件管理器 |
 
 ## 设计说明
 

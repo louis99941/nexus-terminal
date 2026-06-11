@@ -53,6 +53,20 @@ vi.mock('../state', async (importOriginal) => {
 vi.mock('../utils', () => ({
   cleanupClientConnection: vi.fn().mockResolvedValue(undefined),
   registerSessionCleanup: vi.fn(),
+  sendWsMessage: vi.fn(
+    (
+      ws: { readyState: number; send: (data: string) => void },
+      type: string,
+      payload: Record<string, unknown>,
+      sessionId?: string
+    ) => {
+      if (ws.readyState === 1) {
+        const message: Record<string, unknown> = { type, payload };
+        if (sessionId) message.sid = sessionId;
+        ws.send(JSON.stringify(message));
+      }
+    }
+  ),
 }));
 
 // Mock temporaryLogStorageService
@@ -180,7 +194,11 @@ describe('SSH WebSocket Handler', () => {
       await handleSshConnect(mockWs, mockRequest, { connectionId: 1 });
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: '已存在活动的 SSH 连接。' })
+        JSON.stringify({
+          type: 'ssh:error',
+          payload: '已存在活动的 SSH 连接。',
+          sid: 'existing-session',
+        })
       );
       expect(SshService.getConnectionDetails).not.toHaveBeenCalled();
     });
@@ -214,7 +232,11 @@ describe('SSH WebSocket Handler', () => {
         JSON.stringify({ type: 'ssh:status', payload: '正在连接到 192.168.1.1...' })
       );
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:status', payload: 'SSH 连接成功，正在打开 Shell...' })
+        JSON.stringify({
+          type: 'ssh:status',
+          payload: 'SSH 连接成功，正在打开 Shell...',
+          sid: 'mock-session-id-12345',
+        })
       );
 
       // 验证 shell 调用参数
@@ -277,7 +299,11 @@ describe('SSH WebSocket Handler', () => {
       await handleSshConnect(mockWs, mockRequest, { connectionId: 1 });
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: '打开 Shell 失败: Shell 打开失败' })
+        JSON.stringify({
+          type: 'ssh:error',
+          payload: '打开 Shell 失败: Shell 打开失败',
+          sid: 'mock-session-id-12345',
+        })
       );
     });
 
@@ -400,7 +426,11 @@ describe('SSH WebSocket Handler', () => {
       mockShellStream.emit('close');
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:disconnected', payload: 'Shell 通道已关闭。' })
+        JSON.stringify({
+          type: 'ssh:disconnected',
+          payload: 'Shell 通道已关闭。',
+          sid: 'mock-session-id-12345',
+        })
       );
       expect(cleanupClientConnection).toHaveBeenCalledWith('mock-session-id-12345');
     });
@@ -1060,7 +1090,11 @@ describe('SSH WebSocket Handler', () => {
       mockSshClient.emit('error', new Error('Network error'));
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: 'SSH 连接错误: Network error' })
+        JSON.stringify({
+          type: 'ssh:error',
+          payload: 'SSH 连接错误: Network error',
+          sid: 'mock-session-id-12345',
+        })
       );
       expect(cleanupClientConnection).toHaveBeenCalledWith('mock-session-id-12345');
     });

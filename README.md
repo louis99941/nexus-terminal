@@ -2,9 +2,7 @@
 
 <div align="center">
 
-[![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)][docker-url] [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-4CAF50?style=flat-square)](https://github.com/Silentely/nexus-terminal/blob/main/LICENSE) [![Changelog](https://img.shields.io/badge/changelog-kittylog-10b981)](https://kittylog.app/c/Silentely/nexus-terminal)
-<br>
-[中文](./README.md) | [English](./README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
+[![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)][docker-url] [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-4CAF50?style=flat-square)](https://github.com/Silentely/nexus-terminal/blob/main/LICENSE) [![Changelog](https://img.shields.io/badge/changelog-kittylog-10b981)](https://kittylog.app/c/Silentely/nexus-terminal) <br> [中文](./README.md) | [English](./README_EN.md) | [文档](https://nexus.cosr.eu.org) | [更新日志](https://kittylog.app/c/Silentely/nexus-terminal)
 
 [docker-url]: https://ghcr.io/silentely/nexus-terminal-frontend
 
@@ -16,70 +14,68 @@
 
 ## 🔀 与上游的不同之处
 
-> 本项目 Fork 自 [Heavrnl/nexus-terminal](https://github.com/Heavrnl/nexus-terminal)。
-> 上游对比基线：`Heavrnl/nexus-terminal:main`
-> 在线对比链接：<https://github.com/Heavrnl/nexus-terminal/compare/main...Silentely:main>
+> 本项目 Fork 自 [Heavrnl/nexus-terminal](https://github.com/Heavrnl/nexus-terminal)。上游对比基线：`Heavrnl/nexus-terminal:main` 在线对比链接：<https://github.com/Heavrnl/nexus-terminal/compare/main...Silentely:main>
 
 以下为本 Fork 相对上游的主要差异（按主题汇总）：
 
 ### 🚀 本 Fork 新增
 
-| 类别                   | 功能                                                                                       |
-| :--------------------- | :----------------------------------------------------------------------------------------- |
-| **AI 智能助手**        | 集成 OpenAI/Claude 多模型，自然语言直接转换为终端命令（NL2CMD），支持 429 重试、结构化输出 |
-| **批量命令执行**       | 支持多服务器同时执行命令，优先级队列（low/normal/high/urgent），SSH 连接池复用             |
-| **数据备份 API**       | `/api/v1/backup` 支持导出/导入连接、密钥、标签等 14 类核心数据                             |
-| **IP 地理定位**        | 登录事件自动查询 IP 地理位置，SQLite 持久化缓存 + ASN 支持 + 多提供商适配器                |
-| **SSH 跳板路由可视化** | 结构化路由汇总，前端显示跳板路径与延迟                                                     |
-| **SSH 批量状态采集**   | 合并为单次执行，高延迟场景性能提升 70-85%                                                  |
-| **命令面板**           | `Ctrl + K` 快捷操作检索与执行，支持连接搜索、页面导航、主题切换                            |
-| **健康检查端点**       | `/api/v1/health` 检查 SQLite 连通性、WebSocket 状态、磁盘空间、内存使用                    |
-| **结构化日志**         | pino 引擎驱动，JSON 结构化输出，支持自定义时区、敏感信息脱敏                               |
-| **Prometheus Metrics** | 内置应用指标采集端点，支持 Grafana 等监控平台对接                                          |
-| **可配置速率限制**     | 通过环境变量灵活控制 API 速率限制（含 AI 路由独立限流）                                    |
-| **终端外观实时预览**   | 外观自定义设置中新增实时预览窗口，支持字体、主题、描边、阴影即时预览                       |
-| **强制键盘交互式认证** | SSH 连接新增 `keyboard-interactive` 选项，支持 TOTP/2FA 服务器认证                         |
-| **统一缓存管理器**     | 类型安全的 localStorage 操作，支持版本控制与 TTL 过期管理                                  |
-| **统一错误消息提取器** | 消除重复的错误提取模式，全局统一错误处理                                                   |
-| **数据导入功能**       | 设置页面支持数据导入（配合已有导出功能），支持数据库备份下载                               |
-| **CDN 边缘部署**       | 支持 Cloudflare/CloudFront 等 CDN 加速静态资源分发                                         |
-| **文档站点**           | 独立文档站 [nexus.cosr.eu.org](https://nexus.cosr.eu.org)，含部署教程、配置指南、FAQ       |
+| 类别 | 功能 |
+| :-- | :-- |
+| **AI 智能助手** | 集成 OpenAI/Claude 多模型，自然语言直接转换为终端命令（NL2CMD），支持 429 重试、结构化输出 |
+| **批量命令执行** | 支持多服务器同时执行命令，优先级队列（low/normal/high/urgent），SSH 连接池复用 |
+| **数据备份 API** | `/api/v1/backup` 支持导出/导入连接、密钥、标签等 14 类核心数据 |
+| **IP 地理定位** | 登录事件自动查询 IP 地理位置，SQLite 持久化缓存 + ASN 支持 + 多提供商适配器 |
+| **SSH 跳板路由可视化** | 结构化路由汇总，前端显示跳板路径与延迟 |
+| **SSH 批量状态采集** | 合并为单次执行，高延迟场景性能提升 70-85% |
+| **命令面板** | `Ctrl + K` 快捷操作检索与执行，支持连接搜索、页面导航、主题切换 |
+| **健康检查端点** | `/api/v1/health` 检查 SQLite 连通性、WebSocket 状态、磁盘空间、内存使用 |
+| **结构化日志** | pino 引擎驱动，JSON 结构化输出，支持自定义时区、敏感信息脱敏 |
+| **Prometheus Metrics** | 内置应用指标采集端点，支持 Grafana 等监控平台对接 |
+| **可配置速率限制** | 通过环境变量灵活控制 API 速率限制（含 AI 路由独立限流） |
+| **终端外观实时预览** | 外观自定义设置中新增实时预览窗口，支持字体、主题、描边、阴影即时预览 |
+| **强制键盘交互式认证** | SSH 连接新增 `keyboard-interactive` 选项，支持 TOTP/2FA 服务器认证 |
+| **统一缓存管理器** | 类型安全的 localStorage 操作，支持版本控制与 TTL 过期管理 |
+| **统一错误消息提取器** | 消除重复的错误提取模式，全局统一错误处理 |
+| **数据导入功能** | 设置页面支持数据导入（配合已有导出功能），支持数据库备份下载 |
+| **CDN 边缘部署** | 支持 Cloudflare/CloudFront 等 CDN 加速静态资源分发 |
+| **文档站点** | 独立文档站 [nexus.cosr.eu.org](https://nexus.cosr.eu.org)，含部署教程、配置指南、FAQ |
 
 ### ⚡ 性能优化
 
-| 优化项                   | 效果                                                                              |
-| :----------------------- | :-------------------------------------------------------------------------------- |
+| 优化项 | 效果 |
+| :-- | :-- |
 | **SSH 终端输入延迟优化** | 输入延迟从 72-232ms 降至 <3ms（**提升 98%**），区分小数据包直写与大数据包批量缓冲 |
-| **应用启动性能优化**     | 统一初始化 API，3-4 次网络请求合并为 1 次，消除白屏等待                           |
-| **虚拟滚动统一架构**     | 抽取 `useVirtualListSetup` composable，4 个组件统一使用，自动 overscan 缩放       |
-| **审计日志行高修复**     | 修复 `itemHeight` 与实际行高不匹配导致的内容裁剪，从 100px 调整为 180px           |
-| **WebWorker 输出处理**   | 终端语法高亮移至 Worker 线程，避免大量输出阻塞主线程，含降级兜底                  |
-| **路由资源预加载**       | 认证后自动预加载核心路由 chunk（Dashboard > Workspace > Connections）             |
-| **Service Worker 增强**  | 结构化缓存策略（静态资源/ API / 图标 / 页面），支持离线访问                       |
-| **前端懒加载优化**       | RDP/VNC 组件按需加载，guacamole 依赖 (~200KB) 不再阻塞首屏                        |
-| **SQLite WAL 模式**      | 启用 WAL 模式优化数据库并发读写，减少锁竞争                                       |
-| **审计日志概率清理**     | 改为概率触发（每 100 次写入清理一次），避免每次写入都执行清理检查                 |
-| **数据库索引优化**       | 为 proxies/notification_settings/favorite_paths/quick_commands 添加缺失索引       |
-| **进程内缓存层**         | settings 表 5 分钟 TTL、connections 表 2 分钟 TTL，减少高频 SQL 查询              |
-| **SSH 连接池**           | 批量任务支持连接复用，每目标最多 3 个空闲连接，60 秒自动回收                      |
-| **批量任务优先级**       | 支持 low/normal/high/urgent 四个优先级，紧急任务优先执行                          |
-| **WebSocket 多路复用**   | 单连接承载多会话，减少浏览器连接数，降低服务器资源消耗                            |
-| **终端数据压缩**         | permessage-deflate 协议压缩 + 16ms 微批处理，降低带宽占用                         |
+| **应用启动性能优化** | 统一初始化 API，3-4 次网络请求合并为 1 次，消除白屏等待 |
+| **虚拟滚动统一架构** | 抽取 `useVirtualListSetup` composable，4 个组件统一使用，自动 overscan 缩放 |
+| **审计日志行高修复** | 修复 `itemHeight` 与实际行高不匹配导致的内容裁剪，从 100px 调整为 180px |
+| **WebWorker 输出处理** | 终端语法高亮移至 Worker 线程，避免大量输出阻塞主线程，含降级兜底 |
+| **路由资源预加载** | 认证后自动预加载核心路由 chunk（Dashboard > Workspace > Connections） |
+| **Service Worker 增强** | 结构化缓存策略（静态资源/ API / 图标 / 页面），支持离线访问 |
+| **前端懒加载优化** | RDP/VNC 组件按需加载，guacamole 依赖 (~200KB) 不再阻塞首屏 |
+| **SQLite WAL 模式** | 启用 WAL 模式优化数据库并发读写，减少锁竞争 |
+| **审计日志概率清理** | 改为概率触发（每 100 次写入清理一次），避免每次写入都执行清理检查 |
+| **数据库索引优化** | 为 proxies/notification_settings/favorite_paths/quick_commands 添加缺失索引 |
+| **进程内缓存层** | settings 表 5 分钟 TTL、connections 表 2 分钟 TTL，减少高频 SQL 查询 |
+| **SSH 连接池** | 批量任务支持连接复用，每目标最多 3 个空闲连接，60 秒自动回收 |
+| **批量任务优先级** | 支持 low/normal/high/urgent 四个优先级，紧急任务优先执行 |
+| **WebSocket 多路复用** | 单连接承载多会话，减少浏览器连接数，降低服务器资源消耗 |
+| **终端数据压缩** | permessage-deflate 协议压缩 + 16ms 微批处理，降低带宽占用 |
 
 ### 🏗️ 架构与部署
 
-| 改进项                                      | 说明                                                                                                                      |
-| :------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------ |
-| **Docker 部署精简**                         | guacd 内嵌于 remote-gateway 容器，部署从 4 容器精简为 3 容器                                                              |
-| **ARM64 开箱即用**                          | remote-gateway 镜像已内嵌 guacd，无需手动替换 guacd 镜像                                                                  |
-| **模块化拆分**                              | SFTP 服务拆分为 readdir/move/copy/path-operations/session 独立执行器；auth 控制器拆分为 login/passkey/2FA/password 动作层 |
-| **FileManager 组件拆分**                    | 从单文件拆分为 composable 组合式函数（排序/过滤、路径导航、列宽调整、布局设置、剪贴板、文件项操作、操作模态框、下载）     |
-| **Repository 基类抽象**                     | 统一 Repository 层错误处理与日志记录                                                                                      |
-| **类型化错误体系**                          | `DatabaseError`、`ValidationError`、`ExternalServiceError` 等类型安全的错误子类                                           |
-| **CSP 安全头**                              | Content-Security-Policy / X-Frame-Options / X-Content-Type-Options                                                        |
-| **SSRF / 命令注入 / 路径穿越 / ReDoS 防护** | 完整的安全防御体系                                                                                                        |
-| **Docker Compose 生产就绪**                 | healthcheck、资源限制、restart policy、日志轮转                                                                           |
-| **镜像仓库**                                | 使用 GitHub Container Registry（GHCR），命名空间 `ghcr.io/silentely`                                                      |
+| 改进项 | 说明 |
+| :-- | :-- |
+| **Docker 部署精简** | guacd 内嵌于 remote-gateway 容器，部署从 4 容器精简为 3 容器 |
+| **ARM64 开箱即用** | remote-gateway 镜像已内嵌 guacd，无需手动替换 guacd 镜像 |
+| **模块化拆分** | SFTP 服务拆分为 readdir/move/copy/path-operations/session 独立执行器；auth 控制器拆分为 login/passkey/2FA/password 动作层 |
+| **FileManager 组件拆分** | 从单文件拆分为 composable 组合式函数（排序/过滤、路径导航、列宽调整、布局设置、剪贴板、文件项操作、操作模态框、下载） |
+| **Repository 基类抽象** | 统一 Repository 层错误处理与日志记录 |
+| **类型化错误体系** | `DatabaseError`、`ValidationError`、`ExternalServiceError` 等类型安全的错误子类 |
+| **CSP 安全头** | Content-Security-Policy / X-Frame-Options / X-Content-Type-Options |
+| **SSRF / 命令注入 / 路径穿越 / ReDoS 防护** | 完整的安全防御体系 |
+| **Docker Compose 生产就绪** | healthcheck、资源限制、restart policy、日志轮转 |
+| **镜像仓库** | 使用 GitHub Container Registry（GHCR），命名空间 `ghcr.io/silentely` |
 
 ### 📦 上游保留
 
@@ -125,8 +121,8 @@
 
 ---
 
-|                                移动端界面1                                |                                移动端界面2                                |
-| :-----------------------------------------------------------------------: | :-----------------------------------------------------------------------: |
+| 移动端界面1 | 移动端界面2 |
+| :-: | :-: |
 | ![1746339196937.png](https://lsky.tuyu.me/i/2025/05/04/6817056948ac2.png) | ![1746339222136.png](https://lsky.tuyu.me/i/2025/05/04/681705820fe01.png) |
 
 ---

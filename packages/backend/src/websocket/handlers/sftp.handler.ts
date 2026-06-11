@@ -1,4 +1,3 @@
-import WebSocket from 'ws';
 import {
   AuthenticatedWebSocket,
   SftpCompressRequestPayload,
@@ -7,6 +6,7 @@ import {
 import { clientStates, sftpService } from '../state';
 import { getErrorMessage } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
+import { sendWsMessage } from '../utils';
 
 type SftpOperationPayload = {
   path?: string;
@@ -44,17 +44,17 @@ export async function handleSftpOperation(
   ws: AuthenticatedWebSocket,
   type: string,
   payload: SftpOperationPayload,
-  requestId?: string
+  requestId?: string,
+  overrideSessionId?: string
 ): Promise<void> {
-  const { sessionId } = ws;
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!sessionId || !state) {
     logger.warn({ username: ws.username, type }, 'WebSocket: SFTP 请求收到但无活动会话');
     const errPayload: { message: string; requestId?: string } = { message: '无效的会话' };
     if (requestId) errPayload.requestId = requestId;
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'sftp_error', payload: errPayload }));
+    sendWsMessage(ws, 'sftp_error', errPayload, sessionId);
     return;
   }
   if (!requestId) {
@@ -62,13 +62,7 @@ export async function handleSftpOperation(
       { username: ws.username, sessionId, type },
       'WebSocket: SFTP 请求收到但缺少 requestId'
     );
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(
-        JSON.stringify({
-          type: 'sftp_error',
-          payload: { message: `SFTP 操作 ${type} 缺少 requestId` },
-        })
-      );
+    sendWsMessage(ws, 'sftp_error', { message: `SFTP 操作 ${type} 缺少 requestId` }, sessionId);
     return;
   }
 
@@ -176,13 +170,12 @@ export async function handleSftpOperation(
         break;
       default:
         logger.warn(`WebSocket: Received unhandled SFTP message type in sftp.handler: ${type}`);
-        if (ws.readyState === WebSocket.OPEN)
-          ws.send(
-            JSON.stringify({
-              type: 'sftp_error',
-              payload: { message: `内部未处理的 SFTP 类型: ${type}`, requestId },
-            })
-          );
+        sendWsMessage(
+          ws,
+          'sftp_error',
+          { message: `内部未处理的 SFTP 类型: ${type}`, requestId },
+          sessionId
+        );
         throw new Error(`Unhandled SFTP type: ${type}`);
     }
   } catch (sftpCallError: unknown) {
@@ -191,48 +184,43 @@ export async function handleSftpOperation(
       `WebSocket: Error preparing/calling SFTP service for ${type} (Request ID: ${requestId}):`,
       sftpCallError
     );
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(
-        JSON.stringify({
-          type: 'sftp_error',
-          payload: {
-            message: `处理 SFTP 请求 ${type} 时出错: ${sftpCallErrMsg}`,
-            requestId,
-          },
-        })
-      );
+    sendWsMessage(
+      ws,
+      'sftp_error',
+      { message: `处理 SFTP 请求 ${type} 时出错: ${sftpCallErrMsg}`, requestId },
+      sessionId
+    );
   }
 }
 
 export function handleSftpUploadStart(
   ws: AuthenticatedWebSocket,
-  payload: SftpUploadStartPayload
+  payload: SftpUploadStartPayload,
+  overrideSessionId?: string
 ): void {
-  const { sessionId } = ws;
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!sessionId || !state) {
     logger.warn(`WebSocket: 收到来自 ${ws.username} 的 SFTP 上传开始请求，但无活动会话。`);
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(
-        JSON.stringify({
-          type: 'sftp:upload:error',
-          payload: { uploadId: payload?.uploadId, message: '无效的会话' },
-        })
-      );
+    sendWsMessage(
+      ws,
+      'sftp:upload:error',
+      { uploadId: payload?.uploadId, message: '无效的会话' },
+      sessionId
+    );
     return;
   }
   if (!payload?.uploadId || !payload?.remotePath || typeof payload?.size !== 'number') {
     logger.error(
       `WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 sftp:upload:start 请求，但缺少 uploadId, remotePath 或 size。`
     );
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(
-        JSON.stringify({
-          type: 'sftp:upload:error',
-          payload: { uploadId: payload?.uploadId, message: '缺少 uploadId, remotePath 或 size' },
-        })
-      );
+    sendWsMessage(
+      ws,
+      'sftp:upload:error',
+      { uploadId: payload?.uploadId, message: '缺少 uploadId, remotePath 或 size' },
+      sessionId
+    );
     return;
   }
   const relativePath = payload?.relativePath;
@@ -250,9 +238,10 @@ export function handleSftpUploadStart(
 
 export async function handleSftpUploadChunk(
   ws: AuthenticatedWebSocket,
-  payload: SftpUploadChunkPayload
+  payload: SftpUploadChunkPayload,
+  overrideSessionId?: string
 ): Promise<void> {
-  const { sessionId } = ws;
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
   if (!sessionId || !state) return; // Silently ignore if session is gone
 
@@ -278,9 +267,10 @@ export async function handleSftpUploadChunk(
 
 export function handleSftpUploadCancel(
   ws: AuthenticatedWebSocket,
-  payload: SftpUploadCancelPayload
+  payload: SftpUploadCancelPayload,
+  overrideSessionId?: string
 ): void {
-  const { sessionId } = ws;
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
   if (!sessionId || !state) return; // Silently ignore
 
@@ -288,13 +278,12 @@ export function handleSftpUploadCancel(
     logger.error(
       `WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 sftp:upload:cancel 请求，但缺少 uploadId。`
     );
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(
-        JSON.stringify({
-          type: 'sftp:upload:error',
-          payload: { uploadId: payload?.uploadId, message: '缺少 uploadId' },
-        })
-      );
+    sendWsMessage(
+      ws,
+      'sftp:upload:error',
+      { uploadId: payload?.uploadId, message: '缺少 uploadId' },
+      sessionId
+    );
     return;
   }
   sftpService.cancelUpload(sessionId, payload.uploadId);

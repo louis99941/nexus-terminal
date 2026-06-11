@@ -16,76 +16,74 @@
 
 ## 🔀 Differences from Upstream
 
-> This project is forked from [Heavrnl/nexus-terminal](https://github.com/Heavrnl/nexus-terminal).
-> Upstream baseline: `Heavrnl/nexus-terminal:main`
-> Compare URL: <https://github.com/Heavrnl/nexus-terminal/compare/main...Silentely:main>
+> This project is forked from [Heavrnl/nexus-terminal](https://github.com/Heavrnl/nexus-terminal). Upstream baseline: `Heavrnl/nexus-terminal:main` Compare URL: <https://github.com/Heavrnl/nexus-terminal/compare/main...Silentely:main>
 
 Below is a summary of the key differences between this fork and upstream:
 
 ### 🚀 Additions in This Fork
 
-| Category                             | Feature                                                                                                                      |
-| :----------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
-| **AI Smart Assistant**               | Multi-model integration (OpenAI/Claude), NL2CMD natural language to terminal commands with 429 retry and structured output   |
-| **Batch Command Execution**          | Execute commands across multiple servers simultaneously with priority queue (low/normal/high/urgent) and SSH connection pool |
-| **Data Backup API**                  | `/api/v1/backup` supports export/import of 14 core data types including connections, keys, and tags                          |
-| **IP Geolocation**                   | Automatic IP geolocation on login events with SQLite persistent cache, ASN support, and multi-provider adapters              |
-| **SSH Jump Host Visualization**      | Structured route summary showing jump host paths and latency                                                                 |
-| **SSH Batch Status Collection**      | Consolidated into a single execution, 70-85% performance improvement on high-latency scenarios                               |
-| **Command Palette**                  | `Ctrl + K` quick action search and execution, supporting connection search, page navigation, and theme switching             |
-| **Health Check Endpoint**            | `/api/v1/health` checks SQLite connectivity, WebSocket status, disk space, and memory usage                                  |
-| **Structured Logging**               | pino-powered JSON structured output with custom timezone and sensitive data redaction                                        |
-| **Prometheus Metrics**               | Built-in application metrics collection endpoint, compatible with Grafana and other monitoring platforms                     |
-| **Configurable Rate Limiting**       | Flexible API rate limit control via environment variables (including dedicated AI route rate limiting)                       |
-| **Terminal Appearance Live Preview** | Real-time preview window in appearance settings for font, theme, stroke, and shadow changes                                  |
-| **Force Keyboard-Interactive Auth**  | New `keyboard-interactive` option for SSH connections, supporting TOTP/2FA server authentication                             |
-| **Unified Cache Manager**            | Type-safe localStorage operations with version control and TTL expiration management                                         |
-| **Unified Error Extractor**          | Eliminated duplicated error extraction patterns with globally unified error handling                                         |
-| **Data Import**                      | Settings page supports data import (alongside existing export), with database backup download                                |
-| **CDN Edge Deployment**              | Support for Cloudflare/CloudFront CDN to accelerate static resource distribution                                             |
-| **Documentation Site**               | Dedicated docs site at [nexus.cosr.eu.org](https://nexus.cosr.eu.org) with deployment guides, configuration, and FAQ         |
+| Category | Feature |
+| :-- | :-- |
+| **AI Smart Assistant** | Multi-model integration (OpenAI/Claude), NL2CMD natural language to terminal commands with 429 retry and structured output |
+| **Batch Command Execution** | Execute commands across multiple servers simultaneously with priority queue (low/normal/high/urgent) and SSH connection pool |
+| **Data Backup API** | `/api/v1/backup` supports export/import of 14 core data types including connections, keys, and tags |
+| **IP Geolocation** | Automatic IP geolocation on login events with SQLite persistent cache, ASN support, and multi-provider adapters |
+| **SSH Jump Host Visualization** | Structured route summary showing jump host paths and latency |
+| **SSH Batch Status Collection** | Consolidated into a single execution, 70-85% performance improvement on high-latency scenarios |
+| **Command Palette** | `Ctrl + K` quick action search and execution, supporting connection search, page navigation, and theme switching |
+| **Health Check Endpoint** | `/api/v1/health` checks SQLite connectivity, WebSocket status, disk space, and memory usage |
+| **Structured Logging** | pino-powered JSON structured output with custom timezone and sensitive data redaction |
+| **Prometheus Metrics** | Built-in application metrics collection endpoint, compatible with Grafana and other monitoring platforms |
+| **Configurable Rate Limiting** | Flexible API rate limit control via environment variables (including dedicated AI route rate limiting) |
+| **Terminal Appearance Live Preview** | Real-time preview window in appearance settings for font, theme, stroke, and shadow changes |
+| **Force Keyboard-Interactive Auth** | New `keyboard-interactive` option for SSH connections, supporting TOTP/2FA server authentication |
+| **Unified Cache Manager** | Type-safe localStorage operations with version control and TTL expiration management |
+| **Unified Error Extractor** | Eliminated duplicated error extraction patterns with globally unified error handling |
+| **Data Import** | Settings page supports data import (alongside existing export), with database backup download |
+| **CDN Edge Deployment** | Support for Cloudflare/CloudFront CDN to accelerate static resource distribution |
+| **Documentation Site** | Dedicated docs site at [nexus.cosr.eu.org](https://nexus.cosr.eu.org) with deployment guides, configuration, and FAQ |
 
 ### ⚡ Performance Optimizations
 
-| Optimization                        | Effect                                                                                                                      |
-| :---------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| **SSH Terminal Input Latency**      | Reduced from 72-232ms to <3ms (**98% improvement**), separating small packet direct-write from large packet batch buffering |
-| **App Startup Performance**         | Unified initialization API, merging 3-4 network requests into 1, eliminating white-screen waiting                           |
-| **Unified Virtual Scrolling**       | Extracted `useVirtualListSetup` composable, used by 4 components with auto overscan scaling                                 |
-| **Audit Log Row Height Fix**        | Fixed `itemHeight` mismatch causing content clipping, adjusted from 100px to 180px                                          |
-| **WebWorker Output Processing**     | Terminal syntax highlighting offloaded to Worker thread, preventing main thread blocking with fallback support              |
-| **Route Resource Preloading**       | Auto-prefetch core route chunks after authentication (Dashboard > Workspace > Connections)                                  |
-| **Service Worker Enhancement**      | Structured caching strategy (static/API/icons/pages), enabling offline access                                               |
-| **Frontend Lazy Loading**           | RDP/VNC components loaded on-demand, guacamole dependency (~200KB) no longer blocks initial render                          |
-| **SQLite WAL Mode**                 | Enabled WAL mode for optimized concurrent read/write, reduced lock contention                                               |
-| **Audit Log Probabilistic Cleanup** | Triggered every 100 writes instead of every write, eliminating unnecessary cleanup overhead                                 |
-| **Database Index Optimization**     | Added missing indexes for proxies/notification_settings/favorite_paths/quick_commands tables                                |
-| **In-Process Cache Layer**          | Settings table 5min TTL, connections table 2min TTL, reducing high-frequency SQL queries                                    |
-| **SSH Connection Pool**             | Batch task connection reuse, max 3 idle connections per target, 60s auto-reclaim                                            |
-| **Batch Task Priority**             | Supports low/normal/high/urgent priorities, urgent tasks execute first                                                      |
-| **WebSocket Multiplexing**          | Single connection carries multiple sessions, reducing browser connections and server resource consumption                   |
-| **Terminal Data Compression**       | permessage-deflate protocol compression + 16ms micro-batching, reducing bandwidth usage                                     |
-| **CDN Edge Deployment**             | Support for Cloudflare/CloudFront CDN to accelerate static resource distribution                                            |
+| Optimization | Effect |
+| :-- | :-- |
+| **SSH Terminal Input Latency** | Reduced from 72-232ms to <3ms (**98% improvement**), separating small packet direct-write from large packet batch buffering |
+| **App Startup Performance** | Unified initialization API, merging 3-4 network requests into 1, eliminating white-screen waiting |
+| **Unified Virtual Scrolling** | Extracted `useVirtualListSetup` composable, used by 4 components with auto overscan scaling |
+| **Audit Log Row Height Fix** | Fixed `itemHeight` mismatch causing content clipping, adjusted from 100px to 180px |
+| **WebWorker Output Processing** | Terminal syntax highlighting offloaded to Worker thread, preventing main thread blocking with fallback support |
+| **Route Resource Preloading** | Auto-prefetch core route chunks after authentication (Dashboard > Workspace > Connections) |
+| **Service Worker Enhancement** | Structured caching strategy (static/API/icons/pages), enabling offline access |
+| **Frontend Lazy Loading** | RDP/VNC components loaded on-demand, guacamole dependency (~200KB) no longer blocks initial render |
+| **SQLite WAL Mode** | Enabled WAL mode for optimized concurrent read/write, reduced lock contention |
+| **Audit Log Probabilistic Cleanup** | Triggered every 100 writes instead of every write, eliminating unnecessary cleanup overhead |
+| **Database Index Optimization** | Added missing indexes for proxies/notification_settings/favorite_paths/quick_commands tables |
+| **In-Process Cache Layer** | Settings table 5min TTL, connections table 2min TTL, reducing high-frequency SQL queries |
+| **SSH Connection Pool** | Batch task connection reuse, max 3 idle connections per target, 60s auto-reclaim |
+| **Batch Task Priority** | Supports low/normal/high/urgent priorities, urgent tasks execute first |
+| **WebSocket Multiplexing** | Single connection carries multiple sessions, reducing browser connections and server resource consumption |
+| **Terminal Data Compression** | permessage-deflate protocol compression + 16ms micro-batching, reducing bandwidth usage |
+| **CDN Edge Deployment** | Support for Cloudflare/CloudFront CDN to accelerate static resource distribution |
 
 ### 🏗️ Architecture & Deployment
 
-| Improvement                                                      | Description                                                                                                                                      |
-| :--------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Docker Deployment Simplified**                                 | guacd embedded in remote-gateway container, deployment reduced from 4 to 3 containers                                                            |
-| **ARM64 Ready**                                                  | remote-gateway image embeds guacd, no manual guacd image replacement needed                                                                      |
-| **Modular Decomposition**                                        | SFTP service split into readdir/move/copy/path-operations/session executors; auth controller split into login/passkey/2FA/password action layers |
-| **FileManager Component Decomposition**                          | Split into composable functions (sort/filter, path navigation, column resize, layout settings, clipboard, item actions, action modal, download)  |
-| **Repository Base Class**                                        | Unified Repository-layer error handling and logging                                                                                              |
-| **Typed Error Hierarchy**                                        | `DatabaseError`, `ValidationError`, `ExternalServiceError` type-safe error subclasses                                                            |
-| **CSP Security Headers**                                         | Content-Security-Policy / X-Frame-Options / X-Content-Type-Options                                                                               |
-| **SSRF / Command Injection / Path Traversal / ReDoS Protection** | Complete security defense system                                                                                                                 |
-| **Docker Compose Production-Ready**                              | healthcheck, resource limits, restart policy, log rotation                                                                                       |
-| **Image Registry**                                               | Uses GitHub Container Registry (GHCR), namespace `ghcr.io/silentely`                                                                             |
+| Improvement | Description |
+| :-- | :-- |
+| **Docker Deployment Simplified** | guacd embedded in remote-gateway container, deployment reduced from 4 to 3 containers |
+| **ARM64 Ready** | remote-gateway image embeds guacd, no manual guacd image replacement needed |
+| **Modular Decomposition** | SFTP service split into readdir/move/copy/path-operations/session executors; auth controller split into login/passkey/2FA/password action layers |
+| **FileManager Component Decomposition** | Split into composable functions (sort/filter, path navigation, column resize, layout settings, clipboard, item actions, action modal, download) |
+| **Repository Base Class** | Unified Repository-layer error handling and logging |
+| **Typed Error Hierarchy** | `DatabaseError`, `ValidationError`, `ExternalServiceError` type-safe error subclasses |
+| **CSP Security Headers** | Content-Security-Policy / X-Frame-Options / X-Content-Type-Options |
+| **SSRF / Command Injection / Path Traversal / ReDoS Protection** | Complete security defense system |
+| **Docker Compose Production-Ready** | healthcheck, resource limits, restart policy, log rotation |
+| **Image Registry** | Uses GitHub Container Registry (GHCR), namespace `ghcr.io/silentely` |
 
 ### 📦 Retained from Upstream
 
-| Feature         | Description                                                                           |
-| :-------------- | :------------------------------------------------------------------------------------ |
+| Feature | Description |
+| :-- | :-- |
 | **Desktop App** | Upstream provides a standalone Electron desktop client, not yet included in this fork |
 
 ---
@@ -126,8 +124,8 @@ Below is a summary of the key differences between this fork and upstream:
 
 ---
 
-|                          Style Settings                           |                            Layout Settings                            |                             Settings Panel                              |
-| :---------------------------------------------------------------: | :-------------------------------------------------------------------: | :---------------------------------------------------------------------: |
+| Style Settings | Layout Settings | Settings Panel |
+| :-: | :-: | :-: |
 | ![ui_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e40570cc.png) | ![layout_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4122276.png) | ![settings_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4036cd6.png) |
 
 ## 📚 Documentation
@@ -290,8 +288,7 @@ You can right-click in the SSH tab to select "Suspend Session" (long-press on mo
 
 1.  **Dual File Managers**: You can add two file manager components in the layout (experimental feature, may be unstable).
 2.  **Multiple Text Editors**: The functionality to add multiple text editors in the same layout has not yet been implemented.
-3.  For **ARMv7** users, please refer to the [deployment guide](https://nexus.cosr.eu.org/deployment).
-    Since Apache Guacamole does not provide an ARMv7-compatible image for `guacd`, the RDP/VNC feature has been disabled, and related images will not be pulled for now.
+3.  For **ARMv7** users, please refer to the [deployment guide](https://nexus.cosr.eu.org/deployment). Since Apache Guacamole does not provide an ARMv7-compatible image for `guacd`, the RDP/VNC feature has been disabled, and related images will not be pulled for now.
 4.  Data backup can be done via the built-in API (`/api/v1/backup`) for export/import, or by manually backing up the `data` directory.
 
 ## 💐 Acknowledgements
@@ -313,8 +310,7 @@ This repository uses an AI-assisted issue triage workflow to:
 - point reporters to the most relevant documentation
 - propose implementation plans for likely defects
 
-The assistant may reply with troubleshooting steps or request minimal additional information.
-Code changes are not proposed automatically unless a maintainer explicitly requests implementation.
+The assistant may reply with troubleshooting steps or request minimal additional information. Code changes are not proposed automatically unless a maintainer explicitly requests implementation.
 
 ## 📄 License
 

@@ -46,10 +46,25 @@ export function createBackgroundStore(deps: BackgroundDeps) {
   /** 终端背景图片 URL */
   const terminalBackgroundImage = computed(() => getSettings().terminalBackgroundImage);
 
-  /** 终端背景是否启用 */
+  /** 终端自定义 CSS（在 isTerminalBackgroundEnabled / shouldRenderTerminalBackground 之前声明，避免隐式前向依赖） */
+  const terminalCustomHTML = computed(() => getSettings().terminal_custom_html ?? null);
+
+  /** 终端背景是否启用（用户偏好，反映后端持久化的设置值） */
   const isTerminalBackgroundEnabled = computed<boolean>(() => {
     const enabled = getSettings().terminalBackgroundEnabled;
     return typeof enabled === 'boolean' ? enabled : true;
+  });
+
+  /**
+   * 终端背景是否应实际渲染（有效渲染状态）。
+   * 在用户启用的基础上，还必须存在背景图片或非空自定义 HTML，
+   * 否则会出现"透明终端 + 黑色蒙版 + 无背景 = 全黑"的问题。
+   */
+  const shouldRenderTerminalBackground = computed<boolean>(() => {
+    if (!isTerminalBackgroundEnabled.value) return false;
+    const hasImage = !!terminalBackgroundImage.value;
+    const hasHtml = !!(terminalCustomHTML.value && terminalCustomHTML.value.trim());
+    return hasImage || hasHtml;
   });
 
   /** 终端背景蒙版透明度 */
@@ -57,9 +72,6 @@ export function createBackgroundStore(deps: BackgroundDeps) {
     const opacity = getSettings().terminalBackgroundOverlayOpacity;
     return typeof opacity === 'number' && opacity >= 0 && opacity <= 1 ? opacity : 0.5;
   });
-
-  /** 终端自定义 CSS */
-  const terminalCustomHTML = computed(() => getSettings().terminal_custom_html ?? null);
 
   // --- UI 主题操作方法 ---
 
@@ -252,6 +264,7 @@ export function createBackgroundStore(deps: BackgroundDeps) {
     pageBackgroundImage,
     terminalBackgroundImage,
     isTerminalBackgroundEnabled,
+    shouldRenderTerminalBackground,
     currentTerminalBackgroundOverlayOpacity,
     terminalCustomHTML,
     // UI 主题方法

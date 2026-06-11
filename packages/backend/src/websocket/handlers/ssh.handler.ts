@@ -8,9 +8,11 @@ import {
   statusMonitorService,
   auditLogService,
   notificationService,
+  registerChannel,
 } from '../state';
 import * as SshService from '../../services/ssh.service';
-import { cleanupClientConnection, registerSessionCleanup } from '../utils';
+import { cleanupClientConnection, registerSessionCleanup, sendWsMessage } from '../utils';
+import { isMultiplexEnabled } from '../multiplex';
 import { temporaryLogStorageService } from '../../ssh-suspend/temporary-log-storage.service';
 import { startDockerStatusPolling } from './docker.handler';
 import { getErrorMessage } from '../../utils/AppError';
@@ -190,7 +192,13 @@ const finalizeSilentExecWithError = (sessionId: string, error: string): void => 
   pendingSilentExecRequests.delete(request.requestId);
   sessionToSilentExecRequestId.delete(sessionId);
   pendingPromptSuppressionSessions.delete(sessionId);
-  sendSilentExecResponse(request.ws, 'ssh:exec_silent:error', request.requestId, { error });
+  sendSilentExecResponse(
+    request.ws,
+    'ssh:exec_silent:error',
+    request.requestId,
+    { error },
+    sessionId
+  );
 };
 
 const finalizeSilentExecWithResult = (sessionId: string, output: string): void => {
@@ -208,9 +216,15 @@ const finalizeSilentExecWithResult = (sessionId: string, output: string): void =
   } else {
     pendingPromptSuppressionSessions.delete(sessionId);
   }
-  sendSilentExecResponse(request.ws, 'ssh:exec_silent:result', request.requestId, {
-    output: output.replace(/\r/g, ''),
-  });
+  sendSilentExecResponse(
+    request.ws,
+    'ssh:exec_silent:result',
+    request.requestId,
+    {
+      output: output.replace(/\r/g, ''),
+    },
+    sessionId
+  );
 };
 
 const moveToNextSilentExecAttempt = (sessionId: string, reason: string): void => {
@@ -477,20 +491,22 @@ const sendSilentExecResponse = (
   ws: AuthenticatedWebSocket,
   type: 'ssh:exec_silent:result' | 'ssh:exec_silent:error',
   requestId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  sessionId?: string
 ): void => {
   if (ws.readyState !== WebSocket.OPEN) {
     return;
   }
-  ws.send(JSON.stringify({ type, requestId, payload }));
+  ws.send(JSON.stringify({ type, requestId, payload, sid: sessionId ?? ws.sessionId }));
 };
 
 export function handleSshExecSilent(
   ws: AuthenticatedWebSocket,
   rawPayload: unknown,
-  requestIdFromMessage?: string
+  requestIdFromMessage?: string,
+  overrideSessionId?: string
 ): void {
-  const sessionId = ws.sessionId;
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
   const requestId =
     typeof requestIdFromMessage === 'string' && requestIdFromMessage.trim()
@@ -498,25 +514,43 @@ export function handleSshExecSilent(
       : uuidv4();
 
   if (!sessionId || !state?.sshClient || !state.sshShellStream || !state.isShellReady) {
-    sendSilentExecResponse(ws, 'ssh:exec_silent:error', requestId, {
-      error: 'SSH shell is not ready.',
-    });
+    sendSilentExecResponse(
+      ws,
+      'ssh:exec_silent:error',
+      requestId,
+      {
+        error: 'SSH shell is not ready.',
+      },
+      sessionId
+    );
     return;
   }
 
   const payload = (rawPayload || {}) as SilentExecPayload;
   const commandCandidates = getSilentExecCommandCandidates(payload);
   if (commandCandidates.length === 0) {
-    sendSilentExecResponse(ws, 'ssh:exec_silent:error', requestId, {
-      error: 'Missing command for silent execution.',
-    });
+    sendSilentExecResponse(
+      ws,
+      'ssh:exec_silent:error',
+      requestId,
+      {
+        error: 'Missing command for silent execution.',
+      },
+      sessionId
+    );
     return;
   }
 
   if (sessionToSilentExecRequestId.has(sessionId)) {
-    sendSilentExecResponse(ws, 'ssh:exec_silent:error', requestId, {
-      error: 'Another silent command is already in progress.',
-    });
+    sendSilentExecResponse(
+      ws,
+      'ssh:exec_silent:error',
+      requestId,
+      {
+        error: 'Another silent command is already in progress.',
+      },
+      sessionId
+    );
     return;
   }
 
@@ -559,30 +593,34 @@ registerSessionCleanup((sessionId: string) => {
 export async function handleSshConnect(
   ws: AuthenticatedWebSocket,
   request: Request,
-  payload: SshConnectPayload
+  payload: SshConnectPayload,
+  clientSid?: string
 ): Promise<void> {
   const { sessionId } = ws;
   const existingState = sessionId ? clientStates.get(sessionId) : undefined;
 
-  if (sessionId && existingState) {
+  // 多路复用模式：允许同一物理连接创建多个逻辑会话
+  // 非多路复用模式：仍保持单会话限制
+  if (sessionId && existingState && !clientSid) {
     logger.warn(
       `WebSocket: 用户 ${ws.username} (会话: ${sessionId}) 已有活动连接，忽略新的连接请求。`
     );
     if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:error', payload: '已存在活动的 SSH 连接。' }));
+      ws.send(
+        JSON.stringify({ type: 'ssh:error', payload: '已存在活动的 SSH 连接。', sid: ws.sessionId })
+      );
     return;
   }
 
   const dbConnectionId = payload?.connectionId;
   if (!dbConnectionId) {
     if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:error', payload: '缺少 connectionId。' }));
+      sendWsMessage(ws, 'ssh:error', '缺少 connectionId。', clientSid ?? ws.sessionId);
     return;
   }
 
   logger.debug(`WebSocket: 用户 ${ws.username} 请求连接到数据库 ID: ${dbConnectionId}`);
-  if (ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在处理连接请求...' }));
+  sendWsMessage(ws, 'ssh:status', '正在处理连接请求...', clientSid ?? ws.sessionId);
 
   // SSH 连接耗时计时器（成功时标记 success，失败时标记 failure）
   const sshConnectTimer = sshConnectDuration.startTimer();
@@ -592,7 +630,7 @@ export async function handleSshConnect(
     sshConnectTimer({ status: 'failure' });
     logger.error(`WebSocket: 无效的 dbConnectionId '${dbConnectionId}' (非数字)，无法建立连接。`);
     if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:error', payload: '无效的连接 ID。' }));
+      sendWsMessage(ws, 'ssh:error', '无效的连接 ID。', clientSid ?? ws.sessionId);
     ws.close(1008, 'Invalid Connection ID');
     return;
   }
@@ -603,14 +641,14 @@ export async function handleSshConnect(
 
   try {
     if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在获取连接信息...' }));
+      sendWsMessage(ws, 'ssh:status', '正在获取连接信息...', clientSid ?? ws.sessionId);
     connInfo = await SshService.getConnectionDetails(dbConnectionIdAsNumber);
     if (!connInfo) {
       throw new Error(`未找到连接信息（ID: ${dbConnectionIdAsNumber}）`);
     }
 
     if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在连接到 ${connInfo.host}...` }));
+      sendWsMessage(ws, 'ssh:status', `正在连接到 ${connInfo.host}...`, clientSid ?? ws.sessionId);
     const sshClient = await SshService.establishSshConnection(connInfo);
 
     // SSH 连接已建立，TCP_NODELAY 将通过连接配置自动应用
@@ -628,6 +666,8 @@ export async function handleSshConnect(
       isShellReady: false,
     };
     clientStates.set(newSessionId, newState);
+    // 多路复用模式：注册逻辑通道到物理连接
+    registerChannel(ws, newSessionId);
     logger.debug(
       `WebSocket: 为用户 ${ws.username} (IP: ${clientIp}) 创建新会话 ${newSessionId} (DB ID: ${dbConnectionIdAsNumber}, 连接名称: ${newState.connectionName})`
     );
@@ -635,12 +675,13 @@ export async function handleSshConnect(
     // 发送路由规划信息（跳板链路可视化）
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const routePlan = (sshClient as any)._routePlan;
+    // 握手阶段：使用 clientSid 确保前端临时通道能接收
+    const handshakeSid = clientSid ?? newSessionId;
     if (routePlan && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'ssh:route_plan', payload: routePlan }));
+      sendWsMessage(ws, 'ssh:route_plan', routePlan, handshakeSid);
     }
 
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:status', payload: 'SSH 连接成功，正在打开 Shell...' }));
+    sendWsMessage(ws, 'ssh:status', 'SSH 连接成功，正在打开 Shell...', handshakeSid);
     try {
       const defaultCols = payload?.cols || 80; // Use provided cols or default
       const defaultRows = payload?.rows || 24; // Use provided rows or default
@@ -651,9 +692,7 @@ export async function handleSshConnect(
           shellCallbackCalled = true;
           sshConnectTimer({ status: 'failure' });
           logger.error(`SSH: 会话 ${newSessionId} Shell 就绪超时（${SHELL_READY_TIMEOUT_MS}ms）。`);
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ssh:error', payload: 'Shell 就绪超时，请重试。' }));
-          }
+          sendWsMessage(ws, 'ssh:error', 'Shell 就绪超时，请重试。', handshakeSid);
           cleanupClientConnection(newSessionId).catch((error: unknown) => {
             logger.debug(
               '[WebSocket] Shell 就绪超时清理连接失败:',
@@ -703,11 +742,7 @@ export async function handleSshConnect(
                 reason: getErrorMessage(err),
               },
             });
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(
-                JSON.stringify({ type: 'ssh:error', payload: `打开 Shell 失败: ${err.message}` })
-              );
-            }
+            sendWsMessage(ws, 'ssh:error', `打开 Shell 失败: ${err.message}`, handshakeSid);
             cleanupClientConnection(newSessionId).catch((error: unknown) => {
               logger.debug(
                 '[WebSocket] Shell 打开失败后清理连接失败:',
@@ -794,9 +829,7 @@ export async function handleSshConnect(
               'Shell channel closed before silent command completed.'
             );
             logger.debug(`SSH: 会话 ${newSessionId} 的 Shell 通道已关闭。`);
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'Shell 通道已关闭。' }));
-            }
+            sendWsMessage(ws, 'ssh:disconnected', 'Shell 通道已关闭。', newSessionId);
             cleanupClientConnection(newSessionId).catch((error: unknown) => {
               logger.debug(
                 '[WebSocket] Shell 通道关闭后清理连接失败:',
@@ -820,7 +853,12 @@ export async function handleSshConnect(
                 payload: {
                   connectionId: dbConnectionIdAsNumber,
                   sessionId: newSessionId,
+                  // 多路复用：前端用于重映射通道 key
+                  backendSessionId: newSessionId,
                 },
+                // 多路复用模式：用客户端 SID 回复，确保前端通道能匹配
+                // 非多路复用模式：clientSid 为 undefined，使用 newSessionId
+                sid: clientSid ?? newSessionId,
               })
             );
           const connectSuccessPayload: Record<string, unknown> = {
@@ -865,12 +903,7 @@ export async function handleSshConnect(
       const shellErrMsg = getErrorMessage(shellError);
       logger.error(`SSH: 会话 ${newSessionId} 打开 Shell 时发生意外错误: ${shellErrMsg}`);
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            type: 'ssh:error',
-            payload: `打开 Shell 时发生意外错误: ${shellErrMsg}`,
-          })
-        );
+        sendWsMessage(ws, 'ssh:error', `打开 Shell 时发生意外错误: ${shellErrMsg}`, handshakeSid);
       }
       cleanupClientConnection(newSessionId).catch((error: unknown) => {
         logger.debug(
@@ -899,9 +932,7 @@ export async function handleSshConnect(
         `SSH client error before silent command completed: ${err.message}`
       );
       logger.error(`SSH: 会话 ${newSessionId} 的客户端连接错误:`, err);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'ssh:error', payload: `SSH 连接错误: ${err.message}` }));
-      }
+      sendWsMessage(ws, 'ssh:error', `SSH 连接错误: ${err.message}`, newSessionId);
       cleanupClientConnection(newSessionId).catch((error: unknown) => {
         logger.debug(
           '[WebSocket] SSH 客户端错误后清理连接失败:',
@@ -945,13 +976,20 @@ export async function handleSshConnect(
       },
     });
     if (ws.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: 'ssh:error', payload: `连接失败: ${connectErrMsg}` }));
-    ws.close(1011, `SSH Connection Failed: ${connectErrMsg}`);
+      sendWsMessage(ws, 'ssh:error', `连接失败: ${connectErrMsg}`, clientSid ?? ws.sessionId);
+    // 多路复用模式下不关闭物理 WebSocket，仅发送错误到当前通道
+    if (!ws.isMultiplex || !isMultiplexEnabled()) {
+      ws.close(1011, `SSH Connection Failed: ${connectErrMsg}`);
+    }
   }
 }
 
-export function handleSshInput(ws: AuthenticatedWebSocket, payload: SshInputPayload): void {
-  const { sessionId } = ws;
+export function handleSshInput(
+  ws: AuthenticatedWebSocket,
+  payload: SshInputPayload,
+  overrideSessionId?: string
+): void {
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!state || !state.sshShellStream) {
@@ -970,8 +1008,12 @@ export function handleSshInput(ws: AuthenticatedWebSocket, payload: SshInputPayl
   }
 }
 
-export function handleSshResize(ws: AuthenticatedWebSocket, payload: SshResizePayload): void {
-  const { sessionId } = ws;
+export function handleSshResize(
+  ws: AuthenticatedWebSocket,
+  payload: SshResizePayload,
+  overrideSessionId?: string
+): void {
+  const sessionId = overrideSessionId ?? ws.sessionId;
   const state = sessionId ? clientStates.get(sessionId) : undefined;
 
   if (!state || !state.sshClient) {
@@ -1014,9 +1056,9 @@ export function handleSshResize(ws: AuthenticatedWebSocket, payload: SshResizePa
 export function handleSshResumeSuccess(sessionId: string): void {
   const state = clientStates.get(sessionId);
   if (state && state.sshClient) {
+    // 多路复用模式：将恢复的会话注册到物理连接的通道集合中
+    registerChannel(state.ws, sessionId);
     statusMonitorService.startStatusPolling(sessionId);
-    // 如果 Docker 状态也需要恢复，可以在这里添加
-    // startDockerStatusPolling(sessionId);
   } else {
     logger.error(
       `[SSH Handler ${sessionId}] 无法为恢复的会话启动状态轮询：未找到会话状态或 SSH 客户端。`

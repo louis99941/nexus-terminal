@@ -72,9 +72,7 @@ server {
 
 适用于 Docker Compose 部署 + 宿主机 Nginx 反向代理的场景（最常见）。
 
-::: warning 架构说明
-此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。前端容器内部的 nginx 代理 `/api/` 和 `/ws/` 到 backend，RDP/VNC 连接由 backend 通过内部 WebSocket 代理到 remote-gateway，无需单独配置远程桌面路径。
-:::
+::: warning 架构说明此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。前端容器内部的 nginx 代理 `/api/` 和 `/ws/` 到 backend，RDP/VNC 连接由 backend 通过内部 WebSocket 代理到 remote-gateway，无需单独配置远程桌面路径。:::
 
 ```nginx
 # WebSocket 连接映射（建议放在 http 块中）
@@ -137,11 +135,7 @@ server {
 }
 ```
 
-::: tip 端口对照
-| 路径 | 代理目标 | 说明 |
-| --- | --- | --- |
-| `/`、`/api/`、`/ws/` | `127.0.0.1:18111` | 通过前端容器，由其内部分流 |
-:::
+::: tip 端口对照 | 路径 | 代理目标 | 说明 | | --- | --- | --- | | `/`、`/api/`、`/ws/` | `127.0.0.1:18111` | 通过前端容器，由其内部分流 | :::
 
 ### Docker Compose 内部 Nginx 配置
 

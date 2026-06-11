@@ -12,3 +12,12 @@ if [ "${SKIP_PRE_PUSH:-0}" != "1" ]; then
 else
   echo "[pre-push] 已设置 SKIP_PRE_PUSH=1，跳过类型检查。"
 fi
+
+# 检查版本日志是否与 VERSION 同步（仅提示，不阻止推送）
+CURRENT_VERSION=$(cat VERSION 2>/dev/null | tr -d '[:space:]')
+if [ -n "$CURRENT_VERSION" ]; then
+  if ! grep -Fq "## v${CURRENT_VERSION}" docs/changelog.md 2>/dev/null; then
+    echo "[pre-push] ⚠️ 版本 v${CURRENT_VERSION} 的 changelog 未生成"
+    echo "[pre-push] 💡 本地 AI 未生成，CI 工作流将在发布时保底生成"
+  fi
+fi

@@ -23,15 +23,15 @@ curl http://localhost:3001/api/v1/metrics
 
 ## 可用指标
 
-| 指标名称                        | 类型      | 标签                       | 说明                                 |
-| ------------------------------- | --------- | -------------------------- | ------------------------------------ |
-| `http_request_duration_seconds` | Histogram | method, route, status_code | HTTP 请求延迟分布                    |
-| `websocket_active_connections`  | Gauge     | —                          | 当前活跃 WebSocket 连接数            |
-| `ssh_active_sessions`           | Gauge     | —                          | 当前活跃 SSH 会话数                  |
-| `ssh_connect_duration_seconds`  | Histogram | status                     | SSH 连接建立耗时（success/failure）  |
-| `ssh_pool_connections`          | Gauge     | —                          | SSH 连接池连接数                     |
-| `sftp_transferred_bytes_total`  | Counter   | direction                  | SFTP 传输字节数（upload/download）   |
-| `auth_failures_total`           | Counter   | method                     | 认证失败次数（password/passkey/2fa） |
+| 指标名称 | 类型 | 标签 | 说明 |
+| --- | --- | --- | --- |
+| `http_request_duration_seconds` | Histogram | method, route, status_code | HTTP 请求延迟分布 |
+| `websocket_active_connections` | Gauge | — | 当前活跃 WebSocket 连接数 |
+| `ssh_active_sessions` | Gauge | — | 当前活跃 SSH 会话数 |
+| `ssh_connect_duration_seconds` | Histogram | status | SSH 连接建立耗时（success/failure） |
+| `ssh_pool_connections` | Gauge | — | SSH 连接池连接数 |
+| `sftp_transferred_bytes_total` | Counter | direction | SFTP 传输字节数（upload/download） |
+| `auth_failures_total` | Counter | method | 认证失败次数（password/passkey/2fa） |
 
 ## 配置 Grafana Dashboard
 

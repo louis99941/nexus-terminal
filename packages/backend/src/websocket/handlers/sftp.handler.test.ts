@@ -104,6 +104,7 @@ describe('SFTP WebSocket Handler', () => {
         JSON.stringify({
           type: 'sftp_error',
           payload: { message: 'SFTP 操作 sftp:readdir 缺少 requestId' },
+          sid: 'test-session',
         })
       );
     });
@@ -607,6 +608,7 @@ describe('SFTP WebSocket Handler', () => {
         JSON.stringify({
           type: 'sftp:upload:error',
           payload: { uploadId: 'upload-1', message: '缺少 uploadId, remotePath 或 size' },
+          sid: 'test-session',
         })
       );
     });
@@ -722,6 +724,7 @@ describe('SFTP WebSocket Handler', () => {
         JSON.stringify({
           type: 'sftp:upload:error',
           payload: { uploadId: undefined, message: '缺少 uploadId' },
+          sid: 'test-session',
         })
       );
     });

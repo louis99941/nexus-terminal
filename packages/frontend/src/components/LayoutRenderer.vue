@@ -73,6 +73,7 @@ const appearanceStore = useAppearanceStore();
 const {
   terminalBackgroundImage,
   isTerminalBackgroundEnabled,
+  shouldRenderTerminalBackground,
   currentTerminalBackgroundOverlayOpacity,
   terminalCustomHTML,
 } = storeToRefs(appearanceStore);
@@ -458,7 +459,7 @@ onMounted(() => {
 // +++ Background Image Style +++
 const terminalBackgroundImageStyle = computed((): CSSProperties => {
   if (
-    isTerminalBackgroundEnabled.value &&
+    shouldRenderTerminalBackground.value &&
     terminalBackgroundImage.value &&
     props.layoutNode.component === 'terminal'
   ) {
@@ -574,13 +575,13 @@ onBeforeUnmount(() => {
             <div
               class="terminal-pane-container relative flex-grow overflow-hidden"
               :class="{
-                'has-global-terminal-background': isTerminalBackgroundEnabled,
-                'bg-background': !isTerminalBackgroundEnabled,
+                'has-global-terminal-background': shouldRenderTerminalBackground,
+                'bg-background': !shouldRenderTerminalBackground,
               }"
             >
               <!-- Shared Background Layers -->
               <div
-                v-if="isTerminalBackgroundEnabled"
+                v-if="shouldRenderTerminalBackground"
                 class="shared-terminal-background-layers"
                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0"
               >
@@ -622,24 +623,29 @@ onBeforeUnmount(() => {
               </div>
 
               <!-- Terminal Instances -->
-              <template v-for="[sessionId, sessionState] in sessionStore.sessions" :key="sessionId">
+              <!-- 使用真实 DOM 容器包裹，避免 v-show 在多根组件 (Terminal.vue 含 Teleport) 上透传失效 -->
+              <div
+                v-for="[sessionId, sessionState] in sessionStore.sessions"
+                v-show="sessionId === activeSessionId"
+                :key="sessionId"
+                :class="[
+                  'terminal-instance-wrapper absolute inset-0 w-full h-full',
+                  { 'terminal-transparent': isTerminalBackgroundEnabled },
+                ]"
+                :style="{ zIndex: 3 }"
+              >
                 <template v-if="sessionState.terminalManager">
                   <keep-alive>
                     <component
                       :is="componentMap.terminal"
-                      v-show="sessionId === activeSessionId"
                       :session-id="sessionId"
                       :is-active="sessionId === activeSessionId"
-                      :class="[
-                        'terminal-instance-wrapper absolute inset-0 w-full h-full',
-                        { 'terminal-transparent': isTerminalBackgroundEnabled },
-                      ]"
-                      :style="{ zIndex: 3 }"
+                      class="w-full h-full"
                       :options="{}"
                     />
                   </keep-alive>
                 </template>
-              </template>
+              </div>
               <!-- Placeholder -->
               <div
                 v-if="!activeSessionId || !hasSshSessions"
@@ -949,16 +955,19 @@ onBeforeUnmount(() => {
 }
 
 .terminal-pane-container.has-global-terminal-background
-  .terminal-outer-wrapper.terminal-transparent {
+  .terminal-instance-wrapper.terminal-transparent
+  .terminal-outer-wrapper {
   background-color: transparent !important; /* 使 Terminal.vue 的最外层容器背景透明 */
 }
 
 .terminal-pane-container.has-global-terminal-background
-  .terminal-outer-wrapper.terminal-transparent
+  .terminal-instance-wrapper.terminal-transparent
+  .terminal-outer-wrapper
   .terminal-inner-container
   .xterm-viewport,
 .terminal-pane-container.has-global-terminal-background
-  .terminal-outer-wrapper.terminal-transparent
+  .terminal-instance-wrapper.terminal-transparent
+  .terminal-outer-wrapper
   .terminal-inner-container
   .xterm-screen {
   background-color: transparent !important;
