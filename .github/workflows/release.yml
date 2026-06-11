@@ -28,6 +28,14 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: 缓存 Git 对象数据库
+        uses: actions/cache@v4
+        with:
+          path: .git/objects
+          key: git-objects-${{ github.repository }}-${{ github.sha }}
+          restore-keys: |
+            git-objects-${{ github.repository }}-
+
       - name: 解析版本号
         id: release_meta
         run: |
@@ -301,20 +309,35 @@ jobs:
             exit 0
           fi
 
-          # 创建临时文件，将新版本日志插入到文件开头（标题之后）
-          TEMP_FILE=$(mktemp)
-          trap "rm -f $TEMP_FILE" EXIT
+          # 按第一个版本标题定位插入点（与本地脚本逻辑一致）
+          CHANGELOG=$(cat docs/changelog.md)
 
-          # 读取现有内容，跳过第一行标题
-          tail -n +2 docs/changelog.md > "$TEMP_FILE"
+          # 查找第一个版本标题的位置
+          if echo "$CHANGELOG" | grep -qn "^## v"; then
+            # 提取第一个版本标题所在行号
+            FIRST_VERSION_LINE=$(echo "$CHANGELOG" | grep -n "^## v" | head -1 | cut -d: -f1)
 
-          # 写入新版本日志到文件开头
-          {
-            echo ""
-            echo "$RELEASE_BODY"
-            echo ""
-            cat "$TEMP_FILE"
-          } > docs/changelog.md
+            # 分割内容：标题部分 + 新版本 + 现有版本
+            HEAD_PART=$(echo "$CHANGELOG" | head -n $((FIRST_VERSION_LINE - 1)))
+            VERSIONS_PART=$(echo "$CHANGELOG" | tail -n +$FIRST_VERSION_LINE)
+
+            # 合并写入
+            {
+              echo "$HEAD_PART"
+              echo ""
+              echo "$RELEASE_BODY"
+              echo ""
+              echo "$VERSIONS_PART"
+            } > docs/changelog.md
+          else
+            # 没有现有版本标题，追加到文件末尾
+            {
+              cat docs/changelog.md
+              echo ""
+              echo "$RELEASE_BODY"
+              echo ""
+            } > docs/changelog.md
+          fi
 
           echo "✅ 已将 v${VERSION} 更新日志写入 docs/changelog.md"
 

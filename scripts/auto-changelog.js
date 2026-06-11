@@ -13,10 +13,14 @@
  *   3. 静默跳过，不修改 changelog（由 CI 工作流保底）
  *
  * 环境变量：
- *   OPENAI_BASE_URL  - OpenAI 兼容 API 地址（默认 https://api.openai.com/v1）
- *   OPENAI_API_KEY   - API Key
- *   OPENAI_MODEL     - 模型名称（默认 gpt-4o）
- *   CLAUDE_CLI_PATH  - Claude CLI 路径（默认 claude）
+ *   SKIP_AUTO_CHANGELOG         - 设置为 1 跳过执行
+ *   DRY_RUN                      - 设置为 1 仅输出生成内容，不写入文件
+ *   AUTO_CHANGELOG_FORCE_VERSION - 强制重新生成指定版本（如 1.5.4）
+ *   CHANGELOG_AI_TIMEOUT         - AI 调用超时时间（毫秒，默认 90000）
+ *   OPENAI_BASE_URL              - OpenAI 兼容 API 地址（默认 https://api.openai.com/v1）
+ *   OPENAI_API_KEY               - API Key
+ *   OPENAI_MODEL                 - 模型名称（默认 gpt-4o）
+ *   CLAUDE_CLI_PATH              - Claude CLI 路径（默认 claude）
  */
 
 const { execFileSync } = require('node:child_process');
@@ -129,13 +133,13 @@ function collectKeyDiff(fromRef) {
 function buildPrompt(version, commits, diffStat, keyDiff, today) {
   const commitList = commits.map((c) => `- ${c.hash} ${c.subject}`).join('\n');
 
-  // 从 docs/changelog.md 提取最近 3 个版本作为格式参考
+  // 从 docs/changelog.md 提取最近 5 个版本作为格式参考
   let formatRef = '';
   try {
     const existing = fs.readFileSync(CHANGELOG_FILE, 'utf8');
     const versions = existing
       .split(/\n(?=## v)/)
-      .slice(0, 4)
+      .slice(0, 6)
       .join('\n');
     if (versions) formatRef = `\n## 历史格式参考（请严格遵循此风格）\n\n${versions}`;
   } catch {
@@ -191,6 +195,7 @@ ${formatRef}
 /** 尝试通过 Claude CLI 生成 changelog（参数数组形式，避免 shell 注入） */
 function tryClaudeCli(prompt) {
   const cliPath = process.env.CLAUDE_CLI_PATH || 'claude';
+  const timeout = parseInt(process.env.CHANGELOG_AI_TIMEOUT || '90000', 10);
   console.log('[auto-changelog] 尝试 Claude CLI...');
 
   // 校验 cliPath 只允许命令名或绝对路径，不允许 shell 片段
@@ -199,7 +204,7 @@ function tryClaudeCli(prompt) {
     return null;
   }
 
-  const result = tryExec(cliPath, ['-p', prompt], { timeout: 90_000 });
+  const result = tryExec(cliPath, ['-p', prompt], { timeout });
 
   if (result && result.trim().length > 0) {
     console.log('[auto-changelog] Claude CLI 调用成功');
@@ -221,8 +226,9 @@ async function tryOpenAiApi(prompt) {
 
   console.log(`[auto-changelog] 尝试 OpenAI 兼容 API (${model})...`);
 
+  const timeout = parseInt(process.env.CHANGELOG_AI_TIMEOUT || '90000', 10);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90_000);
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -342,6 +348,17 @@ function writeChangelog(version, changelogBody) {
     return false;
   }
 
+  // DRY_RUN 模式：仅输出生成内容，不写入文件
+  if (process.env.DRY_RUN === '1') {
+    console.log('\n' + '='.repeat(60));
+    console.log('[auto-changelog] DRY_RUN 模式：生成的 changelog 内容');
+    console.log('='.repeat(60));
+    console.log(changelogBody);
+    console.log('='.repeat(60) + '\n');
+    console.log('[auto-changelog] DRY_RUN=1，跳过文件写入和提交');
+    return false;
+  }
+
   // 按第一个版本标题定位插入点
   const firstVersionIdx = changelog.search(/\n## v/);
   if (firstVersionIdx !== -1) {
@@ -367,8 +384,27 @@ function writeChangelog(version, changelogBody) {
 // =====================================================================
 
 async function main() {
+  // 支持通过环境变量跳过执行
+  if (process.env.SKIP_AUTO_CHANGELOG === '1') {
+    console.log('[auto-changelog] SKIP_AUTO_CHANGELOG=1，跳过执行');
+    process.exit(0);
+  }
+
   // 防重入：git commit --amend 会再次触发 post-commit 钩子
   if (process.env.AUTO_CHANGELOG_RUNNING === '1') {
+    process.exit(0);
+  }
+
+  // 支持强制重新生成指定版本（用于修复历史版本）
+  const forceVersion = process.env.AUTO_CHANGELOG_FORCE_VERSION;
+  if (forceVersion) {
+    console.log(`[auto-changelog] 强制重新生成 v${forceVersion} 的 changelog`);
+    const prevTag = getPreviousTag(forceVersion);
+    if (!prevTag) {
+      console.error(`[auto-changelog] 无法找到 v${forceVersion} 的前一个版本标签`);
+      process.exit(1);
+    }
+    await generateAndWriteChangelog(forceVersion, prevTag, true);
     process.exit(0);
   }
 
@@ -399,8 +435,17 @@ async function main() {
 
   console.log(`[auto-changelog] 检测到版本变更: ${oldVersion || '(无)'} → ${newVersion}`);
 
-  // 3. 收集版本范围内的数据
-  const prevTag = getPreviousTag(newVersion);
+  // 3. 生成并写入 changelog
+  await generateAndWriteChangelog(newVersion, getPreviousTag(newVersion), false);
+}
+
+/**
+ * 生成并写入 changelog（可复用的核心逻辑）
+ * @param {string} version - 版本号
+ * @param {string|null} prevTag - 前一个版本 tag
+ * @param {boolean} force - 是否强制覆盖现有版本
+ */
+async function generateAndWriteChangelog(version, prevTag, force) {
   console.log(`[auto-changelog] 上一个版本 tag: ${prevTag || '(无)'}`);
 
   const commits = collectCommits(prevTag);
@@ -414,9 +459,9 @@ async function main() {
   const diffStat = collectDiffStat(prevTag);
   const keyDiff = collectKeyDiff(prevTag);
 
-  // 4. 构建提示词并调用 AI
+  // 构建提示词并调用 AI
   const today = new Date().toISOString().slice(0, 10);
-  const prompt = buildPrompt(newVersion, commits, diffStat, keyDiff, today);
+  const prompt = buildPrompt(version, commits, diffStat, keyDiff, today);
 
   const { source, content } = await generateWithAI(prompt);
 
@@ -425,24 +470,41 @@ async function main() {
     process.exit(0);
   }
 
-  // 5. 提取并写入 changelog（含版本号校验）
-  const changelogBody = extractChangelogBody(content, newVersion);
+  // 提取并写入 changelog（含版本号校验）
+  const changelogBody = extractChangelogBody(content, version);
   if (!changelogBody) {
     console.warn('[auto-changelog] AI 输出校验失败，跳过写入');
     process.exit(0);
   }
 
-  const written = writeChangelog(newVersion, changelogBody);
+  // 强制模式：先删除现有版本
+  if (force) {
+    const changelog = fs.readFileSync(CHANGELOG_FILE, 'utf8');
+    const escaped = escapeRegExp(version);
+    const versionPattern = new RegExp(
+      `^## v${escaped}(?:\\s|（|\\()[\\s\\S]*?(?=\\n## v|\\n*$)`,
+      'm'
+    );
+    const newChangelog = changelog.replace(versionPattern, '').replace(/\n{3,}/g, '\n\n');
+    fs.writeFileSync(CHANGELOG_FILE, newChangelog, 'utf8');
+    console.log(`[auto-changelog] 已删除现有 v${version} 条目`);
+  }
+
+  const written = writeChangelog(version, changelogBody);
 
   if (!written) {
     process.exit(0);
   }
 
-  // 6. amend 提交，包含 changelog 变更
-  process.env.AUTO_CHANGELOG_RUNNING = '1';
-  git('add', 'docs/changelog.md');
-  git('commit', '--amend', '--no-edit');
-  console.log(`[auto-changelog] 已将 changelog 变更 amend 到当前提交（来源: ${source}）`);
+  // amend 提交，包含 changelog 变更（仅在非强制模式下）
+  if (!force) {
+    process.env.AUTO_CHANGELOG_RUNNING = '1';
+    git('add', 'docs/changelog.md');
+    git('commit', '--amend', '--no-edit');
+    console.log(`[auto-changelog] 已将 changelog 变更 amend 到当前提交（来源: ${source}）`);
+  } else {
+    console.log(`[auto-changelog] 强制模式：已更新 changelog，请手动提交（来源: ${source}）`);
+  }
 }
 
 main().catch((err) => {
