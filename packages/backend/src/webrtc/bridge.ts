@@ -53,6 +53,8 @@ export async function bridgeDataChannelToGateway(
     return;
   }
 
+  let rewrittenOrigin: string | undefined;
+
   // 优化：如果前端传入的 remoteGatewayUrl 是当前后端的 /rdp-proxy 或 /ws/rdp-proxy，
   // 我们将其重写为内部地址（localhost:PORT）以避免 NAT hairpinning 问题和不必要的公网请求。
   try {
@@ -60,6 +62,7 @@ export async function bridgeDataChannelToGateway(
     if (parsed.pathname === '/rdp-proxy' || parsed.pathname === '/ws/rdp-proxy') {
       const port = process.env.PORT || 3001;
       remoteGatewayUrl = `ws://localhost:${port}${parsed.pathname}${parsed.search}`;
+      rewrittenOrigin = `http://localhost:${port}`;
       logger.debug(`[WebRTC Bridge] 重写 remoteGatewayUrl 为内部地址: ${remoteGatewayUrl}`);
     }
   } catch (e) {
@@ -89,8 +92,13 @@ export async function bridgeDataChannelToGateway(
     }
   }
 
+  const wsOptions: WebSocket.ClientOptions = { agent };
+  if (rewrittenOrigin) {
+    wsOptions.headers = { origin: rewrittenOrigin };
+  }
+
   // 连接到 remote-gateway（DNS pinning 消除 TOCTOU 竞态）
-  const gatewayWs = new WebSocket(remoteGatewayUrl, { agent });
+  const gatewayWs = new WebSocket(remoteGatewayUrl, wsOptions);
   let gatewayReady = false;
   let dcClosed = false;
   let gwClosed = false;
