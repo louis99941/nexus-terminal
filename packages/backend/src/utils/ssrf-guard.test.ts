@@ -25,7 +25,7 @@ vi.mock('axios', () => ({
 
 import dns from 'dns/promises';
 import axios from 'axios';
-import { safeHttpGet, safeHttpPost, cleanupDnsCache } from './ssrf-guard';
+import { safeHttpGet, safeHttpPost, cleanupDnsCache, createPinnedLookup } from './ssrf-guard';
 
 describe('ssrf-guard', () => {
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('ssrf-guard', () => {
       vi.mocked(dns.resolve6).mockResolvedValue([]);
 
       await expect(safeHttpGet('http://internal.example.com/api')).rejects.toThrow(
-        '目标地址解析到不允许的网络范围'
+        '目标地址解析到不允许的网络范围',
       );
     });
 
@@ -48,7 +48,7 @@ describe('ssrf-guard', () => {
       vi.mocked(dns.resolve6).mockRejectedValue(new Error('ENOTFOUND'));
 
       await expect(safeHttpGet('https://api.openai.com/')).rejects.toThrow(
-        '目标域名无法解析，无法验证地址安全性，请求已阻止。'
+        '目标域名无法解析，无法验证地址安全性，请求已阻止。',
       );
     });
 
@@ -70,13 +70,13 @@ describe('ssrf-guard', () => {
 
     it('应阻止回环地址的请求', async () => {
       await expect(safeHttpGet('http://127.0.0.1/admin')).rejects.toThrow(
-        '目标地址解析到不允许的网络范围'
+        '目标地址解析到不允许的网络范围',
       );
     });
 
     it('应阻止链路本地地址的请求', async () => {
       await expect(safeHttpGet('http://169.254.169.254/metadata')).rejects.toThrow(
-        '目标地址解析到不允许的网络范围'
+        '目标地址解析到不允许的网络范围',
       );
     });
 
@@ -102,7 +102,7 @@ describe('ssrf-guard', () => {
           timeout: 5000,
           headers: { Authorization: 'Bearer test' },
           maxRedirects: 0,
-        })
+        }),
       );
     });
   });
@@ -113,7 +113,7 @@ describe('ssrf-guard', () => {
       vi.mocked(dns.resolve6).mockResolvedValue([]);
 
       await expect(
-        safeHttpPost('http://internal.example.com/api', { data: 'test' })
+        safeHttpPost('http://internal.example.com/api', { data: 'test' }),
       ).rejects.toThrow('目标地址解析到不允许的网络范围');
     });
 
@@ -133,6 +133,41 @@ describe('ssrf-guard', () => {
         text: 'test',
       });
       expect(response.status).toBe(200);
+    });
+  });
+
+  describe('createPinnedLookup', () => {
+    it('空地址数组应抛出明确错误', () => {
+      expect(() => createPinnedLookup([])).toThrow('DNS 绑定失败：未解析到任何有效 IP 地址');
+    });
+
+    it('undefined 地址数组应抛出明确错误', () => {
+      expect(() => createPinnedLookup(undefined as unknown as string[])).toThrow(
+        'DNS 绑定失败：未解析到任何有效 IP 地址',
+      );
+    });
+
+    it('all:true 时 IPv4 应返回数组格式（http.Agent 实际行为）', () => {
+      const lookup = createPinnedLookup(['142.250.80.46']);
+      const callback = vi.fn();
+      lookup('example.com', { all: true }, callback);
+      expect(callback).toHaveBeenCalledWith(null, [{ address: '142.250.80.46', family: 4 }]);
+    });
+
+    it('all:true 时 IPv6 应返回数组格式且 family 6', () => {
+      const lookup = createPinnedLookup(['2607:f8b0:4004:800::200e']);
+      const callback = vi.fn();
+      lookup('example.com', { all: true }, callback);
+      expect(callback).toHaveBeenCalledWith(null, [
+        { address: '2607:f8b0:4004:800::200e', family: 6 },
+      ]);
+    });
+
+    it('all:false 时应返回旧格式 (address, family)', () => {
+      const lookup = createPinnedLookup(['142.250.80.46']);
+      const callback = vi.fn();
+      lookup('example.com', { all: false }, callback);
+      expect(callback).toHaveBeenCalledWith(null, '142.250.80.46', 4);
     });
   });
 

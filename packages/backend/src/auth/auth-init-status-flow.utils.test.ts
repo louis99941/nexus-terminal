@@ -14,7 +14,7 @@ describe('auth-init-status-flow.utils', () => {
           userId: 1,
           username: 'alice',
           requiresTwoFactor: true,
-        })
+        }),
       ).toBe(false);
     });
 
@@ -24,7 +24,7 @@ describe('auth-init-status-flow.utils', () => {
           userId: 2,
           username: 'bob',
           requiresTwoFactor: false,
-        })
+        }),
       ).toBe(true);
     });
   });
@@ -100,7 +100,46 @@ describe('auth-init-status-flow.utils', () => {
           hcaptchaSiteKey: 'site-key',
           recaptchaSiteKey: undefined,
         },
+        multiplexEnabled: false,
       });
+    });
+
+    it('multiplexEnabled 为 true 时应正确传递', () => {
+      const response = buildInitDataBaseResponse({
+        needsSetup: false,
+        authState: {
+          isAuthenticated: true,
+          user: {
+            id: 1,
+            username: 'admin',
+            isTwoFactorEnabled: false,
+          },
+        },
+        captchaConfig: {
+          enabled: false,
+          provider: 'none',
+          hcaptchaSiteKey: undefined,
+          recaptchaSiteKey: undefined,
+        },
+        multiplexEnabled: true,
+      });
+
+      expect(response.multiplexEnabled).toBe(true);
+    });
+
+    it('multiplexEnabled 未传入时应默认为 false', () => {
+      const response = buildInitDataBaseResponse({
+        needsSetup: true,
+        authState: { isAuthenticated: false, user: null },
+        captchaConfig: {
+          enabled: false,
+          provider: 'none',
+          hcaptchaSiteKey: undefined,
+          recaptchaSiteKey: undefined,
+        },
+      });
+
+      expect(response.multiplexEnabled).toBe(false);
     });
   });
 });

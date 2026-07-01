@@ -26,6 +26,9 @@ const LOCAL_IPS = [
   'localhost', // 本地主机名
 ];
 
+// 高频低价值端点：本地 IP 放行时不输出日志，避免 Docker healthcheck 刷屏
+const LOCAL_ALLOW_LOG_SKIP_PREFIXES = ['/api/v1/health', '/api/v1/metrics'];
+
 /**
  * IP 白名单中间件
  * 检查请求来源 IP 是否在设置中定义的白名单内。
@@ -47,7 +50,15 @@ export const ipWhitelistMiddleware = async (req: Request, res: Response, next: N
 
     // 检查是否是本地开发环境的 IP
     if (LOCAL_IPS.includes(requestIpString)) {
-      logger.info(`允许来自本地开发环境 (${requestIpString}) 的访问。`);
+      // 高频低价值端点（health/metrics）不输出日志，避免 Docker healthcheck 刷屏
+      const isSkippablePath = LOCAL_ALLOW_LOG_SKIP_PREFIXES.some((prefix) =>
+        req.path.startsWith(prefix),
+      );
+
+      if (!isSkippablePath) {
+        logger.debug(`允许来自本地开发环境 (${requestIpString}) 的访问。`);
+      }
+
       return next();
     }
 
@@ -83,7 +94,8 @@ export const ipWhitelistMiddleware = async (req: Request, res: Response, next: N
     let requestIp: ipaddr.IPv4 | ipaddr.IPv6 | null = null;
     try {
       requestIp = ipaddr.parse(requestIpString);
-    } catch {
+    } catch (err: unknown) {
+      logger.debug({ err }, '操作失败，已忽略');
       logger.warn(`无法解析请求 IP 地址 "${requestIpString}"，已拒绝访问。`);
       return res.status(403).json({
         success: false,
@@ -118,7 +130,8 @@ export const ipWhitelistMiddleware = async (req: Request, res: Response, next: N
         }
         // 如果 IP 类型和范围类型不匹配，则认为不匹配
         return false;
-      } catch {
+      } catch (err: unknown) {
+        logger.debug({ err }, '操作失败，已忽略');
         // 如果解析 CIDR 失败，尝试解析为单个 IP 地址
         try {
           const allowedIp = ipaddr.parse(entry);
@@ -126,7 +139,8 @@ export const ipWhitelistMiddleware = async (req: Request, res: Response, next: N
           return (
             requestIp.kind() === allowedIp.kind() && requestIp.toString() === allowedIp.toString()
           );
-        } catch {
+        } catch (innerErr: unknown) {
+          logger.debug({ err: innerErr }, '操作失败，已忽略');
           // 如果单个 IP 也解析失败，忽略此条目并记录警告
           logger.warn(`无效的 IP 白名单条目: "${entry}"`);
           return false;

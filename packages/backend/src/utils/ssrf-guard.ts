@@ -11,6 +11,7 @@
  *   const response = await safeHttpGet(url, { timeout: 5000 });
  */
 
+import dns from 'dns';
 import http from 'http';
 import https from 'https';
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
@@ -39,7 +40,7 @@ const dnsCache = new Map<string, DnsCacheEntry>();
  */
 async function getOrResolveHost(
   targetUrl: string,
-  sourceTag: string
+  sourceTag: string,
 ): Promise<SsrfValidationResult> {
   const urlObj = new URL(targetUrl);
 
@@ -78,13 +79,27 @@ async function getOrResolveHost(
  * 可被其他模块复用（如 nl2cmd、bridge）
  */
 export function createPinnedLookup(allowedAddresses: string[]) {
+  if (!Array.isArray(allowedAddresses) || allowedAddresses.length === 0) {
+    throw new Error('DNS 绑定失败：未解析到任何有效 IP 地址，无法创建安全连接');
+  }
+
+  const pinnedAddress = allowedAddresses[0];
+  if (typeof pinnedAddress !== 'string' || pinnedAddress.length === 0) {
+    throw new Error(`DNS 绑定失败：解析到的 IP 地址无效 (${String(pinnedAddress)})`);
+  }
+
+  // http.Agent / https.Agent 内部调用 net.connect 时传入 { all: true }，
+  // 要求 lookup 回调返回 [{ address, family }] 数组格式（Node.js ≥10.6）。
+  // 直接检测 options.all 来决定回调格式，比 Node 版本号更准确可靠。
   return (
     _hostname: string,
-    options: unknown,
-    callback: (err: NodeJS.ErrnoException | null, address: any, family?: number) => void
+    options: { all?: boolean } | unknown,
+    callback: (
+      err: NodeJS.ErrnoException | null,
+      address: string | dns.LookupAddress[],
+      family?: number,
+    ) => void,
   ): void => {
-    // Node.js 20+ 的 http.Agent 会传入 options.all = true
-    // 此时 callback 期望收到 [{ address: string, family: number }] 数组
     const isAll =
       typeof options === 'object' && options !== null && (options as Record<string, unknown>).all;
 
@@ -93,7 +108,7 @@ export function createPinnedLookup(allowedAddresses: string[]) {
         address: addr,
         family: addr.includes(':') ? 6 : 4,
       }));
-      callback(null, addresses as any);
+      callback(null, addresses as dns.LookupAddress[]);
     } else {
       const address = allowedAddresses[0];
       const family = address.includes(':') ? 6 : 4;
@@ -119,7 +134,7 @@ async function handleRedirect(
   sourceTag: string,
   maxRedirects: number,
   redirectCount: number,
-  config: AxiosRequestConfig
+  config: AxiosRequestConfig,
 ): Promise<AxiosResponse> {
   const statusCode = response.status;
   // 显式限定需要跟随重定向的状态码集合，避免跟随 304 等非重定向 3xx
@@ -136,7 +151,7 @@ async function handleRedirect(
 
   // 重定向目标二次验证（关键安全检查）
   logger.debug(
-    `[SSRF Guard] ${sourceTag} 跟随重定向 ${redirectCount + 1}/${maxRedirects}: ${redirectUrl}`
+    `[SSRF Guard] ${sourceTag} 跟随重定向 ${redirectCount + 1}/${maxRedirects}: ${redirectUrl}`,
   );
 
   const { addresses } = await getOrResolveHost(redirectUrl, sourceTag);
@@ -160,7 +175,7 @@ async function handleRedirect(
     sourceTag,
     maxRedirects,
     redirectCount + 1,
-    config
+    config,
   );
 }
 
@@ -177,7 +192,7 @@ async function handleRedirect(
 export async function safeHttpGet(
   url: string,
   options: AxiosRequestConfig = {},
-  sourceTag = 'SSRF-Guard'
+  sourceTag = 'SSRF-Guard',
 ): Promise<AxiosResponse> {
   // 1. 预验证目标地址（DNS 解析 + 私有地址拦截 + DNS 绑定）
   const { addresses } = await getOrResolveHost(url, sourceTag);
@@ -219,7 +234,7 @@ export async function safeHttpPost(
   url: string,
   data?: unknown,
   options: AxiosRequestConfig = {},
-  sourceTag = 'SSRF-Guard'
+  sourceTag = 'SSRF-Guard',
 ): Promise<AxiosResponse> {
   return safeHttpGet(url, { ...options, method: 'POST', data }, sourceTag);
 }

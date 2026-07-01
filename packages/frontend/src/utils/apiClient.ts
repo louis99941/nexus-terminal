@@ -5,7 +5,10 @@ import { log } from '@/utils/log';
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 export const AI_REQUEST_TIMEOUT_MS = 60_000;
 const TRANSIENT_UPSTREAM_STATUS_CODES = [502, 503, 504] as const;
-const ONE_SHOT_RETRY_DELAY_MS = 350;
+
+// 瞬时错误重试配置：最多重试 2 次，指数退避（350ms → 700ms → 1400ms）
+const MAX_TRANSIENT_RETRIES = 2;
+const BASE_RETRY_DELAY_MS = 350;
 
 interface RetriableRequestConfig {
   method?: string;
@@ -35,7 +38,7 @@ apiClient.interceptors.request.use(
     // 处理请求错误
     log.error('Request error:', error);
     return Promise.reject(error);
-  }
+  },
 );
 
 // 响应拦截器
@@ -54,16 +57,26 @@ apiClient.interceptors.response.use(
       const { status, statusText, headers } = error.response;
       const contentType = headers?.['content-type'] ?? 'unknown';
       const isUpstreamUnavailableStatus = TRANSIENT_UPSTREAM_STATUS_CODES.includes(
-        status as (typeof TRANSIENT_UPSTREAM_STATUS_CODES)[number]
+        status as (typeof TRANSIENT_UPSTREAM_STATUS_CODES)[number],
       );
 
-      // 对 GET 请求的瞬时上游错误做一次短延迟重试，减少偶发 502/503/504 带来的页面噪声
+      // 对 GET 请求的瞬时上游错误做指数退避重试，减少偶发 502/503/504 带来的页面噪声
+      // Cloudflare 代理场景下首屏并发请求偶尔触发 503，重试可有效恢复
       const requestConfig = error.config as RetriableRequestConfig | undefined;
       const retryCount = Number(requestConfig?.__retryCount ?? 0);
       const isGetRequest = rawRequestMethod?.toLowerCase?.() === 'get';
-      if (requestConfig && isGetRequest && isUpstreamUnavailableStatus && retryCount < 1) {
+      if (
+        requestConfig &&
+        isGetRequest &&
+        isUpstreamUnavailableStatus &&
+        retryCount < MAX_TRANSIENT_RETRIES
+      ) {
         requestConfig.__retryCount = retryCount + 1;
-        await new Promise((resolve) => setTimeout(resolve, ONE_SHOT_RETRY_DELAY_MS));
+        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
+        log.warn(
+          `[apiClient] 瞬时错误 ${status}，第 ${retryCount + 1}/${MAX_TRANSIENT_RETRIES} 次重试，延迟 ${delay}ms: ${requestMethod} ${requestUrl}`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
         return apiClient.request(requestConfig);
       }
 
@@ -110,19 +123,19 @@ apiClient.interceptors.response.use(
         case 503: // 服务不可用
         case 504: // 网关超时
           log.warn(
-            `[apiClient] Upstream service unavailable (${status}) for ${requestMethod} ${requestUrl}`
+            `[apiClient] Upstream service unavailable (${status}) for ${requestMethod} ${requestUrl}`,
           );
           break;
         // 可以根据需要添加更多错误状态码的处理
         default:
           log.error(
-            `[apiClient] Unhandled error status: ${status} (${requestMethod} ${requestUrl})`
+            `[apiClient] Unhandled error status: ${status} (${requestMethod} ${requestUrl})`,
           );
       }
     } else if (error.request) {
       // 请求已发出，但没有收到响应 (例如网络问题)
       log.error(
-        `[apiClient] Network error or no response received: ${requestMethod} ${requestUrl}`
+        `[apiClient] Network error or no response received: ${requestMethod} ${requestUrl}`,
       );
     } else {
       // 发送请求时出了点问题
@@ -131,7 +144,7 @@ apiClient.interceptors.response.use(
 
     // 将错误继续抛出，以便调用方可以捕获并处理
     return Promise.reject(error);
-  }
+  },
 );
 
 // Passkey Management（已迁移至 /api/v1/passkey 模块）

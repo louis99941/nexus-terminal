@@ -2,7 +2,7 @@
  * SSH 挂起 Actions 单元测试
  * 测试 HTTP API 调用和 WebSocket 消息处理器
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ref } from 'vue';
 
 // 使用 vi.hoisted 确保变量在 vi.mock 之前可用
@@ -154,6 +154,14 @@ describe('sshSuspendActions', () => {
     };
   });
 
+  afterEach(async () => {
+    // registerSshSuspendHandlers 内部会 fire-and-forget 调用 fetchSuspendedSshSessions，
+    // 产生一个 pending 的 Promise。必须在测试结束前让其 settle，
+    // 否则在慢速 CI 上该 Promise 可能在测试环境 teardown 后才 resolve/reject，
+    // 触发 "caught after test environment was torn down" 报错。
+    await vi.waitFor(() => Promise.resolve(), { timeout: 500 }).catch(() => undefined);
+  });
+
   describe('fetchSuspendedSshSessions', () => {
     it('应成功获取挂起会话列表', async () => {
       const mockSessions = [
@@ -247,7 +255,7 @@ describe('sshSuspendActions', () => {
             sessionId: 'sess-1',
             initialBuffer: 'line1\nline2',
           }),
-        })
+        }),
       );
     });
 
@@ -267,8 +275,51 @@ describe('sshSuspendActions', () => {
             sessionId: 'sess-2',
             initialBuffer: undefined,
           }),
-        })
+        }),
       );
+    });
+
+    it('终端缓冲区超过 1MB 时应截断最早的输出', async () => {
+      // 模拟一个超大缓冲区：每行约 50KB，25 行 ≈ 1.25MB
+      const largeLine = 'A'.repeat(50000);
+      const lineCount = 25;
+      mockTerminalInstance.value = {
+        buffer: {
+          active: {
+            length: lineCount,
+            getLine: (index: number) => ({
+              translateToString: (_trim: boolean) => (index < lineCount ? largeLine : ''),
+            }),
+          },
+        },
+        write: mockTerminalWrite,
+      };
+
+      sessionsMap.set('sess-large', {
+        wsManager: { isConnected: mockIsConnectedRaw, sendMessage: mockSendMessage },
+        terminalManager: { terminalInstance: mockTerminalInstance },
+      });
+
+      const { requestStartSshSuspend } = await import('./sshSuspendActions');
+      requestStartSshSuspend('sess-large');
+
+      const sentMessage = mockSendMessage.mock.calls[0][0] as {
+        payload: { initialBuffer?: string };
+      };
+      const sentBuffer = sentMessage.payload.initialBuffer as string;
+      expect(sentBuffer).toBeDefined();
+
+      // 验证：缓冲区大小应小于 1MB
+      expect(new TextEncoder().encode(sentBuffer).length).toBeLessThan(1048576);
+
+      // 验证：应保留了最新内容（末尾的行）
+      const sentLines = sentBuffer.split('\n');
+      expect(sentLines.length).toBeGreaterThan(0);
+      expect(sentLines.length).toBeLessThan(lineCount); // 应该被截断了
+
+      // 验证：保留的行都是最新的（最后几行）
+      // 最后一行应该是完整的大行
+      expect(sentLines[sentLines.length - 1]).toBe(largeLine);
     });
   });
 
@@ -320,7 +371,7 @@ describe('sshSuspendActions', () => {
         expect.objectContaining({
           type: 'SSH_UNMARK_FOR_SUSPEND',
           payload: { sessionId: 'sess-1' },
-        })
+        }),
       );
     });
   });
@@ -426,7 +477,7 @@ describe('sshSuspendActions', () => {
       expect(mockApiPut).toHaveBeenCalledWith('ssh-suspend/name/s1', { customName: 'New Name' });
       expect((suspendedSshSessionsRef.value[0] as any).customSuspendName).toBe('New Name');
       expect(mockAddNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'success' })
+        expect.objectContaining({ type: 'success' }),
       );
     });
 
@@ -468,7 +519,7 @@ describe('sshSuspendActions', () => {
       };
       vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLElement);
       vi.spyOn(document.body, 'appendChild').mockImplementation(
-        () => mockLink as unknown as HTMLElement
+        () => mockLink as unknown as HTMLElement,
       );
 
       const { exportSshSessionLog } = await import('./sshSuspendActions');
@@ -504,11 +555,11 @@ describe('sshSuspendActions', () => {
 
       expect(mockOnMessage).toHaveBeenCalledWith(
         'SSH_MARKED_FOR_SUSPEND_ACK',
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(mockOnMessage).toHaveBeenCalledWith(
         'SSH_UNMARKED_FOR_SUSPEND_ACK',
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(mockOnMessage).toHaveBeenCalledWith('SSH_SUSPEND_LIST_RESPONSE', expect.any(Function));
       expect(mockOnMessage).toHaveBeenCalledWith('SSH_SUSPEND_RESUMED', expect.any(Function));
@@ -517,7 +568,7 @@ describe('sshSuspendActions', () => {
       expect(mockOnMessage).toHaveBeenCalledWith('SSH_SUSPEND_ENTRY_REMOVED', expect.any(Function));
       expect(mockOnMessage).toHaveBeenCalledWith(
         'SSH_SUSPEND_AUTO_TERMINATED',
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -556,7 +607,7 @@ describe('sshSuspendActions', () => {
 
         expect(sessionsMap.get('sess-1').isMarkedForSuspend).toBe(true);
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'success' })
+          expect.objectContaining({ type: 'success' }),
         );
       });
 
@@ -572,7 +623,7 @@ describe('sshSuspendActions', () => {
 
         expect(sessionsMap.get('sess-1').isMarkedForSuspend).toBe(false);
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
 
@@ -583,7 +634,7 @@ describe('sshSuspendActions', () => {
           handlers['SSH_MARKED_FOR_SUSPEND_ACK']({
             success: true,
             sessionId: 'nonexistent',
-          })
+          }),
         ).not.toThrow();
       });
     });
@@ -600,7 +651,7 @@ describe('sshSuspendActions', () => {
 
         expect(sessionsMap.get('sess-1').isMarkedForSuspend).toBe(false);
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'success' })
+          expect.objectContaining({ type: 'success' }),
         );
       });
 
@@ -614,7 +665,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
     });
@@ -652,7 +703,7 @@ describe('sshSuspendActions', () => {
         expect(sessionsMap.get('new-sess').isResuming).toBe(true);
         expect(suspendedSshSessionsRef.value).toHaveLength(0);
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'success' })
+          expect.objectContaining({ type: 'success' }),
         );
       });
 
@@ -669,7 +720,7 @@ describe('sshSuspendActions', () => {
 
         expect(suspendedSshSessionsRef.value).toHaveLength(0);
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'success' })
+          expect.objectContaining({ type: 'success' }),
         );
       });
 
@@ -684,7 +735,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
 
@@ -699,7 +750,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
 
@@ -715,7 +766,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
 
@@ -729,7 +780,7 @@ describe('sshSuspendActions', () => {
             suspendSessionId: 's1',
             newFrontendSessionId: 'no-sess',
             error: 'err',
-          })
+          }),
         ).resolves.toBeUndefined();
       });
     });
@@ -777,7 +828,7 @@ describe('sshSuspendActions', () => {
             frontendSessionId: 'nonexistent',
             data: 'data',
             isLastChunk: false,
-          })
+          }),
         ).not.toThrow();
       });
 
@@ -793,7 +844,7 @@ describe('sshSuspendActions', () => {
             frontendSessionId: 'new-sess',
             data: 'last chunk',
             isLastChunk: true,
-          })
+          }),
         ).not.toThrow();
       });
     });
@@ -830,7 +881,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
     });
@@ -867,7 +918,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'error' })
+          expect.objectContaining({ type: 'error' }),
         );
       });
     });
@@ -885,11 +936,11 @@ describe('sshSuspendActions', () => {
         });
 
         expect((suspendedSshSessionsRef.value[0] as any).backendSshStatus).toBe(
-          'disconnected_by_backend'
+          'disconnected_by_backend',
         );
         expect((suspendedSshSessionsRef.value[0] as any).disconnectionTimestamp).toBeDefined();
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'warning' })
+          expect.objectContaining({ type: 'warning' }),
         );
       });
 
@@ -905,7 +956,7 @@ describe('sshSuspendActions', () => {
         });
 
         expect(mockAddNotification).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'warning' })
+          expect.objectContaining({ type: 'warning' }),
         );
       });
 
@@ -916,7 +967,7 @@ describe('sshSuspendActions', () => {
           handlers['SSH_SUSPEND_AUTO_TERMINATED']({
             suspendSessionId: 'nonexistent',
             reason: 'timeout',
-          })
+          }),
         ).not.toThrow();
       });
     });

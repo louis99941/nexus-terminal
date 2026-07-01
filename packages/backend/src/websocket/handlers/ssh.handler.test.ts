@@ -17,9 +17,12 @@ import { AuthenticatedWebSocket, ClientState } from '../types';
 import { clientStates } from '../state';
 import * as SshService from '../../services/ssh.service';
 
-// Mock uuid
-vi.mock('uuid', () => ({
-  v4: vi.fn(() => 'mock-session-id-12345'),
+// Mock crypto.randomUUID
+vi.mock('crypto', () => ({
+  default: {
+    randomUUID: vi.fn(() => 'mock-session-id-12345'),
+  },
+  randomUUID: vi.fn(() => 'mock-session-id-12345'),
 }));
 
 // Mock SSH Service
@@ -58,14 +61,34 @@ vi.mock('../utils', () => ({
       ws: { readyState: number; send: (data: string) => void },
       type: string,
       payload: Record<string, unknown>,
-      sessionId?: string
+      sessionId?: string,
     ) => {
       if (ws.readyState === 1) {
         const message: Record<string, unknown> = { type, payload };
         if (sessionId) message.sid = sessionId;
         ws.send(JSON.stringify(message));
       }
-    }
+    },
+  ),
+  safeSend: vi.fn(
+    (
+      ws: { readyState: number; send: (data: string) => void },
+      type: string,
+      payload: Record<string, unknown>,
+      sessionId?: string,
+    ): boolean => {
+      if (ws.readyState !== 1) {
+        return false;
+      }
+      try {
+        const message: Record<string, unknown> = { type, payload };
+        if (sessionId) message.sid = sessionId;
+        ws.send(JSON.stringify(message));
+        return true;
+      } catch {
+        return false;
+      }
+    },
   ),
 }));
 
@@ -94,7 +117,7 @@ vi.mock('../output-batcher', () => {
           destroy: vi.fn(),
           getBufferLength: () => 0,
         };
-      }
+      },
     ),
     destroyBatcher: vi.fn(),
     flushBatcher: vi.fn(),
@@ -118,7 +141,7 @@ class MockShellStream extends EventEmitter {
 
 // Helper to create mock WebSocket
 function createMockWebSocket(
-  overrides: Partial<AuthenticatedWebSocket> = {}
+  overrides: Partial<AuthenticatedWebSocket> = {},
 ): AuthenticatedWebSocket {
   const ws = new EventEmitter() as AuthenticatedWebSocket;
   ws.readyState = WebSocket.OPEN;
@@ -175,7 +198,7 @@ describe('SSH WebSocket Handler', () => {
       await handleSshConnect(mockWs, mockRequest, {});
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: '缺少 connectionId。' })
+        JSON.stringify({ type: 'ssh:error', payload: '缺少 connectionId。' }),
       );
     });
 
@@ -198,7 +221,7 @@ describe('SSH WebSocket Handler', () => {
           type: 'ssh:error',
           payload: '已存在活动的 SSH 连接。',
           sid: 'existing-session',
-        })
+        }),
       );
       expect(SshService.getConnectionDetails).not.toHaveBeenCalled();
     });
@@ -223,26 +246,26 @@ describe('SSH WebSocket Handler', () => {
 
       // 验证状态消息
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:status', payload: '正在处理连接请求...' })
+        JSON.stringify({ type: 'ssh:status', payload: '正在处理连接请求...' }),
       );
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:status', payload: '正在获取连接信息...' })
+        JSON.stringify({ type: 'ssh:status', payload: '正在获取连接信息...' }),
       );
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:status', payload: '正在连接到 192.168.1.1...' })
+        JSON.stringify({ type: 'ssh:status', payload: '正在连接到 192.168.1.1...' }),
       );
       expect(mockWs.send).toHaveBeenCalledWith(
         JSON.stringify({
           type: 'ssh:status',
           payload: 'SSH 连接成功，正在打开 Shell...',
           sid: 'mock-session-id-12345',
-        })
+        }),
       );
 
       // 验证 shell 调用参数
       expect(mockSshClient.shell).toHaveBeenCalledWith(
         { term: 'xterm-256color', cols: 120, rows: 40 },
-        expect.any(Function)
+        expect.any(Function),
       );
 
       // 验证连接成功消息
@@ -272,7 +295,7 @@ describe('SSH WebSocket Handler', () => {
       // 验证使用默认参数
       expect(mockSshClient.shell).toHaveBeenCalledWith(
         { term: 'xterm-256color', cols: 80, rows: 24 },
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -283,7 +306,7 @@ describe('SSH WebSocket Handler', () => {
       await handleSshConnect(mockWs, mockRequest, { connectionId: 'invalid' });
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: '无效的连接 ID。' })
+        JSON.stringify({ type: 'ssh:error', payload: '无效的连接 ID。' }),
       );
       expect(mockWs.close).toHaveBeenCalledWith(1008, 'Invalid Connection ID');
     });
@@ -303,7 +326,7 @@ describe('SSH WebSocket Handler', () => {
           type: 'ssh:error',
           payload: '打开 Shell 失败: Shell 打开失败',
           sid: 'mock-session-id-12345',
-        })
+        }),
       );
     });
 
@@ -349,7 +372,7 @@ describe('SSH WebSocket Handler', () => {
       await handleSshConnect(mockWs, mockRequest, { connectionId: 1 });
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: '连接失败: Connection refused' })
+        JSON.stringify({ type: 'ssh:error', payload: '连接失败: Connection refused' }),
       );
       expect(mockWs.close).toHaveBeenCalledWith(1011, 'SSH Connection Failed: Connection refused');
     });
@@ -360,7 +383,7 @@ describe('SSH WebSocket Handler', () => {
       await handleSshConnect(mockWs, mockRequest, { connectionId: 999 });
 
       expect(mockWs.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'ssh:error', payload: '连接失败: 连接配置未找到' })
+        JSON.stringify({ type: 'ssh:error', payload: '连接失败: 连接配置未找到' }),
       );
     });
 
@@ -430,7 +453,7 @@ describe('SSH WebSocket Handler', () => {
           type: 'ssh:disconnected',
           payload: 'Shell 通道已关闭。',
           sid: 'mock-session-id-12345',
-        })
+        }),
       );
       expect(cleanupClientConnection).toHaveBeenCalledWith('mock-session-id-12345');
     });
@@ -522,8 +545,8 @@ describe('SSH WebSocket Handler', () => {
       mockShellStream.emit(
         'data',
         Buffer.from(
-          `root@localhost:/opt$ pwd 2>/dev/null || /bin/pwd 2>/dev/null\n/opt\nroot@localhost:/opt$ echo ${endMarker}\n${endMarker}\n`
-        )
+          `root@localhost:/opt$ pwd 2>/dev/null || /bin/pwd 2>/dev/null\n/opt\nroot@localhost:/opt$ echo ${endMarker}\n${endMarker}\n`,
+        ),
       );
 
       const message = getLastSentMessage();
@@ -541,7 +564,7 @@ describe('SSH WebSocket Handler', () => {
           command: "printf '__NX_PWD__%s\\n' '/root'",
           successCriteria: 'absolute_path',
         },
-        'req-silent-clear-pending-input'
+        'req-silent-clear-pending-input',
       );
       expect(mockShellStream.write).toHaveBeenCalledTimes(1);
 
@@ -569,11 +592,11 @@ describe('SSH WebSocket Handler', () => {
 
       mockShellStream.emit(
         'data',
-        Buffer.from(`${startMarker}\npwd\n/home/test\n${endMarker}\nuser@host:~$ `)
+        Buffer.from(`${startMarker}\npwd\n/home/test\n${endMarker}\nuser@host:~$ `),
       );
 
       const messages = (mockWs.send as any).mock.calls.map((call: unknown[]) =>
-        JSON.parse(call[0])
+        JSON.parse(call[0]),
       );
       const resultMessage = messages.find((msg: unknown) => msg.type === 'ssh:exec_silent:result');
       const outputMessage = messages.find((msg: unknown) => msg.type === 'ssh:output');
@@ -590,18 +613,18 @@ describe('SSH WebSocket Handler', () => {
       handleSshExecSilent(
         mockWs,
         { command: 'pwd', suppressTerminalPrompt: true },
-        'req-silent-no-prompt-echo'
+        'req-silent-no-prompt-echo',
       );
       const firstWrite = (mockShellStream.write as any).mock.calls[0][0] as string;
       const { startMarker, endMarker } = extractMarkers(firstWrite);
 
       mockShellStream.emit(
         'data',
-        Buffer.from(`${startMarker}\npwd\n/home/test\n${endMarker}\nuser@host:~$ `)
+        Buffer.from(`${startMarker}\npwd\n/home/test\n${endMarker}\nuser@host:~$ `),
       );
 
       const messages = (mockWs.send as any).mock.calls.map((call: unknown[]) =>
-        JSON.parse(call[0])
+        JSON.parse(call[0]),
       );
       const resultMessage = messages.find((msg: unknown) => msg.type === 'ssh:exec_silent:result');
       const outputMessage = messages.find((msg: unknown) => msg.type === 'ssh:output');
@@ -617,7 +640,7 @@ describe('SSH WebSocket Handler', () => {
       handleSshExecSilent(
         mockWs,
         { command: 'pwd', suppressTerminalPrompt: true },
-        'req-silent-no-prompt-next-chunk'
+        'req-silent-no-prompt-next-chunk',
       );
       const firstWrite = (mockShellStream.write as any).mock.calls[0][0] as string;
       const { startMarker, endMarker } = extractMarkers(firstWrite);
@@ -626,7 +649,7 @@ describe('SSH WebSocket Handler', () => {
       mockShellStream.emit('data', Buffer.from('user@host:~$ '));
 
       const messages = (mockWs.send as any).mock.calls.map((call: unknown[]) =>
-        JSON.parse(call[0])
+        JSON.parse(call[0]),
       );
       const resultMessage = messages.find((msg: unknown) => msg.type === 'ssh:exec_silent:result');
       const outputMessages = messages.filter((msg: unknown) => msg.type === 'ssh:output');
@@ -642,7 +665,7 @@ describe('SSH WebSocket Handler', () => {
       handleSshExecSilent(
         mockWs,
         { command: 'pwd', suppressTerminalPrompt: true },
-        'req-silent-pass-through-next-chunk'
+        'req-silent-pass-through-next-chunk',
       );
       const firstWrite = (mockShellStream.write as any).mock.calls[0][0] as string;
       const { startMarker, endMarker } = extractMarkers(firstWrite);
@@ -651,7 +674,7 @@ describe('SSH WebSocket Handler', () => {
       mockShellStream.emit('data', Buffer.from('file changed\n'));
 
       const messages = (mockWs.send as any).mock.calls.map((call: unknown[]) =>
-        JSON.parse(call[0])
+        JSON.parse(call[0]),
       );
       const outputMessage = messages.find((msg: unknown) => msg.type === 'ssh:output');
 
@@ -669,11 +692,11 @@ describe('SSH WebSocket Handler', () => {
 
       mockShellStream.emit(
         'data',
-        Buffer.from(`${startMarker}\npwd\n/home/test\n${endMarker}\n${tail}`)
+        Buffer.from(`${startMarker}\npwd\n/home/test\n${endMarker}\n${tail}`),
       );
 
       const messages = (mockWs.send as any).mock.calls.map((call: unknown[]) =>
-        JSON.parse(call[0])
+        JSON.parse(call[0]),
       );
       const outputMessage = messages.find((msg: unknown) => msg.type === 'ssh:output');
       expect(outputMessage).toBeTruthy();
@@ -692,7 +715,7 @@ describe('SSH WebSocket Handler', () => {
             default: 'pwd',
           },
         },
-        'req-silent-2'
+        'req-silent-2',
       );
 
       expect(mockShellStream.write).toHaveBeenCalledTimes(1);
@@ -729,7 +752,7 @@ describe('SSH WebSocket Handler', () => {
             default: 'pwd',
           },
         },
-        'req-silent-2b'
+        'req-silent-2b',
       );
 
       expect(mockShellStream.write).toHaveBeenCalledTimes(1);
@@ -761,7 +784,7 @@ describe('SSH WebSocket Handler', () => {
             default: 'pwd',
           },
         },
-        'req-silent-shell-hint'
+        'req-silent-shell-hint',
       );
 
       expect(mockShellStream.write).toHaveBeenCalledTimes(1);
@@ -798,7 +821,7 @@ describe('SSH WebSocket Handler', () => {
           command: "printf '__NX_PWD__%s\\n' '/srv/app'",
           successCriteria: 'absolute_path',
         },
-        'req-silent-prefixed-path'
+        'req-silent-prefixed-path',
       );
 
       expect(mockShellStream.write).toHaveBeenCalledTimes(1);
@@ -1094,7 +1117,7 @@ describe('SSH WebSocket Handler', () => {
           type: 'ssh:error',
           payload: 'SSH 连接错误: Network error',
           sid: 'mock-session-id-12345',
-        })
+        }),
       );
       expect(cleanupClientConnection).toHaveBeenCalledWith('mock-session-id-12345');
     });
@@ -1139,7 +1162,7 @@ describe('SSH WebSocket Handler', () => {
 
       expect(temporaryLogStorageService.writeToLog).toHaveBeenCalledWith(
         '/tmp/test-log.txt',
-        'test output'
+        'test output',
       );
     });
   });

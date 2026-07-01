@@ -53,6 +53,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 30s
     logging:
       driver: json-file
       options:
@@ -88,7 +89,8 @@ services:
     networks:
       - nexus-terminal-network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/health > /dev/null 2>&1 || exit 1"]

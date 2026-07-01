@@ -29,11 +29,15 @@ vi.mock('bcrypt', () => ({
   },
 }));
 
-vi.mock('crypto', () => ({
-  default: {
-    randomBytes: vi.fn(),
-  },
-}));
+vi.mock('crypto', async () => {
+  const actual = await vi.importActual<typeof import('crypto')>('crypto');
+  return {
+    default: {
+      ...actual,
+      randomBytes: vi.fn(),
+    },
+  };
+});
 
 vi.mock('speakeasy', () => ({
   default: {
@@ -190,7 +194,7 @@ describe('Auth Controller - Security Fixes', () => {
 
         // 模拟 regenerate 失败
         mockSession.regenerate = vi.fn((callback: (err?: Error) => void) =>
-          callback(new Error('Session regeneration failed'))
+          callback(new Error('Session regeneration failed')),
         );
 
         await authController.login(mockReq as Request, mockRes as Response);
@@ -220,7 +224,7 @@ describe('Auth Controller - Security Fixes', () => {
         (getDb as any).mockResolvedValueOnce(mockUser);
         (bcrypt.compare as any).mockResolvedValueOnce(true);
         (crypto.randomBytes as any).mockReturnValueOnce(
-          Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex')
+          Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex'),
         );
 
         const regenerateSpy = vi.spyOn(mockSession, 'regenerate');
@@ -234,7 +238,7 @@ describe('Auth Controller - Security Fixes', () => {
             message: '需要进行两步验证。',
             requiresTwoFactor: true,
             tempToken: expect.any(String),
-          })
+          }),
         );
       });
     });
@@ -314,7 +318,7 @@ describe('Auth Controller - Security Fixes', () => {
 
         await authController.verifyPasskeyAuthenticationHandler(
           mockReq as Request,
-          mockRes as Response
+          mockRes as Response,
         );
 
         expect(regenerateSpy).toHaveBeenCalledTimes(1);
@@ -349,7 +353,7 @@ describe('Auth Controller - Security Fixes', () => {
 
         await authController.verifyPasskeyRegistrationHandler(
           mockReq as Request,
-          mockRes as Response
+          mockRes as Response,
         );
 
         expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -419,7 +423,7 @@ describe('Auth Controller - Security Fixes', () => {
 
         await authController.verifyPasskeyAuthenticationHandler(
           mockReq as Request,
-          mockRes as Response
+          mockRes as Response,
         );
 
         expect(mockRes.status).toHaveBeenCalledWith(400);
@@ -555,7 +559,7 @@ describe('Auth Controller - Security Fixes', () => {
           expect.objectContaining({
             message: '登录成功。',
             user: { id: 1, username: 'testuser' },
-          })
+          }),
         );
       });
 

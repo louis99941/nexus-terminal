@@ -14,13 +14,18 @@ import type { ConnectionStatus, WebSocketMessage, MessagePayload } from '../type
 import { parseWebSocketMessage } from './useWebSocketConnection/messageParser';
 import { createReconnectManager } from './useWebSocketConnection/reconnect';
 import { log } from '@/utils/log';
+import { useAuthStore } from '../stores/auth.store';
 
 /**
  * 检查前端多路复用是否启用
- * 通过 VITE_ENABLE_MULTIPLEX 环境变量控制，默认关闭
+ * 从后端 /auth/init 接口读取配置（后端 ENABLE_MULTIPLEX 环境变量控制），无需前端构建时变量
  */
 export function isMultiplexEnabled(): boolean {
-  return import.meta.env.VITE_ENABLE_MULTIPLEX === 'true';
+  try {
+    return useAuthStore().multiplexEnabled;
+  } catch {
+    return false;
+  }
 }
 
 /** 逻辑通道状态（使用 Ref 实现响应式） */
@@ -45,7 +50,7 @@ export interface MultiplexChannel {
   sendMessage: (message: WebSocketMessage) => void;
   onMessage: (
     type: string,
-    handler: (payload: MessagePayload, message: WebSocketMessage) => void
+    handler: (payload: MessagePayload, message: WebSocketMessage) => void,
   ) => () => void;
 }
 
@@ -246,7 +251,7 @@ function scheduleReconnect(): void {
 export function createChannel(
   sid: string,
   dbConnectionId: string,
-  options?: { isResumeFlow?: boolean }
+  options?: { isResumeFlow?: boolean },
 ): MultiplexChannel {
   if (channels.has(sid)) {
     log.warn(`[MultiplexTransport] 通道 ${sid} 已存在，将覆盖`);
@@ -302,7 +307,7 @@ export function createChannel(
 
     onMessage: (
       type: string,
-      handler: (payload: MessagePayload, message: WebSocketMessage) => void
+      handler: (payload: MessagePayload, message: WebSocketMessage) => void,
     ) => {
       let existingHandlers = channelState.messageHandlers.get(type);
       if (!existingHandlers) {

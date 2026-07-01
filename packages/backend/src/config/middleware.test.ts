@@ -24,10 +24,10 @@ function createTestApp(): TestableApp {
 
 // Mock 外部依赖 — 使用 vi.hoisted 确保 mock 函数在 vi.mock 提升前可用
 const mockRateLimitFn = vi.hoisted(() =>
-  vi.fn(() => (_req: Request, _res: Response, next: NextFunction) => next())
+  vi.fn(() => (_req: Request, _res: Response, next: NextFunction) => next()),
 );
 const mockHelmetFn = vi.hoisted(() =>
-  vi.fn(() => (_req: Request, _res: Response, next: NextFunction) => next())
+  vi.fn(() => (_req: Request, _res: Response, next: NextFunction) => next()),
 );
 
 // Logger mock for console replacement migration
@@ -106,7 +106,7 @@ describe('config/middleware', () => {
           message: '请求过于频繁，请稍后再试',
           standardHeaders: true,
           legacyHeaders: false,
-        })
+        }),
       );
     });
 
@@ -118,7 +118,7 @@ describe('config/middleware', () => {
         expect.objectContaining({
           windowMs: 60000,
           max: 100,
-        })
+        }),
       );
     });
 
@@ -130,7 +130,7 @@ describe('config/middleware', () => {
         expect.objectContaining({
           windowMs: 15 * 60 * 1000,
           max: 300,
-        })
+        }),
       );
     });
   });
@@ -149,7 +149,7 @@ describe('config/middleware', () => {
         expect.objectContaining({
           windowMs: 15 * 60 * 1000,
           max: 500,
-        })
+        }),
       );
     });
 
@@ -161,7 +161,7 @@ describe('config/middleware', () => {
         expect.objectContaining({
           windowMs: 30000,
           max: 200,
-        })
+        }),
       );
     });
   });
@@ -247,7 +247,8 @@ describe('config/middleware', () => {
       expect(() => registerSecurityMiddleware(app as ReturnType<typeof express>)).not.toThrow();
     });
 
-    it('应设置安全响应头', async () => {
+    it('默认模式应由 Express 设置安全响应头', async () => {
+      delete process.env.BEHIND_REVERSE_PROXY;
       const app = express();
       registerSecurityMiddleware(app);
 
@@ -280,10 +281,125 @@ describe('config/middleware', () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.headers['x-content-type-options']).toBe('nosniff');
-      expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
-      expect(response.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
-      expect(response.headers['content-security-policy']).toContain("default-src 'self'");
+      // Helmet 被调用（X-Content-Type-Options、X-Frame-Options、Referrer-Policy、CSP 由 Helmet 统一管理）
+      expect(mockHelmetFn).toHaveBeenCalled();
+      const helmetConfig = mockHelmetFn.mock.calls[0][0];
+      expect(helmetConfig.contentSecurityPolicy.directives.defaultSrc).toContain("'self'");
+      expect(helmetConfig.contentSecurityPolicy.directives.scriptSrc).toContain("'self'");
+      expect(helmetConfig.crossOriginEmbedderPolicy).toBe(false);
+
+      // CSP 指令完整性验证
+      const directives = helmetConfig.contentSecurityPolicy.directives;
+      // CAPTCHA 脚本域名
+      expect(directives.scriptSrc).toContain('https://www.google.com');
+      expect(directives.scriptSrc).toContain('https://www.gstatic.com');
+      expect(directives.scriptSrc).toContain('https://hcaptcha.com');
+      expect(directives.scriptSrc).toContain('https://js.hcaptcha.com');
+      expect(directives.scriptSrc).toContain('https://newassets.hcaptcha.com');
+      // Google Fonts
+      expect(directives.styleSrc).toContain('https://fonts.googleapis.com');
+      expect(directives.fontSrc).toContain('https://fonts.googleapis.com');
+      expect(directives.fontSrc).toContain('https://fonts.gstatic.com');
+      // CAPTCHA connect 通信
+      expect(directives.connectSrc).toContain('https://www.google.com');
+      expect(directives.connectSrc).toContain('https://hcaptcha.com');
+      expect(directives.connectSrc).toContain('https://js.hcaptcha.com');
+      // CAPTCHA iframe（frameSrc）
+      expect(directives.frameSrc).toBeDefined();
+      expect(directives.frameSrc).toContain('https://www.google.com');
+      expect(directives.frameSrc).toContain('https://hcaptcha.com');
+      expect(directives.frameSrc).toContain('https://js.hcaptcha.com');
+      // Cloudflare Access manifest
+      expect(directives.manifestSrc).toContain("'self'");
+      expect(directives.manifestSrc).toContain('https://*.cloudflareaccess.com');
+
+      // 补充安全头由 Express 手动设置
+      expect(response.headers['permissions-policy']).toBe(
+        'camera=(), microphone=(), geolocation=()',
+      );
+      expect(response.headers['cross-origin-opener-policy']).toBe('same-origin');
+      expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin');
+      // 验证日志提示直连模式
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('直连模式'));
+    });
+
+    it('BEHIND_REVERSE_PROXY=true 时应跳过安全头设置', async () => {
+      process.env.BEHIND_REVERSE_PROXY = 'true';
+      const app = express();
+      registerSecurityMiddleware(app);
+
+      app.get('/test-headers', (_req, res) => {
+        res.json({ done: true });
+      });
+
+      const response = await new Promise<{
+        status: number;
+        headers: Record<string, string>;
+        body: string;
+      }>((resolve) => {
+        const http = require('http');
+        const server = app.listen(0, () => {
+          const addr = server.address() as AddressInfo;
+          http.get(`http://127.0.0.1:${addr.port}/test-headers`, (res: IncomingMessage) => {
+            let body = '';
+            res.on('data', (chunk: Buffer) => (body += chunk));
+            res.on('end', () => {
+              server.close();
+              resolve({
+                status: res.statusCode ?? 0,
+                headers: res.headers as Record<string, string>,
+                body,
+              });
+            });
+          });
+        });
+      });
+
+      expect(response.status).toBe(200);
+      // Helmet 不应被调用
+      expect(mockHelmetFn).not.toHaveBeenCalled();
+      // Express 不应设置这些安全头（由反向代理负责）
+      expect(response.headers['x-content-type-options']).toBeUndefined();
+      expect(response.headers['x-frame-options']).toBeUndefined();
+      expect(response.headers['referrer-policy']).toBeUndefined();
+      // 验证日志提示反向代理模式
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('BEHIND_REVERSE_PROXY'));
+    });
+
+    it('ENABLE_HSTS=true 时应设置 HSTS 头', async () => {
+      delete process.env.BEHIND_REVERSE_PROXY;
+      process.env.ENABLE_HSTS = 'true';
+      const app = express();
+      registerSecurityMiddleware(app);
+
+      app.get('/test-hsts', (_req, res) => {
+        res.json({ done: true });
+      });
+
+      const response = await new Promise<{
+        status: number;
+        headers: Record<string, string>;
+      }>((resolve) => {
+        const http = require('http');
+        const server = app.listen(0, () => {
+          const addr = server.address() as AddressInfo;
+          http.get(`http://127.0.0.1:${addr.port}/test-hsts`, (res: IncomingMessage) => {
+            let body = '';
+            res.on('data', (chunk: Buffer) => (body += chunk));
+            res.on('end', () => {
+              server.close();
+              resolve({
+                status: res.statusCode ?? 0,
+                headers: res.headers as Record<string, string>,
+              });
+            });
+          });
+        });
+      });
+
+      expect(response.headers['strict-transport-security']).toBe(
+        'max-age=31536000; includeSubDomains',
+      );
     });
 
     it('生产环境未设置 ALLOWED_ORIGINS 应发出警告', () => {

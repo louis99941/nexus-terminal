@@ -1,6 +1,7 @@
 import express from 'express';
 import * as appearanceController from './appearance.controller';
 import { isAuthenticated } from '../auth/auth.middleware';
+import { apiLimiter } from '../config/rate-limit.config';
 
 const router = express.Router();
 
@@ -16,15 +17,17 @@ router.put('/', appearanceController.updateAppearanceSettingsController);
 // POST /api/v1/appearance/background/page - 上传页面背景图片
 router.post(
   '/background/page',
+  apiLimiter,
   appearanceController.uploadPageBackgroundMiddleware,
-  appearanceController.uploadPageBackgroundController
+  appearanceController.uploadPageBackgroundController,
 );
 
 // POST /api/v1/appearance/background/terminal - 上传终端背景图片
 router.post(
   '/background/terminal',
+  apiLimiter,
   appearanceController.uploadTerminalBackgroundMiddleware,
-  appearanceController.uploadTerminalBackgroundController
+  appearanceController.uploadTerminalBackgroundController,
 );
 
 // GET /api/v1/appearance/background/file/:filename - 获取背景图片文件
@@ -43,7 +46,7 @@ const htmlPresetsRouter = express.Router();
 htmlPresetsRouter.get('/local', appearanceController.listLocalHtmlPresetsController);
 htmlPresetsRouter.get(
   '/local/:themeName',
-  appearanceController.getLocalHtmlPresetContentController
+  appearanceController.getLocalHtmlPresetContentController,
 );
 htmlPresetsRouter.post('/local', appearanceController.createLocalHtmlPresetController);
 htmlPresetsRouter.put('/local/:themeName', appearanceController.updateLocalHtmlPresetController);
@@ -52,11 +55,11 @@ htmlPresetsRouter.delete('/local/:themeName', appearanceController.deleteLocalHt
 // 远程 GitHub HTML 主题接口 /api/v1/appearance/html-presets/remote
 htmlPresetsRouter.get(
   '/remote/repository-url',
-  appearanceController.getRemoteHtmlPresetsRepositoryUrlController
+  appearanceController.getRemoteHtmlPresetsRepositoryUrlController,
 );
 htmlPresetsRouter.put(
   '/remote/repository-url',
-  appearanceController.updateRemoteHtmlPresetsRepositoryUrlController
+  appearanceController.updateRemoteHtmlPresetsRepositoryUrlController,
 );
 htmlPresetsRouter.get('/remote/list', appearanceController.listRemoteHtmlPresetsController);
 htmlPresetsRouter.get('/remote/content', appearanceController.getRemoteHtmlPresetContentController);

@@ -63,6 +63,12 @@ docker compose up -d
 默认端口为 `18111`，可在 `.env` 文件中修改。
 :::
 
+::: warning 安全提示
+`http://your-server-ip:18111` 仅适合内网学习、测试或首次验证服务是否启动。不要把明文 HTTP 登录入口直接暴露到公网；公网生产环境应配置 HTTPS 反向代理（Nginx/Caddy/Cloudflare Tunnel 等）。
+
+默认会话 Cookie 使用 `SESSION_COOKIE_SECURE=auto`：HTTP 直连时允许登录，HTTPS 反代时自动设置 Secure Cookie。如需强制只允许 HTTPS 会话，可在 `.env` 中设置 `SESSION_COOKIE_SECURE=true`。
+:::
+
 ## 架构说明
 
 Docker 部署包含三个容器，职责如下：
@@ -96,11 +102,18 @@ services:
     ports:
       - '127.0.0.1:18111:8080'
     depends_on:
-      - backend
-      - remote-gateway
+      backend:
+        condition: service_healthy
+      remote-gateway:
+        condition: service_healthy
     networks:
       - nexus-terminal-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     image: ghcr.io/silentely/nexus-terminal-frontend:latest
 
   backend:
@@ -116,6 +129,12 @@ services:
     networks:
       - nexus-terminal-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     image: ghcr.io/silentely/nexus-terminal-backend:latest
 
   remote-gateway:
@@ -134,14 +153,27 @@ services:
     networks:
       - nexus-terminal-network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/health > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     image: ghcr.io/silentely/nexus-terminal-remote-gateway:latest
 
 networks:
   nexus-terminal-network:
     driver: bridge
 ```
+
+::: tip 启动顺序说明
+`depends_on` 配合 `condition: service_healthy` 确保：
+1. **backend** 先启动，等待健康检查通过（`start_period: 30s` 给予初始化时间）
+2. **remote-gateway** 等待 backend 健康后启动
+3. **frontend** 最后启动，此时后端已完全就绪，API 请求不会返回 503
+:::
 
 ### 第三步：创建 .env 文件
 
@@ -214,6 +246,11 @@ SESSION_SECRET=
 # HSTS 安全头（仅生产 HTTPS 环境开启）
 # 开启后浏览器会强制使用 HTTPS 访问，开发环境勿启用
 ENABLE_HSTS=false
+
+# 会话 Cookie Secure 策略
+# auto：HTTP 直连可登录，HTTPS 反代时自动使用 Secure Cookie
+# 公网生产如需强制只允许 HTTPS 会话，可设置为 true
+SESSION_COOKIE_SECURE=auto
 ```
 
 ### Passkey 认证（可选）

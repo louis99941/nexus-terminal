@@ -9,7 +9,7 @@
 - [基础配置](#基础配置)
   - [最小化配置](#最小化配置)（本地开发）
   - [Docker 宿主机 Nginx 配置](#docker-宿主机-nginx-配置)（推荐）
-  - [Docker Compose 内部 Nginx 配置](#docker-compose-内部-nginx-配置)
+  - [Docker Compose 内部 Nginx 说明](#docker-compose-内部-nginx-说明)
 - [HTTPS/SSL 配置](#httpsssl-配置)
 - [WebSocket 代理](#websocket-代理)
 - [负载均衡](#负载均衡)
@@ -61,6 +61,8 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 86400s;  # 24小时，保持长连接
         proxy_send_timeout 86400s;
     }
@@ -72,7 +74,19 @@ server {
 
 适用于 Docker Compose 部署 + 宿主机 Nginx 反向代理的场景（最常见）。
 
-::: warning 架构说明此模式下前端容器监听 `127.0.0.1:18111:8080`，宿主机 Nginx 统一入口代理到 `18111`。前端容器内部的 nginx 代理 `/api/` 和 `/ws/` 到 backend，RDP/VNC 连接由 backend 通过内部 WebSocket 代理到 remote-gateway，无需单独配置远程桌面路径。:::
+::: warning 架构说明仓库默认 `docker-compose.yml` 使用 `18111:8080`，便于首次通过 HTTP 直连验证服务。公网生产环境使用宿主机 Nginx 时，建议将前端端口改为 `127.0.0.1:18111:8080`，由宿主机 Nginx 作为唯一公网入口代理到 `18111`。前端容器内部的 nginx 代理 `/api/` 和 `/ws/` 到 backend，RDP/VNC 连接由 backend 通过内部 WebSocket 代理到 remote-gateway，无需单独配置远程桌面路径。:::
+
+::: warning 代理头信任边界
+宿主机 Nginx 必须用 `$scheme` 覆盖 `X-Forwarded-Proto`，前端容器只应接收来自宿主机或可信外层代理的流量。不要在公网直接暴露前端容器 HTTP 端口后再信任客户端传入的 `X-Forwarded-Proto`。
+:::
+
+```yaml
+# docker-compose.yml（公网生产推荐）
+services:
+  frontend:
+    ports:
+      - '127.0.0.1:18111:8080'
+```
 
 ```nginx
 # WebSocket 连接映射（建议放在 http 块中）
@@ -135,65 +149,22 @@ server {
 }
 ```
 
-::: tip 端口对照 | 路径 | 代理目标 | 说明 | | --- | --- | --- | | `/`、`/api/`、`/ws/` | `127.0.0.1:18111` | 通过前端容器，由其内部分流 | :::
+### Docker Compose 内部 Nginx 说明
 
-### Docker Compose 内部 Nginx 配置
+Docker 镜像已经内置前端 nginx 配置，对应源码为 `packages/frontend/nginx.conf`。普通 Docker Compose 部署不需要把这段配置复制到宿主机 Nginx；宿主机只需要按上一节代理到 `18111`。
 
-适用于 `docker-compose.yml` 默认部署：
+内置 nginx 的当前行为：
 
-```nginx
-upstream nexus_backend {
-    server backend:3001;
-    keepalive 32;
-}
+- 监听容器内 `8080`，由 `docker-compose.yml` 映射到宿主机 `18111`。
+- `location /` 提供前端静态资源，并通过 `try_files $uri $uri/ /index.html` 支持 SPA 路由。
+- 静态资源设置 `Cache-Control: public, max-age=31536000, immutable`，并启用 `gzip_static`。
+- `location ^~ /api/` 代理到 `http://backend:3001`，并把可信外层代理传入的 `X-Forwarded-Proto` 继续转发给 backend。
+- `location /ws/` 代理到 `http://backend:3001`，用于 SSH 终端等 WebSocket 长连接。
+- `/api/` 启用 `proxy_next_upstream error timeout http_502 http_503` 和 10 秒连接超时，用于缓解启动阶段 backend 尚未就绪的短暂 502/503。
 
-server {
-    listen 8080;
-    server_name localhost;
-
-    client_max_body_size 100m;
-
-    # 前端静态资源
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # SPA 路由支持
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # 后端 API 代理
-    location ^~ /api/ {
-        proxy_pass http://nexus_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Connection "";
-
-        # 超时设置
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    # SSH 终端 WebSocket
-    location /ws/ {
-        proxy_pass http://nexus_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-        # 长连接超时
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-    }
-}
-```
+::: warning 维护提示
+如需自定义前端镜像内的 nginx，请以 `packages/frontend/nginx.conf` 为准。文档不再完整复制该文件，避免实际镜像配置更新后示例漂移。
+:::
 
 ---
 
@@ -416,25 +387,64 @@ upstream nexus_backend_cluster {
 
 ### 安全头配置
 
+::: warning 避免重复安全头
+当使用 Nginx 反向代理时，Express 后端和 Nginx 会同时设置安全响应头（CSP、X-Frame-Options 等），导致重复。
+
+**推荐方案**：在 `.env` 中设置 `BEHIND_REVERSE_PROXY=true`，让 Express 跳过安全头设置，由 Nginx 统一管理。
+
+**备选方案**：使用 `proxy_hide_header` 指令清除上游响应中的安全头，由 Nginx 重新设置（见下方"清除上游头"章节）。
+
+**注意**：重复的 `Content-Security-Policy` 头会被浏览器取交集（AND），可能导致合法资源被阻止加载。
+:::
+
 ```nginx
 server {
     # ... SSL 配置 ...
 
-    # 安全响应头
+    # 安全响应头（当 BEHIND_REVERSE_PROXY=true 时由 Nginx 独立管理）
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws:;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdn-cgi.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: ws: https://static.cloudflareinsights.com https://cdn-cgi.cloudflare.com;" always;
 
     # HSTS（仅 HTTPS）
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # 限制浏览器特性访问
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Cross-Origin-Resource-Policy "cross-origin" always;
 
     # 隐藏 Nginx 版本
     server_tokens off;
 
     # ... 其他配置 ...
 }
+```
+
+### 清除上游安全头（备选方案）
+
+如果不想修改 Express 配置（不设置 `BEHIND_REVERSE_PROXY`），可以在 Nginx 中使用 `proxy_hide_header` 清除上游响应的安全头，然后由 Nginx 重新设置：
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:18111;
+
+    # 清除上游（Express）设置的安全头，由 Nginx 统一管理
+    proxy_hide_header Content-Security-Policy;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Strict-Transport-Security;
+    proxy_hide_header Permissions-Policy;
+    proxy_hide_header Cross-Origin-Opener-Policy;
+    proxy_hide_header Cross-Origin-Resource-Policy;
+
+    # Nginx 重新设置安全头（在 server 块中用 add_header）
+    # ...
+}
+```
 ```
 
 ### 访问限制

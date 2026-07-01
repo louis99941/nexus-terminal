@@ -18,6 +18,7 @@ import {
   validateEnvironment,
   printEnvironmentConfig,
   EnvironmentValidationError,
+  type EnvironmentConfig,
 } from './config/env.validator';
 import { config, getPasskeyRelatedOriginsForRpId } from './config/app.config';
 import { getHostnameFromHostHeader, getSingleHeaderToken } from './utils/url';
@@ -27,6 +28,10 @@ import {
   createApiLimiter,
   createSettingsLimiter,
 } from './config/middleware';
+import {
+  getSessionCookieSecureAutoWarning,
+  resolveSessionCookieSecure,
+} from './config/session.config';
 import { registerRoutes } from './config/routes';
 
 import eventService from './services/event.service';
@@ -54,15 +59,15 @@ const rootConfigResult = dotenv.config({ path: projectRootEnvPath });
 
 if (rootConfigResult.error && (rootConfigResult.error as NodeJS.ErrnoException).code !== 'ENOENT') {
   logger.warn(
-    `[ENV Init Early] Warning: Could not load root .env file from ${projectRootEnvPath}. Error: ${rootConfigResult.error.message}`
+    `[ENV Init Early] Warning: Could not load root .env file from ${projectRootEnvPath}. Error: ${rootConfigResult.error.message}`,
   );
 } else if (!rootConfigResult.error) {
   logger.debug(
-    `[ENV Init Early] Loaded environment variables from root .env file: ${projectRootEnvPath}`
+    `[ENV Init Early] Loaded environment variables from root .env file: ${projectRootEnvPath}`,
   );
 } else {
   logger.debug(
-    `[ENV Init Early] Root .env file not found at ${projectRootEnvPath}, proceeding without it.`
+    `[ENV Init Early] Root .env file not found at ${projectRootEnvPath}, proceeding without it.`,
   );
 }
 
@@ -76,11 +81,11 @@ if (
   (dataConfigResultGlobal.error as NodeJS.ErrnoException).code !== 'ENOENT'
 ) {
   logger.warn(
-    `[ENV Init Early] Warning: Could not load data .env file from ${dataEnvPathGlobal}. Error: ${dataConfigResultGlobal.error.message}`
+    `[ENV Init Early] Warning: Could not load data .env file from ${dataEnvPathGlobal}. Error: ${dataConfigResultGlobal.error.message}`,
   );
 } else if (!dataConfigResultGlobal.error) {
   logger.debug(
-    `[ENV Init Early] Loaded environment variables from data .env file: ${dataEnvPathGlobal}`
+    `[ENV Init Early] Loaded environment variables from data .env file: ${dataEnvPathGlobal}`,
   );
 }
 
@@ -244,7 +249,7 @@ const resolvePasskeyRpIdFromHost = (host: string): string | undefined => {
   }
 
   const originHostMatch = config.passkeyRpConfigs.find(
-    (item) => item.rpOriginHostname === normalizedHost
+    (item) => item.rpOriginHostname === normalizedHost,
   );
 
   return originHostMatch?.rpId;
@@ -282,7 +287,7 @@ const initializeRuntimeLogLevel = async () => {
 };
 
 // 启动服务器
-const startServer = () => {
+const startServer = (envConfig: EnvironmentConfig) => {
   // --- 会话中间件配置 ---
   const FileStore = sessionFileStore(session);
   if (!fs.existsSync(SESSIONS_DIR)) {
@@ -292,6 +297,13 @@ const startServer = () => {
   const isProd = process.env.NODE_ENV === 'production';
   const thirtyDaysInSeconds = 30 * 24 * 60 * 60; // 30 天（秒）
   const thirtyDaysInMs = thirtyDaysInSeconds * 1000; // 30 天（毫秒）
+  const sessionCookieSecureWarning = getSessionCookieSecureAutoWarning(
+    envConfig.SESSION_COOKIE_SECURE,
+    process.env.NODE_ENV,
+  );
+  if (sessionCookieSecureWarning) {
+    logger.warn(sessionCookieSecureWarning);
+  }
 
   const sessionMiddleware = session({
     store: new FileStore({
@@ -306,7 +318,7 @@ const startServer = () => {
     proxy: true, // 信任反向代理设置的 X-Forwarded-Proto 头
     cookie: {
       httpOnly: true,
-      secure: isProd, // 生产环境强制 HTTPS
+      secure: resolveSessionCookieSecure(envConfig.SESSION_COOKIE_SECURE),
       sameSite: 'lax', // 防止 CSRF 攻击
       maxAge: thirtyDaysInMs, // 30 天有效期
     },
@@ -353,7 +365,7 @@ const startServer = () => {
         swaggerUi.setup(swaggerSpec, {
           customCss: '.swagger-ui .topbar { display: none }',
           customSiteTitle: '星枢终端 API 文档',
-        })
+        }),
       );
       logger.info(`[Swagger] API 文档已启用: http://localhost:${port}/api-docs`);
     } catch (error: unknown) {
@@ -379,8 +391,9 @@ const main = async () => {
   await initializeEnvironment(); // 首先初始化环境和密钥
 
   // 验证环境变量
+  let envConfig: EnvironmentConfig;
   try {
-    const envConfig = validateEnvironment();
+    envConfig = validateEnvironment();
     printEnvironmentConfig(envConfig);
   } catch (error: unknown) {
     if (error instanceof EnvironmentValidationError) {
@@ -392,7 +405,7 @@ const main = async () => {
   }
 
   await initializeDatabase(); // 然后初始化数据库
-  startServer(); // 优先对外提供服务
+  startServer(envConfig); // 优先对外提供服务
   // 非关键启动路径：异步加载运行时日志等级，避免阻塞冷启动
   void initializeRuntimeLogLevel().catch((err) => {
     logger.error('[Index] 异步初始化运行时日志等级失败（非致命）:', err);

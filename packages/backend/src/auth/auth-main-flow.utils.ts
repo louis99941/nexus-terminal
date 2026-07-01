@@ -9,13 +9,13 @@ interface AuthEventServices {
   auditLogService: {
     logAction: (
       action: AuditLogActionType,
-      payload: Record<string, unknown>
+      payload: Record<string, unknown>,
     ) => Promise<void> | void;
   };
   notificationService: {
     sendNotification: (
       event: NotificationEvent,
-      payload: Record<string, unknown>
+      payload: Record<string, unknown>,
     ) => Promise<void> | void;
   };
 }
@@ -56,7 +56,7 @@ export const recordLoginFailureAttempt = (
     clientIp: string;
     userId?: number;
     method?: 'password' | '2fa';
-  }
+  },
 ): void => {
   const { username, reason, clientIp, userId, method } = payload;
   services.ipBlacklistService.recordFailedAttempt(clientIp, method);
@@ -87,7 +87,7 @@ export const recordLoginSuccessAttempt = (
     username: string;
     clientIp: string;
     twoFactor?: boolean;
-  }
+  },
 ): void => {
   const { userId, username, clientIp, twoFactor } = payload;
   services.ipBlacklistService.resetAttempts(clientIp);
@@ -118,7 +118,7 @@ export const startPendingTwoFactorSession = (
     pendingAuth: PendingAuthPayload;
     rememberMe?: boolean;
     isDev: boolean;
-  }
+  },
 ): void => {
   const { pendingAuth, rememberMe, isDev } = payload;
   req.session.regenerate((err) => {
@@ -157,7 +157,7 @@ export const completeAuthenticatedSession = (
     user: AuthenticatedUserPayload;
     rememberMe?: boolean;
     saveErrorMessage: string;
-  }
+  },
 ): void => {
   const { user, rememberMe, saveErrorMessage } = payload;
   req.session.regenerate((err) => {
@@ -194,7 +194,7 @@ export const destroySessionAndRespondLogout = (
     userId?: number;
     username?: string;
     onLogoutSuccess?: (clientIp: string) => void;
-  }
+  },
 ): void => {
   const { userId, username, onLogoutSuccess } = payload;
   req.session.destroy((err) => {
@@ -204,7 +204,11 @@ export const destroySessionAndRespondLogout = (
       return;
     }
 
-    logger.info(`用户 ${userId} (${username}) 已成功登出。`);
+    if (userId != null && username) {
+      logger.info(`用户 ${userId} (${username}) 已成功登出。`);
+    } else {
+      logger.debug('登出请求处理完成（无有效会话，可能为过期 session 清理）。');
+    }
     res.clearCookie('connect.sid');
     if (userId) {
       onLogoutSuccess?.(resolveRequestClientIp(req));

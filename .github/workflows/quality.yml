@@ -7,6 +7,9 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   quality-check:
     name: quality-check
@@ -14,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -32,3 +35,6 @@ jobs:
 
       - name: Run quality gate
         run: npm run -s quality:check
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage

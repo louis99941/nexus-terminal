@@ -23,7 +23,7 @@ import { log } from '@/utils/log';
 
 // 延迟加载重型组件（包含 guacamole-common-js ~200KB）
 const RemoteDesktopModal = defineAsyncComponent(
-  () => import('./components/RemoteDesktopModal.vue')
+  () => import('./components/RemoteDesktopModal.vue'),
 );
 const VncModal = defineAsyncComponent(() => import('./components/VncModal.vue'));
 
@@ -92,20 +92,24 @@ onMounted(() => {
   // PWA Install Prompt
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   window.addEventListener('appinstalled', handleAppInstalled);
-
-  // +++ 加载 Header 可见性状态 +++
-  layoutStore.loadHeaderVisibility();
 });
 
-// +++ 监听用户认证状态，登录后初始化收藏路径 +++
+// +++ 监听用户认证状态，登录后初始化布局和收藏路径 +++
+let layoutInitialized = false;
 watch(
   isAuthenticated,
   (loggedIn) => {
     if (loggedIn) {
+      // 用户认证完成后才初始化布局，避免未登录时触发 401 错误
+      if (!layoutInitialized) {
+        layoutInitialized = true;
+        layoutStore.initializeLayout();
+        layoutStore.loadHeaderVisibility();
+      }
       favoritePathsStore.initializeFavoritePaths(t);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // +++ 卸载钩子以移除监听器 +++
@@ -124,7 +128,7 @@ watch(
   () => {
     updateUnderline();
   },
-  { immediate: true }
+  { immediate: true },
 ); // *** 确保 immediate: true 存在 ***
 
 const handleLogout = () => {
@@ -210,7 +214,7 @@ const handleGlobalKeyUp = async (event: KeyboardEvent) => {
     if (altWasPressed && triggeredShortcutKey === null) {
       // 如果 Alt 之前是按下的，并且没有记录到有效的快捷键，则执行顺序切换
       log.info(
-        '[App] KeyUp: Alt released without a valid shortcut key captured. Attempting sequential focus switch.'
+        '[App] KeyUp: Alt released without a valid shortcut key captured. Attempting sequential focus switch.',
       );
       event.preventDefault(); // 仅在执行顺序切换时阻止默认行为
 
@@ -265,7 +269,7 @@ const handleGlobalKeyUp = async (event: KeyboardEvent) => {
       // --- 顺序切换逻辑结束 ---
     } else if (altWasPressed && triggeredShortcutKey !== null) {
       log.info(
-        `[App] KeyUp: Alt released after capturing key '${triggeredShortcutKey}'. Shortcut logic handled in keydown. No sequential switch.`
+        `[App] KeyUp: Alt released after capturing key '${triggeredShortcutKey}'. Shortcut logic handled in keydown. No sequential switch.`,
       );
       // 快捷键逻辑已在 keydown 处理，keyup 时无需操作，也不阻止默认行为（除非特定需要）
     } else {

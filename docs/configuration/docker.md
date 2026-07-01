@@ -26,6 +26,7 @@
 - [2. Remote Gateway 服务变量](#2-remote-gateway-服务变量)
 - [3. 端口配置](#3-端口配置)
 - [4. 完整配置示例](#4-完整配置示例)
+- [WebRTC / STUN / TURN 配置](#webrtc--stun--turn-配置)
 
 ---
 
@@ -101,6 +102,13 @@
 | `LOG_TZ`                     | -        | 日志时间戳时区（优先级高于 `TZ`）                                                              |
 | `ENABLE_REQUEST_LOG`         | `true`   | 启用请求访问日志。设为 `false` 可关闭"请求开始/完成"日志，减少容器日志量                       |
 | `ENABLE_HSTS`                | `false`  | 启用 HSTS 安全头（Strict-Transport-Security）。仅生产 HTTPS 环境开启，开发环境勿启用           |
+| `BEHIND_REVERSE_PROXY`       | `false`  | 设为 `true` 跳过 Express 安全头设置，由 Nginx/Cloudflare 等反向代理统一管理                    |
+| `SESSION_COOKIE_SECURE`      | `auto`   | 会话 Cookie Secure 策略：`auto` 根据请求协议自动设置，`true` 强制 HTTPS Cookie，`false` 强制非 Secure Cookie |
+| `ENABLE_METRICS`             | `false`  | 设为 `true` 启用 Prometheus 指标端点 `/api/v1/metrics`，配合 `METRICS_TOKEN` 保护访问          |
+| `API_RATE_LIMIT_WINDOW_MS`   | `900000` | API 通用限流窗口时间（毫秒），默认 15 分钟                                                     |
+| `API_RATE_LIMIT_MAX`         | `300`    | API 通用限流窗口内最大请求数                                                                   |
+| `SETTINGS_RATE_LIMIT_WINDOW_MS` | `900000` | Settings API 限流窗口时间（毫秒），默认 15 分钟                                              |
+| `SETTINGS_RATE_LIMIT_MAX`    | `500`    | Settings API 限流窗口内最大请求数                                                              |
 | `TZ`                         | `UTC`    | 后端进程默认时区                                                                               |
 | `WEBRTC_PORT_MIN`            | -        | WebRTC DataChannel 绑定的 UDP 端口范围起始值（用于 Docker 桥接网络模式暴露 UDP 端口）          |
 | `WEBRTC_PORT_MAX`            | -        | WebRTC DataChannel 绑定的 UDP 端口范围结束值                                                   |
@@ -114,6 +122,39 @@
 | `NL2CMD_REQUEST_TIMEOUT_MS` | `30000` | 1000-300000 | NL2CMD 上游 HTTP 请求超时（毫秒）    |
 
 > ⚠️ **注意**: NL2CMD 的 AI 配置（API Key、Provider、Model 等）存储在**数据库**中，通过前端设置页面 (`/settings/ai`) 或 API 配置。
+
+### WebRTC / STUN / TURN 配置
+
+> WebRTC 用于 RDP/VNC 远程桌面的 P2P 数据通道。STUN 服务器帮助 NAT 穿透发现公网地址，TURN 服务器在 P2P 失败时提供中继兜底。
+
+| 变量名                   | 默认值      | 描述                                                                                       |
+| ------------------------ | ----------- | ------------------------------------------------------------------------------------------ |
+| `WEBRTC_STUN_URLS`       | 见下方表格  | STUN 服务器地址（逗号分隔）。用于 NAT 穿透发现公网 IP，多服务器提高成功率。                |
+| `WEBRTC_TURN_URLS`       | -           | TURN 中继服务器地址（逗号分隔）。NAT 穿透失败时的流量中继兜底，通常需要自建或购买商业服务。 |
+| `WEBRTC_TURN_USERNAME`   | -           | TURN 服务器认证用户名                                                                      |
+| `WEBRTC_TURN_CREDENTIAL` | -           | TURN 服务器认证凭据                                                                        |
+
+**默认 STUN 服务器说明**：
+
+| 服务器                           | 运营方   | 区域  | 说明                                      |
+| -------------------------------- | -------- | ----- | ----------------------------------------- |
+| `stun.l.google.com:19302`        | Google   | 国际  | WebRTC 最常用的公共 STUN                  |
+| `stun1.l.google.com:19302`       | Google   | 国际  | Google 备用节点                           |
+| `stun.cloudflare.com:3478`       | Cloudflare | 国际 | 全球 CDN 高可用，支持 TCP/UDP             |
+| `stun.chat.bilibili.com:3478`    | Bilibili | 国内  | 阿里云部署，国内网络环境优选              |
+| `stun.miwifi.com:3478`           | 小米     | 国内  | 中国联通北京，NAT 测试工具常用默认服务器  |
+
+**自定义示例**：
+
+```dotenv
+# 覆盖默认 STUN（仅使用 Cloudflare + 国内）
+WEBRTC_STUN_URLS=stun:stun.cloudflare.com:3478,stun:stun.chat.bilibili.com:3478
+
+# 配置 TURN 中继（需自建 coturn 或使用 Twilio/Cloudflare 等商业服务）
+WEBRTC_TURN_URLS=turn:turn.your-server.com:3478
+WEBRTC_TURN_USERNAME=your-username
+WEBRTC_TURN_CREDENTIAL=your-credential
+```
 
 ---
 
@@ -182,6 +223,10 @@
 | ------- | -------- | ---- |
 | `18111` | frontend | HTTP |
 
+::: warning 安全提示
+`18111` 是明文 HTTP 入口，仅适合内网学习、测试或首次验证。公网生产环境不要直接暴露该端口；请通过 HTTPS 反向代理访问，或将会话策略设置为 `SESSION_COOKIE_SECURE=true` 强制只允许 HTTPS 会话。
+:::
+
 ---
 
 ## 4. 完整配置示例
@@ -217,6 +262,11 @@ REMOTE_GATEWAY_API_TOKEN=
 # ===== 代理配置（反向代理/Cloudflare 场景）=====
 # TRUST_PROXY=true
 # TRUST_PROXY_HOPS=1
+
+# ===== Session Cookie =====
+# 默认 auto：HTTP 直连可登录，HTTPS 反代时自动使用 Secure Cookie
+# HTTP 直连仅适合内网学习、测试或首次验证；公网生产请使用 HTTPS 反代或设为 true
+# SESSION_COOKIE_SECURE=auto
 
 # ===== IP 地理位置查询 =====
 # ENABLE_GEO_LOOKUP=true
@@ -289,11 +339,18 @@ services:
     ports:
       - '18111:8080'
     depends_on:
-      - backend
-      - remote-gateway
+      backend:
+        condition: service_healthy
+      remote-gateway:
+        condition: service_healthy
     networks:
       - nexus-terminal-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   backend:
     image: ghcr.io/silentely/nexus-terminal-backend:latest
@@ -312,6 +369,12 @@ services:
     networks:
       - nexus-terminal-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Remote Gateway：内嵌 guacd，guacd 进程与 Node.js 共享同一容器
   # RDP/VNC 连接由 backend 通过 /rdp-proxy WebSocket 内部代理，无需暴露端口
@@ -336,28 +399,62 @@ services:
     networks:
       - nexus-terminal-network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/health > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   nexus-terminal-network:
     driver: bridge
 ```
 
+::: warning 公网部署
+上面的端口映射会开放 HTTP 入口。若服务器在公网，请优先使用宿主机 Nginx/Caddy/Cloudflare Tunnel 等 HTTPS 反向代理；不需要直接公网访问 `18111` 时，可改为 `127.0.0.1:18111:8080`，仅允许本机反代访问。
+:::
+
+::: tip 启动顺序保障
+`depends_on` 配合 `condition: service_healthy` 确保 Docker 等待后端健康检查通过后再启动前端容器，避免启动竞态条件导致 API 请求返回 503。
+
+backend 的 `start_period: 30s` 给予后端足够的初始化时间（数据库迁移、会话存储创建等），在此期间健康检查失败不会计入重试次数。
+:::
+
 ### 前端构建时变量（可选）
 
-| 变量名                         | 默认值 | 描述                                                                  |
-| ------------------------------ | ------ | --------------------------------------------------------------------- |
-| `VITE_NOTIFICATION_TIMEOUT_MS` | `3000` | 前端通知自动关闭时间（毫秒）。仅支持正整数，缺省/非法值会回退默认值。 |
-| `VITE_API_BASE_URL`            | -      | 前端拼接后端静态资源地址的基础 URL（如背景图 URL）。                  |
-
-> 重要说明：
+> **⚠️ 与后端变量的区别**：后端变量在进程启动时实时读取，改 `.env` 重启即生效。前端 `VITE_*` 变量是 **Vite 构建时**固化到 JS 产物中的，运行时无法更改。
 >
-> - 该变量是 **Vite 构建时变量**，通过 `import.meta.env` 读取。
-> - 使用 `ghcr.io/silentely/nexus-terminal-frontend:latest` 预构建镜像时，运行时注入此变量不会生效。
-> - 如需自定义，请改为自行构建 frontend 镜像，并在构建阶段传入。
+> - 使用 `ghcr.io/silentely/nexus-terminal-frontend:latest` **预构建镜像**时，这些变量已内置默认值，无法覆盖。
+> - 如需自定义，必须**自行构建** frontend 镜像，在构建阶段通过 `build.args` 传入。
+> - 变量通过 `import.meta.env.VITE_*` 在前端代码中读取。
 
-示例（改为 build 模式）：
+| 变量名                         | 默认值 | 描述                                                                                |
+| ------------------------------ | ------ | ----------------------------------------------------------------------------------- |
+| `VITE_NOTIFICATION_TIMEOUT_MS` | `3000` | 通知自动关闭时间（毫秒），仅支持正整数，缺省或非法值回退默认值                      |
+| `VITE_API_BASE_URL`            | -      | 拼接后端静态资源地址的基础 URL（如背景图），留空则使用当前页面 origin               |
+
+#### WebSocket 多路复用（前后端协同）
+
+多路复用将多个 SSH 会话共享在**一条物理 WebSocket 连接**上，减少连接数和资源消耗。只需在后端设置 `ENABLE_MULTIPLEX=true`，前端启动时自动从 `/auth/init` 接口读取该配置，无需额外操作。
+
+| | 关闭（默认） | 开启 |
+|--|-------------|------|
+| **前端行为** | 每个 SSH 会话独立建立一条 WebSocket | 全局共享 1 条 WebSocket，每个会话创建逻辑通道（按 `sid` 路由）|
+| **后端行为** | 每条 WebSocket 绑定单个 SSH 会话 | 在 1 条 WebSocket 上管理多个逻辑通道，按消息中的 `sid` 字段分发 |
+| **连接数** | N 个会话 = N 条 WebSocket | N 个会话 = 1 条 WebSocket |
+
+```yaml
+# 开启示例：只需设置后端环境变量，前端自动跟随
+services:
+  backend:
+    environment:
+      ENABLE_MULTIPLEX: 'true'
+```
+
+#### 构建参数示例
 
 ```yaml
 services:
@@ -385,7 +482,8 @@ services:
 2. ✅ 若希望”一个 Passkey 跨多域名”，使用单一 `RP_ID` + 多个 `RP_ORIGIN`
 3. ✅ 确保 RP_ID 域名可访问 `/.well-known/webauthn`
 4. ✅ 确保 `ALLOWED_ORIGINS` / 反向代理 CORS 配置包含所有前端域名
-5. ✅ 启动服务：`docker compose up -d`
+5. ✅ 公网访问使用 HTTPS 反向代理；如需强制只允许 HTTPS 会话，设置 `SESSION_COOKIE_SECURE=true`
+6. ✅ 启动服务：`docker compose up -d`
 
 ---
 
