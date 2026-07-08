@@ -4,10 +4,12 @@
  * 从 useSftpActions.ts 提取，降低主模块复杂度
  */
 import type { Ref } from 'vue';
+import { reactive } from 'vue';
 import type {
   FileListItem,
   SftpReadFileSuccessPayload,
   SftpReadFileRequestPayload,
+  ArchiveProgressState,
 } from '../types/sftp.types';
 import type { WebSocketMessage, MessagePayload, MessageHandler } from '../types/websocket.types';
 import type { useUiNotificationsStore } from '../stores/uiNotifications.store';
@@ -16,7 +18,7 @@ import { log } from '@/utils/log';
 
 /** 文件操作模块的依赖注入接口 */
 export interface SftpOperationsDeps {
-  sendMessage: (message: WebSocketMessage) => void;
+  sendMessage: (message: WebSocketMessage) => boolean | void;
   onMessage: (type: string, handler: MessageHandler) => () => void;
   isSftpReady: Readonly<Ref<boolean>>;
   currentPathRef: Ref<string>;
@@ -32,8 +34,16 @@ const generateRequestId = (): string =>
 
 /** 拼接路径 */
 const joinPath = (base: string, name: string): string => {
-  if (base === '/') return `/${name}`;
+  if (!base || base === '/') return `/${name}`;
   return base.endsWith('/') ? `${base}${name}` : `${base}/${name}`;
+};
+
+const getArchiveBaseName = (filename: string): string => {
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex <= 0) {
+    return filename || 'archive';
+  }
+  return filename.slice(0, lastDotIndex) || filename;
 };
 
 /**
@@ -52,6 +62,24 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
     t,
     loadDirectory,
   } = deps;
+
+  /** 压缩/解压进度状态（响应式，供外部 UI 消费） */
+  const archiveProgress = reactive<ArchiveProgressState>({
+    active: false,
+    operation: null,
+    fileCount: 0,
+    currentFile: null,
+    archiveName: null,
+  });
+
+  /** 重置压缩/解压进度状态 */
+  const resetArchiveProgress = () => {
+    archiveProgress.active = false;
+    archiveProgress.operation = null;
+    archiveProgress.fileCount = 0;
+    archiveProgress.currentFile = null;
+    archiveProgress.archiveName = null;
+  };
 
   // --- 简单文件操作（发送消息即返回） ---
 
@@ -305,10 +333,17 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       }
       const sourcePaths = items.map((item) => joinPath(currentPathRef.value, item.filename));
       const requestId = generateRequestId();
+
+      // 激活压缩进度状态
+      archiveProgress.active = true;
+      archiveProgress.operation = 'compress';
+      archiveProgress.fileCount = 0;
+      archiveProgress.currentFile = null;
+
       const parentDir = currentPathRef.value;
       let archiveBaseName = 'archive';
       if (items.length === 1) {
-        archiveBaseName = items[0].filename.split('.')[0];
+        archiveBaseName = getArchiveBaseName(items[0].filename);
       } else if (items.length > 1) {
         const parentFolderName = parentDir.split('/').pop();
         if (parentFolderName && parentFolderName !== 'root' && parentFolderName !== '') {
@@ -323,6 +358,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       }
       const archiveName = `${archiveBaseName}.${archiveExtension}`;
       const destinationPath = joinPath(parentDir, archiveName);
+      archiveProgress.archiveName = archiveName;
 
       let unregisterSuccess: (() => void) | null = null;
       let unregisterError: (() => void) | null = null;
@@ -336,6 +372,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
           unregisterSuccess?.();
           unregisterError?.();
           unregisterProgress?.();
+          resetArchiveProgress();
           const errMsg = t('fileManager.errors.compressTimeout');
           uiNotificationsStore.showError(errMsg);
           reject(new Error(errMsg));
@@ -351,6 +388,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             unregisterSuccess?.();
             unregisterError?.();
             unregisterProgress?.();
+            resetArchiveProgress();
             uiNotificationsStore.showSuccess(
               t('fileManager.notifications.compressSuccess', { name: archiveName }),
             );
@@ -369,6 +407,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             unregisterSuccess?.();
             unregisterError?.();
             unregisterProgress?.();
+            resetArchiveProgress();
             const errorMsg =
               errorPayload.details || errorPayload.error || t('fileManager.errors.compressFailed');
             uiNotificationsStore.showError(
@@ -379,12 +418,22 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
         },
       );
 
-      // 监听进度消息，重置超时计时器
+      // 监听进度消息，更新进度状态并重置超时计时器
       unregisterProgress = onMessage(
         'sftp:compress:progress',
-        (_payload: MessagePayload, message: WebSocketMessage) => {
+        (payload: MessagePayload, message: WebSocketMessage) => {
           if (message.requestId === requestId) {
             resetTimeout();
+            const progressPayload = payload as unknown as {
+              fileCount?: number;
+              currentFile?: string;
+            };
+            if (typeof progressPayload.fileCount === 'number') {
+              archiveProgress.fileCount = progressPayload.fileCount;
+            }
+            if (progressPayload.currentFile) {
+              archiveProgress.currentFile = progressPayload.currentFile;
+            }
           }
         },
       );
@@ -413,6 +462,13 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
       const destinationDir = currentPathRef.value;
       const requestId = generateRequestId();
 
+      // 激活解压进度状态
+      archiveProgress.active = true;
+      archiveProgress.operation = 'decompress';
+      archiveProgress.fileCount = 0;
+      archiveProgress.currentFile = null;
+      archiveProgress.archiveName = item.filename;
+
       let unregisterSuccess: (() => void) | null = null;
       let unregisterError: (() => void) | null = null;
       let unregisterProgress: (() => void) | null = null;
@@ -425,6 +481,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
           unregisterSuccess?.();
           unregisterError?.();
           unregisterProgress?.();
+          resetArchiveProgress();
           const errMsg = t('fileManager.errors.decompressTimeout');
           uiNotificationsStore.showError(errMsg);
           reject(new Error(errMsg));
@@ -440,6 +497,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             unregisterSuccess?.();
             unregisterError?.();
             unregisterProgress?.();
+            resetArchiveProgress();
             uiNotificationsStore.showSuccess(
               t('fileManager.notifications.decompressSuccess', { name: item.filename }),
             );
@@ -458,6 +516,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
             unregisterSuccess?.();
             unregisterError?.();
             unregisterProgress?.();
+            resetArchiveProgress();
             const errorMsg =
               errorPayload.details ||
               errorPayload.error ||
@@ -470,12 +529,22 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
         },
       );
 
-      // 监听进度消息，重置超时计时器
+      // 监听进度消息，更新进度状态并重置超时计时器
       unregisterProgress = onMessage(
         'sftp:decompress:progress',
-        (_payload: MessagePayload, message: WebSocketMessage) => {
+        (payload: MessagePayload, message: WebSocketMessage) => {
           if (message.requestId === requestId) {
             resetTimeout();
+            const progressPayload = payload as unknown as {
+              fileCount?: number;
+              currentFile?: string;
+            };
+            if (typeof progressPayload.fileCount === 'number') {
+              archiveProgress.fileCount = progressPayload.fileCount;
+            }
+            if (progressPayload.currentFile) {
+              archiveProgress.currentFile = progressPayload.currentFile;
+            }
           }
         },
       );
@@ -503,6 +572,7 @@ export function createSftpOperations(deps: SftpOperationsDeps) {
     moveItems,
     compressItems,
     decompressItem,
+    archiveProgress,
     joinPath,
   };
 }

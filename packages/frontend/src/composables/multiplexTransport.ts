@@ -47,7 +47,7 @@ export interface MultiplexChannel {
   isSftpReady: Readonly<Ref<boolean>>;
   connect: () => void;
   disconnect: () => void;
-  sendMessage: (message: WebSocketMessage) => void;
+  sendMessage: (message: WebSocketMessage) => boolean;
   onMessage: (
     type: string,
     handler: (payload: MessagePayload, message: WebSocketMessage) => void,
@@ -72,22 +72,26 @@ function buildWsUrl(): string {
 /**
  * 向物理连接发送消息
  */
-function sendRawMessage(message: object): void {
+function sendRawMessage(message: object): boolean {
   if (ws.value?.readyState === WebSocket.OPEN) {
     try {
       ws.value.send(JSON.stringify(message));
+      return true;
     } catch (error) {
       log.error('[MultiplexTransport] 发送消息失败:', error);
+      return false;
     }
   }
+  log.warn('[MultiplexTransport] 无法发送消息，物理连接未打开');
+  return false;
 }
 
 /**
  * 向指定通道发送消息
  */
-function sendToChannel(sid: string, message: WebSocketMessage): void {
+function sendToChannel(sid: string, message: WebSocketMessage): boolean {
   const messageWithSid = { ...message, sid };
-  sendRawMessage(messageWithSid);
+  return sendRawMessage(messageWithSid);
 }
 
 /**
@@ -111,6 +115,8 @@ function dispatchToChannel(message: WebSocketMessage): void {
   if (message.type === 'ssh:connected') {
     channel.connectionStatus.value = 'connected';
     channel.statusMessage.value = '已连接';
+    // 重置 SFTP 就绪状态：新会话的 SFTP 尚未初始化，需等待 sftp_ready 消息
+    channel.isSftpReady.value = false;
     // 多路复用握手：后端返回 backendSessionId，需要重映射通道 key
     const payload = message.payload as Record<string, unknown> | undefined;
     const backendSessionId = payload?.backendSessionId as string | undefined;
@@ -302,7 +308,7 @@ export function createChannel(
     },
 
     sendMessage: (message: WebSocketMessage) => {
-      sendToChannel(channelState.sid, message);
+      return sendToChannel(channelState.sid, message);
     },
 
     onMessage: (

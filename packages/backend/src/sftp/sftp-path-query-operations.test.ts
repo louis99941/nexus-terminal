@@ -34,7 +34,7 @@ const createMockStats = (kind: 'file' | 'directory' = 'file') => ({
 
 const createState = (): MockState => {
   return {
-    ws: { send: vi.fn() },
+    ws: { send: vi.fn(), readyState: 1 },
     sftp: {
       lstat: vi.fn(),
       chmod: vi.fn(),
@@ -59,7 +59,7 @@ describe('sftp-path-query-operations', () => {
 
   describe('executeStatPathQueryOperation', () => {
     it('SFTP 未就绪时返回错误', async () => {
-      const state = { ws: { send: vi.fn() } } as unknown as MockState;
+      const state = { ws: { send: vi.fn(), readyState: 1 } } as unknown as MockState;
       await executeStatPathQueryOperation(state, sessionId, '/tmp/a.txt', requestId);
       const payload = parseLastPayload(state.ws.send);
       expect(payload.type).toBe('sftp:stat:error');
@@ -98,7 +98,7 @@ describe('sftp-path-query-operations', () => {
 
   describe('executeChmodPathQueryOperation', () => {
     it('SFTP 未就绪时返回错误', async () => {
-      const state = { ws: { send: vi.fn() } } as unknown as MockState;
+      const state = { ws: { send: vi.fn(), readyState: 1 } } as unknown as MockState;
       await executeChmodPathQueryOperation(state, sessionId, '/tmp/a.txt', 0o644, requestId);
       const payload = parseLastPayload(state.ws.send);
       expect(payload.type).toBe('sftp:chmod:error');
@@ -156,7 +156,7 @@ describe('sftp-path-query-operations', () => {
 
   describe('executeRealpathPathQueryOperation', () => {
     it('SFTP 未就绪时返回错误', async () => {
-      const state = { ws: { send: vi.fn() } } as unknown as MockState;
+      const state = { ws: { send: vi.fn(), readyState: 1 } } as unknown as MockState;
       await executeRealpathPathQueryOperation(
         state,
         sessionId,

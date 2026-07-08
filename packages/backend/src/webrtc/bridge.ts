@@ -37,16 +37,64 @@ function isInternalGatewayUrl(url: string): boolean {
  */
 const CLIENT_HANDSHAKE_FILTER = /^(connect|select|size|audio|video|image|timezone)[,;]/;
 
+function getRemoteGatewayWsBaseUrl(): string {
+  const deploymentMode = process.env.DEPLOYMENT_MODE;
+  if (deploymentMode === 'local') {
+    return process.env.REMOTE_GATEWAY_WS_URL_LOCAL || 'ws://localhost:8081';
+  }
+  if (deploymentMode === 'docker') {
+    return process.env.REMOTE_GATEWAY_WS_URL_DOCKER || 'ws://remote-gateway:8081';
+  }
+  return 'ws://localhost:8081';
+}
+
+function getSafeErrorDetails(error: unknown): { name: string; code?: string } {
+  if (error instanceof Error) {
+    const code = (error as Error & { code?: unknown }).code;
+    return {
+      name: error.name || 'Error',
+      ...(typeof code === 'string' ? { code } : {}),
+    };
+  }
+
+  return { name: typeof error };
+}
+
+function resolveRemoteGatewayUrl(remoteGatewayUrl: string): string {
+  const incomingUrl = new URL(remoteGatewayUrl);
+  const gatewayBaseUrl = new URL(getRemoteGatewayWsBaseUrl());
+
+  gatewayBaseUrl.search = incomingUrl.search;
+  gatewayBaseUrl.hash = '';
+
+  return gatewayBaseUrl.toString();
+}
+
+function toHttpValidationUrl(gatewayUrl: string): string {
+  const validationUrl = new URL(gatewayUrl);
+  if (validationUrl.protocol === 'ws:') {
+    validationUrl.protocol = 'http:';
+  } else if (validationUrl.protocol === 'wss:') {
+    validationUrl.protocol = 'https:';
+  } else {
+    throw new Error('remote-gateway WebSocket URL 必须使用 ws/wss 协议');
+  }
+  validationUrl.hash = '';
+  return validationUrl.toString();
+}
+
 /**
  * 桥接 WebRTC DataChannel 到 remote-gateway WebSocket
  * @param dc WebRTC DataChannel（浏览器侧）
  * @param remoteGatewayUrl remote-gateway WebSocket URL
  * @param sessionId 会话 ID（用于日志）
+ * @param onClosed 可选回调：桥接清理时通知调用方（如 signaling.ts 清理 session/pc）
  */
 export async function bridgeDataChannelToGateway(
   dc: RTCDataChannel,
   remoteGatewayUrl: string,
   sessionId: string,
+  onClosed?: () => void,
 ): Promise<void> {
   if (!remoteGatewayUrl) {
     logger.error(`[WebRTC Bridge] remoteGatewayUrl 为空: ${sessionId}`);
@@ -54,67 +102,50 @@ export async function bridgeDataChannelToGateway(
     return;
   }
 
-  let rewrittenOrigin: string | undefined;
-
-  // 优化：如果前端传入的 remoteGatewayUrl 是当前后端的 /rdp-proxy 或 /ws/rdp-proxy，
-  // 我们将其直接重写为 remote-gateway 的实际地址。
-  // 这避免了 WebRTC Bridge (没有携带用户 cookie) 被后端的 WebSocket Upgrade 认证中间件 401 拒绝，
-  // 同时也减少了一层不必要的后端代理转发。
+  let gatewayUrl: string;
   try {
-    const parsed = new URL(remoteGatewayUrl);
-    if (parsed.pathname === '/rdp-proxy' || parsed.pathname === '/ws/rdp-proxy') {
-      const deploymentMode = process.env.DEPLOYMENT_MODE;
-      let targetBase: string;
-      if (deploymentMode === 'local') {
-        targetBase = process.env.REMOTE_GATEWAY_WS_URL_LOCAL || 'ws://localhost:8081';
-      } else if (deploymentMode === 'docker') {
-        targetBase = process.env.REMOTE_GATEWAY_WS_URL_DOCKER || 'ws://remote-gateway:8081';
-      } else {
-        targetBase = 'ws://localhost:8081';
-      }
-      const cleanBase = targetBase.endsWith('/') ? targetBase.slice(0, -1) : targetBase;
-      
-      // 前端已经附加了 ?token=...&width=... 等参数，我们直接替换 base url 即可
-      remoteGatewayUrl = `${cleanBase}/${parsed.search}`;
-      logger.debug(`[WebRTC Bridge] 重写 remoteGatewayUrl 直接指向网关: ${cleanBase}/?[REDACTED]`);
-      
-      // 因为是直连内部网关，不需要再设置 origin spoofing
-      rewrittenOrigin = undefined;
-    }
-  } catch (e) {
-    // 忽略解析错误
+    gatewayUrl = resolveRemoteGatewayUrl(remoteGatewayUrl);
+  } catch (error) {
+    logger.error(`[WebRTC Bridge] remoteGatewayUrl 无效: ${sessionId}`, {
+      error: getSafeErrorDetails(error),
+    });
+    dc.send(
+      JSON.stringify({
+        type: 'error',
+        payload: 'remote-gateway URL 无效，请检查服务端网关配置',
+      }),
+    );
+    return;
   }
 
   // SSRF 防护：内部网关地址直接放行，外部地址需 DNS 验证 + 绑定
   let agent: http.Agent | undefined;
-  if (!isInternalGatewayUrl(remoteGatewayUrl)) {
+  if (!isInternalGatewayUrl(gatewayUrl)) {
     try {
+      const validationUrl = toHttpValidationUrl(gatewayUrl);
       const { addresses } = await resolveAndValidatePublicHost(
-        remoteGatewayUrl,
+        validationUrl,
         `WebRTC-Bridge-${sessionId}`,
       );
       const lookup = createPinnedLookup(addresses);
-      const urlObj = new URL(remoteGatewayUrl);
+      const urlObj = new URL(gatewayUrl);
       agent = urlObj.protocol === 'wss:' ? new https.Agent({ lookup }) : new http.Agent({ lookup });
     } catch (error) {
-      logger.error(`[WebRTC Bridge] SSRF 验证失败: ${sessionId}`, error);
+      logger.error(`[WebRTC Bridge] SSRF 验证失败: ${sessionId}`, {
+        error: getSafeErrorDetails(error),
+      });
       dc.send(
         JSON.stringify({
           type: 'error',
-          payload: `remote-gateway URL 验证失败: ${error instanceof Error ? error.message : '未知错误'}`,
+          payload: 'remote-gateway URL 验证失败，请检查服务端网关配置',
         }),
       );
       return;
     }
   }
 
-  const wsOptions: WebSocket.ClientOptions = { agent };
-  if (rewrittenOrigin) {
-    wsOptions.headers = { origin: rewrittenOrigin };
-  }
-
   // 连接到 remote-gateway（DNS pinning 消除 TOCTOU 竞态）
-  const gatewayWs = new WebSocket(remoteGatewayUrl, wsOptions);
+  const gatewayWs = new WebSocket(gatewayUrl, { agent });
   let gatewayReady = false;
   let dcClosed = false;
   let gwClosed = false;
@@ -195,8 +226,10 @@ export async function bridgeDataChannelToGateway(
   });
 
   // 清理函数
+  let cleanedUp = false;
   function cleanup(reason: string): void {
-    if (dcClosed && gwClosed) return;
+    if (cleanedUp) return;
+    cleanedUp = true;
 
     logger.info(
       `[WebRTC Bridge] 清理连接: ${sessionId}, 原因=${reason}, C→G=${msgCountClientToGateway}, G→C=${msgCountGatewayToClient}`,
@@ -210,7 +243,6 @@ export async function bridgeDataChannelToGateway(
         dc.close();
       } catch (err: unknown) {
         logger.debug({ err }, '操作失败，已忽略');
-        // 忽略关闭错误
       }
     }
 
@@ -220,9 +252,11 @@ export async function bridgeDataChannelToGateway(
         gatewayWs.close();
       } catch (err: unknown) {
         logger.debug({ err }, '操作失败，已忽略');
-        // 忽略关闭错误
       }
     }
+
+    // 通知调用方（signaling.ts）清理 session/pc
+    onClosed?.();
   }
 
   // DataChannel 关闭

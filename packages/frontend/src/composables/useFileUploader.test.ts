@@ -174,6 +174,115 @@ describe('useFileUploader', () => {
         }),
       );
     });
+
+    it('文件夹多文件上传应排队启动，完成后自动补位', async () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const handlers = new Map<string, Function>();
+      const wsDeps = makeWsDeps({
+        onMessage: vi.fn((type: string, handler: Function) => {
+          handlers.set(type, handler);
+          return vi.fn();
+        }),
+      });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      for (let i = 0; i < 10; i++) {
+        startFileUpload(makeFile(`file-${i}.txt`));
+      }
+
+      expect(Object.keys(uploads)).toHaveLength(10);
+      expect(wsDeps.value.sendMessage).toHaveBeenCalledTimes(8);
+
+      const firstUploadId = Object.keys(uploads)[0];
+      handlers.get('sftp:upload:success')?.(
+        { uploadId: firstUploadId },
+        { type: 'sftp:upload:success' },
+      );
+      await Promise.resolve();
+
+      expect(wsDeps.value.sendMessage).toHaveBeenCalledTimes(9);
+    });
+
+    it('上传开始消息发送失败时不应永久占用启动槽位', () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const sendMessage = vi.fn().mockReturnValueOnce(false).mockReturnValue(true);
+      const wsDeps = makeWsDeps({ sendMessage });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      for (let i = 0; i < 9; i++) {
+        startFileUpload(makeFile(`file-${i}.txt`));
+      }
+
+      expect(sendMessage).toHaveBeenCalledTimes(9);
+      const failedUpload = Object.values(uploads).find(
+        (upload) => upload.filename === 'file-0.txt',
+      );
+      expect(failedUpload?.status).toBe('error');
+    });
+
+    it('上传开始消息发送失败后应自动移除错误条目', () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const sendMessage = vi.fn().mockReturnValue(false);
+      const wsDeps = makeWsDeps({ sendMessage });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      startFileUpload(makeFile('failed-start.txt'));
+      const uploadId = Object.keys(uploads)[0];
+
+      expect(uploads[uploadId].status).toBe('error');
+      vi.advanceTimersByTime(5000);
+
+      expect(uploads[uploadId]).toBeUndefined();
+    });
+
+    it('开始消息已成功写入时不应被之后的连接状态翻转标记失败', () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const isConnected = { value: true };
+      const sendMessage = vi.fn().mockImplementation(() => {
+        isConnected.value = false;
+        return true;
+      });
+      const wsDeps = makeWsDeps({ isConnected, sendMessage });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      startFileUpload(makeFile('sent-before-disconnect.txt'));
+      const uploadId = Object.keys(uploads)[0];
+
+      expect(uploads[uploadId].status).toBe('pending');
+      expect((uploads[uploadId] as any).startRequested).toBe(true);
+    });
   });
 
   describe('cancelUpload', () => {
@@ -503,6 +612,105 @@ describe('useFileUploader', () => {
       messageHandlers['sftp:upload:progress']({ bytesWritten: 512, totalSize: 1024 }, { uploadId });
 
       expect(uploads[uploadId].progress).toBe(50);
+    });
+
+    it('onUploadProgress 应取乐观进度与后端确认进度的较大值', () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const wsDeps = makeWsDeps();
+
+      const messageHandlers: Record<string, Function> = {};
+      wsDeps.value.onMessage = vi.fn().mockImplementation((type: string, handler: Function) => {
+        messageHandlers[type] = handler;
+        return vi.fn();
+      });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      // 创建 10KB 文件
+      startFileUpload(makeFile('big.bin', 10240));
+      const uploadId = Object.keys(uploads)[0];
+      uploads[uploadId].status = 'uploading';
+
+      // 模拟前端已发送 8KB（乐观进度 80%）
+      uploads[uploadId].sentBytes = 8192;
+
+      // 后端确认进度仅 50%（5KB/10KB）
+      messageHandlers['sftp:upload:progress'](
+        { bytesWritten: 5120, totalSize: 10240 },
+        { uploadId },
+      );
+
+      // 应取较大值 80%
+      expect(uploads[uploadId].progress).toBe(80);
+    });
+
+    it('onUploadProgress 不应在后端成功前把乐观进度四舍五入到 100', () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const wsDeps = makeWsDeps();
+
+      const messageHandlers: Record<string, Function> = {};
+      wsDeps.value.onMessage = vi.fn().mockImplementation((type: string, handler: Function) => {
+        messageHandlers[type] = handler;
+        return vi.fn();
+      });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      startFileUpload(makeFile('almost.bin', 10000));
+      const uploadId = Object.keys(uploads)[0];
+      uploads[uploadId].status = 'uploading';
+      uploads[uploadId].sentBytes = 9950;
+
+      messageHandlers['sftp:upload:progress'](
+        { bytesWritten: 5000, totalSize: 10000 },
+        { uploadId },
+      );
+
+      expect(uploads[uploadId].progress).toBe(99);
+    });
+
+    it('totalSize 为 0 时进度应为 100 而非 NaN', () => {
+      const sessionId = ref('s1');
+      const currentPath = ref('/home');
+      const fileList = ref([]) as any;
+      const wsDeps = makeWsDeps();
+
+      const messageHandlers: Record<string, Function> = {};
+      wsDeps.value.onMessage = vi.fn().mockImplementation((type: string, handler: Function) => {
+        messageHandlers[type] = handler;
+        return vi.fn();
+      });
+
+      const { uploads, startFileUpload } = useFileUploader(
+        sessionId,
+        currentPath,
+        fileList,
+        wsDeps,
+      );
+
+      startFileUpload(makeFile());
+      const uploadId = Object.keys(uploads)[0];
+      uploads[uploadId].status = 'uploading';
+
+      // 后端发送 totalSize=0 的进度消息（空文件场景）
+      messageHandlers['sftp:upload:progress']({ bytesWritten: 0, totalSize: 0 }, { uploadId });
+
+      expect(uploads[uploadId].progress).toBe(100);
+      expect(Number.isNaN(uploads[uploadId].progress)).toBe(false);
     });
 
     it('缺少 uploadId 的消息应被忽略', () => {

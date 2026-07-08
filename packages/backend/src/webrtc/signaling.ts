@@ -33,8 +33,6 @@ export interface WebRTCConfig {
     username?: string;
     credential?: string;
   }>;
-  /** UDP 端口范围 (为 Docker 部署指定) */
-  icePortRange?: [number, number];
 }
 
 /** 活跃的 WebRTC 会话 */
@@ -46,6 +44,12 @@ interface ActiveWebRTCSession {
   remoteGatewayUrl: string;
   createdAt: number;
 }
+
+type WeriftIceServer = {
+  urls: string;
+  username?: string;
+  credential?: string;
+};
 
 /** 活跃会话映射 (sessionId -> session) */
 const activeSessions = new Map<string, ActiveWebRTCSession>();
@@ -80,15 +84,19 @@ export function getICEConfig(): WebRTCConfig {
     });
   }
 
-  const config: WebRTCConfig = { iceServers };
+  return { iceServers };
+}
 
-  const portMin = parseInt(process.env.WEBRTC_PORT_MIN || '', 10);
-  const portMax = parseInt(process.env.WEBRTC_PORT_MAX || '', 10);
-  if (!isNaN(portMin) && !isNaN(portMax) && portMin <= portMax) {
-    config.icePortRange = [portMin, portMax];
-  }
+export function getWeriftICEConfig(): WeriftIceServer[] {
+  return getICEConfig().iceServers.flatMap((server) => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
 
-  return config;
+    return urls.map((url) => ({
+      urls: url,
+      username: server.username,
+      credential: server.credential,
+    }));
+  });
 }
 
 /**
@@ -97,8 +105,6 @@ export function getICEConfig(): WebRTCConfig {
 function handleSignalingConnection(clientWs: WebSocket): void {
   let session: ActiveWebRTCSession | null = null;
   let sessionId = '';
-  /** 在 session 建立前收到的 ICE candidates 缓冲 */
-  let pendingIceCandidates: RTCIceCandidateInit[] = [];
 
   clientWs.on('message', async (data: Buffer | string) => {
     try {
@@ -111,45 +117,11 @@ function handleSignalingConnection(clientWs: WebSocket): void {
             if (newSession) {
               sessionId = newSession.sessionId;
               session = newSession;
-              // 刷新在 offer 处理期间收到的 ICE candidates
-              if (pendingIceCandidates.length > 0) {
-                logger.debug(
-                  `[WebRTC Signaling] 刷新 ${pendingIceCandidates.length} 个缓冲的 ICE candidates: ${sessionId}`
-                );
-                for (const candidate of pendingIceCandidates) {
-                  try {
-                    await session.pc.addIceCandidate(candidate);
-                  } catch (error) {
-                    logger.warn(
-                      `[WebRTC Signaling] 刷新缓冲 ICE candidate 失败: ${sessionId}`,
-                      error
-                    );
-                  }
-                }
-                pendingIceCandidates = [];
-              }
             }
           }
           break;
         case 'ice-candidate':
-          {
-            const candidate = message.payload as RTCIceCandidateInit;
-            if (!candidate) break;
-
-            if (session) {
-              // session 已建立，直接添加
-              try {
-                await session.pc.addIceCandidate(candidate);
-                logger.debug(`[WebRTC Signaling] ICE candidate 已添加: ${sessionId}`);
-              } catch (error) {
-                logger.warn(`[WebRTC Signaling] 添加 ICE candidate 失败: ${sessionId}`, error);
-              }
-            } else {
-              // session 尚未建立（offer 正在处理中），缓冲 candidate
-              logger.debug('[WebRTC Signaling] Session 尚未建立，缓冲 ICE candidate');
-              pendingIceCandidates.push(candidate);
-            }
-          }
+          await handleIceCandidate(clientWs, message);
           break;
         default:
           sendError(clientWs, `未知消息类型: ${message.type}`);
@@ -161,15 +133,21 @@ function handleSignalingConnection(clientWs: WebSocket): void {
   });
 
   clientWs.on('close', () => {
-    if (session) {
+    // 信令 WebSocket 关闭时，仅在 DataChannel 未建立的情况下清理会话
+    // DataChannel 建立后信令通道不再需要，其关闭属于正常行为
+    // Nginx 默认 proxy_read_timeout (60s) 会关闭空闲信令连接，不应因此中断正在进行的远程桌面会话
+    if (session && !session.dc) {
       cleanupSession(session);
+    } else if (session?.dc) {
+      logger.debug(`[WebRTC Signaling] 信令通道关闭，DataChannel 保持活跃: ${sessionId}`);
     }
     logger.debug(`[WebRTC Signaling] 客户端断开: ${sessionId}`);
   });
 
   clientWs.on('error', (error) => {
     logger.error(`[WebRTC Signaling] WebSocket 错误: ${sessionId}`, error);
-    if (session) {
+    // 同上：仅在 DataChannel 未建立时清理
+    if (session && !session.dc) {
       cleanupSession(session);
     }
   });
@@ -198,18 +176,10 @@ async function handleOffer(
   }
 
   const sessionId = `webrtc-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-  const iceConfig = getICEConfig();
+  const iceServers = getWeriftICEConfig();
 
   // 创建 RTCPeerConnection
-  const pc = new RTCPeerConnection({
-    iceServers: iceConfig.iceServers.map((server) => ({
-      // werift 类型定义仅接受 string，数组需转为逗号分隔
-      urls: Array.isArray(server.urls) ? server.urls.join(',') : server.urls,
-      username: server.username,
-      credential: server.credential,
-    })),
-    icePortRange: iceConfig.icePortRange,
-  });
+  const pc = new RTCPeerConnection({ iceServers });
 
   const session: ActiveWebRTCSession = {
     pc,
@@ -246,8 +216,17 @@ async function handleOffer(
     logger.info(`[WebRTC Signaling] DataChannel 已建立: ${sessionId}`);
 
     // 导入桥接模块处理 DataChannel ↔ WebSocket 转发
+    // 通过 onClosed 回调确保桥接清理时同步清理 session/pc，防止内存泄漏
     import('./bridge.js').then(({ bridgeDataChannelToGateway }) => {
-      bridgeDataChannelToGateway(dc, session.remoteGatewayUrl, sessionId);
+      bridgeDataChannelToGateway(dc, session.remoteGatewayUrl, sessionId, () => {
+        logger.debug(`[WebRTC Signaling] 桥接关闭，清理会话: ${sessionId}`);
+        try {
+          pc.close();
+        } catch (err: unknown) {
+          logger.debug({ err }, '操作失败，已忽略');
+        }
+        activeSessions.delete(sessionId);
+      });
     });
   };
 
@@ -271,6 +250,32 @@ async function handleOffer(
 
   logger.debug(`[WebRTC Signaling] SDP answer 已发送: ${sessionId}`);
   return session;
+}
+
+/**
+ * 处理 ICE candidate：将浏览器的 ICE candidate 添加到后端 PeerConnection
+ */
+async function handleIceCandidate(clientWs: WebSocket, message: SignalingMessage): Promise<void> {
+  const candidate = message.payload as RTCIceCandidateInit;
+  const sessionId = (message as unknown as Record<string, string>).sessionId;
+
+  if (!sessionId) {
+    sendError(clientWs, '缺少 sessionId');
+    return;
+  }
+
+  const session = activeSessions.get(sessionId);
+  if (!session) {
+    sendError(clientWs, `会话不存在: ${sessionId}`);
+    return;
+  }
+
+  try {
+    await session.pc.addIceCandidate(candidate);
+    logger.debug(`[WebRTC Signaling] ICE candidate 已添加: ${sessionId}`);
+  } catch (error) {
+    logger.warn(`[WebRTC Signaling] 添加 ICE candidate 失败: ${sessionId}`, error);
+  }
 }
 
 /**

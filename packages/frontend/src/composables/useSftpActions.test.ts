@@ -768,6 +768,28 @@ describe('useSftpActions (createSftpActionsManager)', () => {
       expect(mockShowSuccess).toHaveBeenCalled();
     });
 
+    it('压缩点号开头的单文件时应保留完整文件名作为归档名', async () => {
+      const manager = createSftpActionsManager('session-1', currentPathRef, createWsDeps(), mockT);
+
+      const compressPromise = manager.compressItems([createFileItem('.env')], 'zip');
+
+      expect(mockSendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'sftp:compress',
+          payload: expect.objectContaining({
+            sources: ['/home/user/.env'],
+            destination: '/home/user/.env.zip',
+            format: 'zip',
+          }),
+        }),
+      );
+
+      const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+      triggerMessage('sftp:compress:success', {}, { requestId });
+
+      await compressPromise;
+    });
+
     it('SFTP 未就绪时应拒绝 Promise', async () => {
       mockIsSftpReady.value = false;
       const manager = createSftpActionsManager('session-1', currentPathRef, createWsDeps(), mockT);
@@ -859,6 +881,248 @@ describe('useSftpActions (createSftpActionsManager)', () => {
       );
 
       await expect(decompressPromise).rejects.toThrow('Corrupted archive');
+    });
+  });
+
+  describe('archiveProgress 状态管理', () => {
+    it('初始状态应为非活跃', () => {
+      const manager = createSftpActionsManager('session-1', currentPathRef, createWsDeps(), mockT);
+
+      expect(manager.archiveProgress).toEqual({
+        active: false,
+        operation: null,
+        fileCount: 0,
+        currentFile: null,
+        archiveName: null,
+      });
+    });
+
+    describe('压缩操作', () => {
+      it('压缩开始时应激活进度状态', () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        manager.compressItems([createFileItem('file.txt')], 'zip');
+
+        expect(manager.archiveProgress.active).toBe(true);
+        expect(manager.archiveProgress.operation).toBe('compress');
+        expect(manager.archiveProgress.fileCount).toBe(0);
+        expect(manager.archiveProgress.archiveName).toBe('file.zip');
+
+        // 清理：触发成功以避免超时
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+        triggerMessage('sftp:compress:success', {}, { requestId });
+      });
+
+      it('进度消息应更新 fileCount 和 currentFile', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const compressPromise = manager.compressItems([createFileItem('data')], 'targz');
+
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+
+        // 模拟进度消息
+        triggerMessage(
+          'sftp:compress:progress',
+          { fileCount: 5, currentFile: 'src/index.ts' },
+          { requestId },
+        );
+
+        expect(manager.archiveProgress.fileCount).toBe(5);
+        expect(manager.archiveProgress.currentFile).toBe('src/index.ts');
+
+        // 模拟更多进度
+        triggerMessage(
+          'sftp:compress:progress',
+          { fileCount: 12, currentFile: 'src/utils.ts' },
+          { requestId },
+        );
+
+        expect(manager.archiveProgress.fileCount).toBe(12);
+        expect(manager.archiveProgress.currentFile).toBe('src/utils.ts');
+
+        // 完成
+        triggerMessage('sftp:compress:success', {}, { requestId });
+        await compressPromise;
+      });
+
+      it('压缩成功时应重置进度状态', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const compressPromise = manager.compressItems([createFileItem('file.txt')], 'zip');
+        expect(manager.archiveProgress.active).toBe(true);
+
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+        triggerMessage('sftp:compress:success', {}, { requestId });
+        await compressPromise;
+
+        expect(manager.archiveProgress.active).toBe(false);
+        expect(manager.archiveProgress.operation).toBeNull();
+        expect(manager.archiveProgress.fileCount).toBe(0);
+        expect(manager.archiveProgress.currentFile).toBeNull();
+        expect(manager.archiveProgress.archiveName).toBeNull();
+      });
+
+      it('压缩错误时应重置进度状态', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const compressPromise = manager.compressItems([createFileItem('file.txt')], 'zip');
+        expect(manager.archiveProgress.active).toBe(true);
+
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+        triggerMessage(
+          'sftp:compress:error',
+          { error: 'Failed', details: 'Disk full' },
+          { requestId },
+        );
+        await compressPromise.catch(() => {});
+
+        expect(manager.archiveProgress.active).toBe(false);
+        expect(manager.archiveProgress.operation).toBeNull();
+      });
+
+      it('压缩超时时应重置进度状态', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const compressPromise = manager.compressItems([createFileItem('file.txt')], 'zip');
+        expect(manager.archiveProgress.active).toBe(true);
+
+        vi.advanceTimersByTime(120_000);
+        await compressPromise.catch(() => {});
+
+        expect(manager.archiveProgress.active).toBe(false);
+        expect(manager.archiveProgress.operation).toBeNull();
+      });
+    });
+
+    describe('解压操作', () => {
+      it('解压开始时应激活进度状态', () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        manager.decompressItem(createFileItem('archive.tar.gz'));
+
+        expect(manager.archiveProgress.active).toBe(true);
+        expect(manager.archiveProgress.operation).toBe('decompress');
+        expect(manager.archiveProgress.archiveName).toBe('archive.tar.gz');
+
+        // 清理
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+        triggerMessage('sftp:decompress:success', {}, { requestId });
+      });
+
+      it('进度消息应更新 fileCount 和 currentFile', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const decompressPromise = manager.decompressItem(createFileItem('archive.zip'));
+
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+
+        triggerMessage(
+          'sftp:decompress:progress',
+          { fileCount: 3, currentFile: 'README.md' },
+          { requestId },
+        );
+
+        expect(manager.archiveProgress.fileCount).toBe(3);
+        expect(manager.archiveProgress.currentFile).toBe('README.md');
+
+        triggerMessage('sftp:decompress:success', {}, { requestId });
+        await decompressPromise;
+      });
+
+      it('解压成功时应重置进度状态', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const decompressPromise = manager.decompressItem(createFileItem('archive.zip'));
+        expect(manager.archiveProgress.active).toBe(true);
+
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+        triggerMessage('sftp:decompress:success', {}, { requestId });
+        await decompressPromise;
+
+        expect(manager.archiveProgress.active).toBe(false);
+        expect(manager.archiveProgress.operation).toBeNull();
+      });
+
+      it('解压错误时应重置进度状态', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const decompressPromise = manager.decompressItem(createFileItem('archive.zip'));
+        expect(manager.archiveProgress.active).toBe(true);
+
+        const requestId = (mockSendMessage.mock.calls[0][0] as any).requestId;
+        triggerMessage(
+          'sftp:decompress:error',
+          { error: 'Failed', details: 'Corrupted' },
+          { requestId },
+        );
+        await decompressPromise.catch(() => {});
+
+        expect(manager.archiveProgress.active).toBe(false);
+        expect(manager.archiveProgress.operation).toBeNull();
+      });
+
+      it('解压超时时应重置进度状态', async () => {
+        const manager = createSftpActionsManager(
+          'session-1',
+          currentPathRef,
+          createWsDeps(),
+          mockT,
+        );
+
+        const decompressPromise = manager.decompressItem(createFileItem('archive.zip'));
+        expect(manager.archiveProgress.active).toBe(true);
+
+        vi.advanceTimersByTime(120_000);
+        await decompressPromise.catch(() => {});
+
+        expect(manager.archiveProgress.active).toBe(false);
+        expect(manager.archiveProgress.operation).toBeNull();
+      });
     });
   });
 

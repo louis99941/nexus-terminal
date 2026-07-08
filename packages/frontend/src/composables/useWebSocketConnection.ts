@@ -41,7 +41,7 @@ export function createWebSocketConnectionManager(
     getIsMarkedForSuspend?: () => boolean;
     transport?: {
       sid: string;
-      sendMessage: (message: WebSocketMessage) => void;
+      sendMessage: (message: WebSocketMessage) => boolean;
       onMessage: (type: string, handler: MessageHandler) => () => void;
       connect: () => void;
       disconnect: () => void;
@@ -132,6 +132,8 @@ export function createWebSocketConnectionManager(
       transport.onMessage('ssh:connected', () => {
         connectionStatus.value = 'connected';
         statusMessage.value = getStatusText('connected');
+        // 重置 SFTP 就绪状态：新会话的 SFTP 尚未初始化，需等待 sftp_ready 消息
+        isSftpReady.value = false;
       });
       transport.onMessage('ssh:disconnected', (payload) => {
         connectionStatus.value = 'disconnected';
@@ -229,6 +231,8 @@ export function createWebSocketConnectionManager(
             connectionStatus.value = 'connected';
             statusMessage.value = getStatusText('connected');
           }
+          // 重置 SFTP 就绪状态：新会话的 SFTP 尚未初始化，需等待 sftp_ready 消息
+          isSftpReady.value = false;
         } else if (message.type === 'ssh:disconnected') {
           if (connectionStatus.value !== 'disconnected') {
             connectionStatus.value = 'disconnected';
@@ -332,28 +336,37 @@ export function createWebSocketConnectionManager(
   /**
    * 发送 WebSocket 消息
    */
-  const sendMessage = (message: WebSocketMessage) => {
+  const sendMessage = (message: WebSocketMessage): boolean => {
     // 多路复用模式：委托给 transport
     if (transport) {
       try {
-        transport.sendMessage(message);
+        const sent = transport.sendMessage(message);
+        if (!sent) {
+          log.warn(
+            `[WebSocket ${instanceSessionId}] 多路复用发送消息失败，transport 未确认发送成功`,
+          );
+        }
+        return sent === true;
       } catch (error: unknown) {
         log.error(`[WebSocket ${instanceSessionId}] 多路复用发送消息失败:`, error, message);
+        return false;
       }
-      return;
     }
 
     if (ws.value && ws.value.readyState === WebSocket.OPEN) {
       try {
         const messageString = JSON.stringify(message);
         ws.value.send(messageString);
+        return true;
       } catch (error: unknown) {
         log.error(`[WebSocket ${instanceSessionId}] 序列化或发送消息失败:`, error, message);
+        return false;
       }
     } else {
       log.warn(
         `[WebSocket ${instanceSessionId}] 无法发送消息，连接未打开。状态: ${connectionStatus.value}, ReadyState: ${ws.value?.readyState}`,
       );
+      return false;
     }
   };
 

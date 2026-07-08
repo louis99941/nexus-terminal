@@ -6,6 +6,7 @@ import type { WebSocketMessage, MessagePayload } from '../types/websocket.types'
 
 import type { WebSocketDependencies } from './useSftpActions';
 import { sendFileChunks, type ChunkManagerDeps } from './useUploadChunkManager';
+import { calculateUploadProgress } from './uploadProgress';
 import { log } from '@/utils/log';
 
 const generateUploadId = (): string => {
@@ -16,6 +17,15 @@ const joinPath = (base: string, name: string): string => {
   if (base === '/') return `/${name}`;
   if (base.endsWith('/')) return `${base}${name}`;
   return `${base}/${name}`;
+};
+
+const MAX_ACTIVE_UPLOAD_STARTS = 8;
+const FAILED_UPLOAD_CLEANUP_DELAY_MS = 5000;
+
+type QueuedUploadItem = UploadItem & {
+  remotePath: string;
+  relativePath?: string;
+  startRequested?: boolean;
 };
 
 export function useFileUploader(
@@ -36,6 +46,80 @@ export function useFileUploader(
     wsDeps,
     sessionIdForLog,
     t,
+    onUploadFailed: () => releaseUploadStartSlot(),
+  };
+
+  const activeUploadStartCount = (): number =>
+    Object.values(uploads).filter(
+      (upload) =>
+        (upload as QueuedUploadItem).startRequested &&
+        ['pending', 'uploading', 'paused'].includes(upload.status),
+    ).length;
+
+  const markUploadStartFailed = (uploadId: string, error?: unknown): void => {
+    const failedUpload = uploads[uploadId] as QueuedUploadItem | undefined;
+    if (!failedUpload) return;
+    failedUpload.startRequested = false;
+    failedUpload.status = 'error';
+    failedUpload.error = t('fileManager.errors.uploadFailed');
+    log.error(
+      `[FileUploader ${sessionIdForLog.value}] Failed to send upload start for ${uploadId}:`,
+      error,
+    );
+    releaseUploadStartSlot();
+    setTimeout(() => {
+      if (uploads[uploadId]?.status === 'error') {
+        delete uploads[uploadId];
+      }
+    }, FAILED_UPLOAD_CLEANUP_DELAY_MS);
+  };
+
+  const sendUploadStart = (uploadId: string, upload: QueuedUploadItem): boolean => {
+    const queuedUpload = uploads[uploadId] as QueuedUploadItem | undefined;
+    if (!queuedUpload) return false;
+    queuedUpload.startRequested = true;
+    log.info(
+      `[FileUploader ${sessionIdForLog.value}] Starting upload ${uploadId} to ${upload.remotePath}`,
+    );
+    try {
+      const sendResult = wsDeps.value.sendMessage({
+        type: 'sftp:upload:start',
+        payload: {
+          uploadId,
+          remotePath: upload.remotePath,
+          size: upload.file.size,
+          relativePath: upload.relativePath,
+        },
+      });
+      if (sendResult === false) {
+        markUploadStartFailed(uploadId);
+        return false;
+      }
+    } catch (error: unknown) {
+      markUploadStartFailed(uploadId, error);
+      return false;
+    }
+    return true;
+  };
+
+  const pumpUploadStartQueue = (): void => {
+    if (!wsDeps.value.isConnected.value) return;
+
+    let availableSlots = Math.max(0, MAX_ACTIVE_UPLOAD_STARTS - activeUploadStartCount());
+    if (availableSlots === 0) return;
+
+    for (const [uploadId, upload] of Object.entries(uploads) as Array<[string, QueuedUploadItem]>) {
+      if (availableSlots <= 0) break;
+      if (upload.status === 'pending' && !upload.startRequested) {
+        if (sendUploadStart(uploadId, upload)) {
+          availableSlots--;
+        }
+      }
+    }
+  };
+
+  const releaseUploadStartSlot = (): void => {
+    queueMicrotask(pumpUploadStartQueue);
   };
 
   const startFileUpload = (file: File, relativePath?: string) => {
@@ -89,21 +173,14 @@ export function useFileUploader(
       file,
       filename: file.name,
       progress: 0,
+      sentBytes: 0,
       status: 'pending', // 初始状态
-    };
+      remotePath: finalRemotePath,
+      relativePath: relativePath || undefined,
+      startRequested: false,
+    } as QueuedUploadItem;
 
-    log.info(
-      `[FileUploader ${sessionIdForLog.value}] Starting upload ${uploadId} to ${finalRemotePath}`,
-    );
-    wsDeps.value.sendMessage({
-      type: 'sftp:upload:start',
-      payload: {
-        uploadId,
-        remotePath: finalRemotePath,
-        size: file.size,
-        relativePath: relativePath || undefined,
-      },
-    });
+    pumpUploadStartQueue();
     // 后端应该响应 sftp:upload:ready
   };
 
@@ -120,9 +197,12 @@ export function useFileUploader(
         uploadWithAck._unregisterAck = undefined;
       }
 
-      if (notifyBackend && wsDeps.value.isConnected.value) {
+      const uploadWithQueue = upload as QueuedUploadItem;
+      if (notifyBackend && uploadWithQueue.startRequested && wsDeps.value.isConnected.value) {
         wsDeps.value.sendMessage({ type: 'sftp:upload:cancel', payload: { uploadId } });
       }
+
+      releaseUploadStartSlot();
 
       // 短暂延迟后从列表中移除，以显示取消状态
       setTimeout(() => {
@@ -178,6 +258,7 @@ export function useFileUploader(
       if (uploads[uploadId]) {
         delete uploads[uploadId];
       }
+      releaseUploadStartSlot();
     } else {
       log.warn(
         `[FileUploader ${sessionIdForLog.value}] Received upload:success for unknown upload ID: ${uploadId}`,
@@ -220,6 +301,7 @@ export function useFileUploader(
       }
 
       // 让错误消息可见时间长一些
+      releaseUploadStartSlot();
       setTimeout(() => {
         if (uploads[uploadId]?.status === 'error') {
           delete uploads[uploadId];
@@ -253,6 +335,7 @@ export function useFileUploader(
     if (upload && upload.status === 'paused') {
       log.info(`[FileUploader ${sessionIdForLog.value}] Resuming upload ${uploadId}`);
       upload.status = 'uploading';
+      upload.sentBytes = 0; // 暂停恢复时归零，避免乐观进度累积跳到 100%
       sendFileChunks(chunkDeps, uploadId, upload.file);
     }
   };
@@ -277,6 +360,7 @@ export function useFileUploader(
       }
 
       // 确保它会被移除（如果尚未计划移除）
+      releaseUploadStartSlot();
       setTimeout(() => {
         if (uploads[uploadId]?.status === 'cancelled') {
           delete uploads[uploadId];
@@ -298,10 +382,15 @@ export function useFileUploader(
     if (upload && upload.status === 'uploading') {
       // payload 现在应该包含 bytesWritten 和 totalSize
       if (typeof payloadObj.bytesWritten === 'number' && typeof payloadObj.totalSize === 'number') {
-        upload.progress = Math.min(
-          100,
-          Math.round((payloadObj.bytesWritten / payloadObj.totalSize) * 100),
+        // 后端确认进度（totalSize 为 0 时直接视为完成，避免 NaN）
+        const backendProgress = calculateUploadProgress(
+          payloadObj.bytesWritten,
+          payloadObj.totalSize,
         );
+        // 乐观进度（基于前端已发送字节数）
+        const optimisticProgress = calculateUploadProgress(upload.sentBytes, upload.file.size);
+        // 取较大值：乐观进度提供即时反馈，后端确认进度保证准确性
+        upload.progress = Math.max(backendProgress, optimisticProgress);
       } else {
         log.warn(
           `[FileUploader ${sessionIdForLog.value}] Received upload:progress with incorrect payload format:`,

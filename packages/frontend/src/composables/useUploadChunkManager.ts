@@ -7,6 +7,7 @@ import type { UploadItem } from '../types/upload.types';
 import type { WebSocketMessage, MessagePayload } from '../types/websocket.types';
 import type { TranslateFn } from '../types/i18n.types';
 import type { WebSocketDependencies } from './useSftpActions';
+import { calculateUploadProgress } from './uploadProgress';
 import { log } from '@/utils/log';
 
 /** 分块大小：256KB（优化：减少消息数量，降低内存压力） */
@@ -17,6 +18,7 @@ const WINDOW_SIZE = 8;
 
 /** ACK 超时回退时间（兼容旧后端不发送 ack 的场景） */
 const ACK_TIMEOUT_MS = 3000;
+const FAILED_UPLOAD_CLEANUP_DELAY_MS = 5000;
 
 /** 分块上传管理器依赖 */
 export interface ChunkManagerDeps {
@@ -28,6 +30,8 @@ export interface ChunkManagerDeps {
   sessionIdForLog: Ref<string>;
   /** 国际化翻译函数 */
   t: TranslateFn;
+  /** 本地发送失败时通知上层释放队列槽位 */
+  onUploadFailed?: (uploadId: string) => void;
 }
 
 /**
@@ -61,6 +65,32 @@ export function sendFileChunks(
   let inFlight = 0; // 当前在途（已发送未确认）的块数量
   let ackReceived = false; // 标记是否收到过 ack（用于判断后端是否支持滑动窗口）
   let ackFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let unregisterAck: (() => void) | undefined;
+
+  const clearAckResources = (): void => {
+    if (ackFallbackTimer) {
+      clearTimeout(ackFallbackTimer);
+      ackFallbackTimer = null;
+    }
+    unregisterAck?.();
+    unregisterAck = undefined;
+    (upload as UploadItem & { _unregisterAck?: () => void })._unregisterAck = undefined;
+  };
+
+  const markUploadFailed = (errorKey: string): void => {
+    const failedUpload = uploads[uploadId];
+    if (!failedUpload) return;
+    if (failedUpload.status === 'error') return;
+    failedUpload.status = 'error';
+    failedUpload.error = t(errorKey);
+    clearAckResources();
+    deps.onUploadFailed?.(uploadId);
+    setTimeout(() => {
+      if (uploads[uploadId]?.status === 'error') {
+        delete uploads[uploadId];
+      }
+    }, FAILED_UPLOAD_CLEANUP_DELAY_MS);
+  };
 
   // 每个块创建独立的 FileReader，避免 InvalidStateError（FileReader 状态机限制）
   const readAndSendChunk = () => {
@@ -93,17 +123,30 @@ export function sendFileChunks(
         const isLast = currentOffset + CHUNK_SIZE >= file.size;
         const chunkIndex = Math.floor(currentOffset / CHUNK_SIZE);
 
-        wsDeps.value.sendMessage({
+        const sent = wsDeps.value.sendMessage({
           type: 'sftp:upload:chunk',
           payload: { uploadId, chunkIndex, data: chunkBase64, isLast },
         });
+        if (sent === false) {
+          log.error(
+            `[FileUploader ${sessionIdForLog.value}] Failed to send chunk for ${uploadId} at offset ${currentOffset}.`,
+          );
+          markUploadFailed('fileManager.errors.uploadFailed');
+          inFlight = Math.max(0, inFlight - 1);
+          return;
+        }
+
+        // 乐观进度：发送后立即更新已发送字节数，提供即时进度反馈
+        if (currentUpload) {
+          currentUpload.sentBytes = Math.min(currentUpload.sentBytes + currentChunkSize, file.size);
+          currentUpload.progress = calculateUploadProgress(currentUpload.sentBytes, file.size);
+        }
       } else {
         log.error(
           `[FileUploader ${sessionIdForLog.value}] FileReader returned unexpected result for ${uploadId}:`,
           chunkResult,
         );
-        currentUpload.status = 'error';
-        currentUpload.error = t('fileManager.errors.readFileError');
+        markUploadFailed('fileManager.errors.readFileError');
         inFlight = Math.max(0, inFlight - 1);
       }
     };
@@ -114,8 +157,7 @@ export function sendFileChunks(
       );
       const failedUpload = uploads[uploadId];
       if (failedUpload) {
-        failedUpload.status = 'error';
-        failedUpload.error = t('fileManager.errors.readFileError');
+        markUploadFailed('fileManager.errors.readFileError');
       }
       inFlight = Math.max(0, inFlight - 1);
     };
@@ -170,7 +212,7 @@ export function sendFileChunks(
   };
 
   // 注册 ack 处理器
-  const unregisterAck = wsDeps.value.onMessage('sftp:upload:chunk:ack', onChunkAck);
+  unregisterAck = wsDeps.value.onMessage('sftp:upload:chunk:ack', onChunkAck);
 
   // 保存注销函数到 upload 对象，以便取消时清理
   (upload as UploadItem & { _unregisterAck?: () => void })._unregisterAck = unregisterAck;
@@ -185,10 +227,14 @@ export function sendFileChunks(
   } else {
     // 零字节文件直接发送
     log.info(`[FileUploader ${sessionIdForLog.value}] Processing zero-byte file ${uploadId}`);
-    wsDeps.value.sendMessage({
+    const sent = wsDeps.value.sendMessage({
       type: 'sftp:upload:chunk',
       payload: { uploadId, chunkIndex: 0, data: '', isLast: true },
     });
+    if (sent === false) {
+      markUploadFailed('fileManager.errors.uploadFailed');
+      return;
+    }
     upload.progress = 100;
   }
 }

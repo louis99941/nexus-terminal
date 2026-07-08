@@ -14,7 +14,7 @@ import { log } from '@/utils/log';
  * @description Defines the necessary functions and state required from a WebSocket manager instance.
  */
 export interface WebSocketDependencies {
-  sendMessage: (message: WebSocketMessage) => void;
+  sendMessage: (message: WebSocketMessage) => boolean | void;
   onMessage: (type: string, handler: MessageHandler) => () => void;
   isConnected: ComputedRef<boolean>;
   isSftpReady: Readonly<Ref<boolean>>;
@@ -45,6 +45,13 @@ export interface SftpManagerInstance {
   moveItems: (sourcePaths: string[], destinationDir: string) => void;
   compressItems: (items: FileListItem[], format: 'zip' | 'targz' | 'tarbz2') => Promise<void>;
   decompressItem: (item: FileListItem) => Promise<void>;
+  archiveProgress: {
+    active: boolean;
+    operation: 'compress' | 'decompress' | null;
+    fileCount: number;
+    currentFile: string | null;
+    archiveName: string | null;
+  };
   joinPath: (base: string, name: string) => string;
   setInitialLoadDone: (value: boolean) => void;
 
@@ -221,6 +228,7 @@ export function createSftpActionsManager(
     moveItems: operations.moveItems,
     compressItems: operations.compressItems,
     decompressItem: operations.decompressItem,
+    archiveProgress: operations.archiveProgress,
     joinPath: operations.joinPath,
     currentPath: currentPathRef,
     setInitialLoadDone: (value: boolean) => {

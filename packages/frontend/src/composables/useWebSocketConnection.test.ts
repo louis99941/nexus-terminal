@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createWebSocketConnectionManager } from './useWebSocketConnection';
+import type { MessageHandler, WebSocketMessage } from '../types/websocket.types';
 
 // Mock logger
 const mockLog = vi.hoisted(() => ({
@@ -106,6 +107,13 @@ describe('useWebSocketConnection (createWebSocketConnectionManager)', () => {
   const createManager = (options?: {
     isResumeFlow?: boolean;
     getIsMarkedForSuspend?: () => boolean;
+    transport?: {
+      sid: string;
+      sendMessage: (message: WebSocketMessage) => boolean;
+      onMessage: (type: string, handler: MessageHandler) => () => void;
+      connect: () => void;
+      disconnect: () => void;
+    };
   }) => createWebSocketConnectionManager('session-1', '1', mockT, options);
 
   beforeEach(() => {
@@ -535,8 +543,9 @@ describe('useWebSocketConnection (createWebSocketConnectionManager)', () => {
       const ws = createdWebSockets[0];
       ws.simulateOpen();
 
-      manager.sendMessage({ type: 'test:message', payload: { data: 'test' } });
+      const sent = manager.sendMessage({ type: 'test:message', payload: { data: 'test' } });
 
+      expect(sent).toBe(true);
       expect(ws.send).toHaveBeenCalledWith(
         JSON.stringify({ type: 'test:message', payload: { data: 'test' } }),
       );
@@ -549,10 +558,60 @@ describe('useWebSocketConnection (createWebSocketConnectionManager)', () => {
       const ws = createdWebSockets[0];
       // 不调用 simulateOpen()
 
-      manager.sendMessage({ type: 'test:message', payload: {} });
+      const sent = manager.sendMessage({ type: 'test:message', payload: {} });
 
+      expect(sent).toBe(false);
       expect(ws.send).not.toHaveBeenCalled();
       expect(mockLog.warn).toHaveBeenCalled();
+    });
+
+    it('多路复用 transport 返回 false 时应透传发送失败', () => {
+      const transport = {
+        sid: 'mux-1',
+        sendMessage: vi.fn().mockReturnValue(false),
+        onMessage: vi.fn().mockReturnValue(vi.fn()),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      const manager = createManager({ transport });
+
+      const sent = manager.sendMessage({ type: 'test:message', payload: {} });
+
+      expect(sent).toBe(false);
+      expect(transport.sendMessage).toHaveBeenCalledWith({
+        type: 'test:message',
+        payload: {},
+      });
+    });
+
+    it('多路复用 transport 返回 true 时应视为发送成功', () => {
+      const transport = {
+        sid: 'mux-1',
+        sendMessage: vi.fn().mockReturnValue(true),
+        onMessage: vi.fn().mockReturnValue(vi.fn()),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      const manager = createManager({ transport });
+
+      const sent = manager.sendMessage({ type: 'test:message', payload: {} });
+
+      expect(sent).toBe(true);
+    });
+
+    it('多路复用 transport 未返回发送结果时应视为失败', () => {
+      const transport = {
+        sid: 'mux-1',
+        sendMessage: vi.fn(),
+        onMessage: vi.fn().mockReturnValue(vi.fn()),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      const manager = createManager({ transport: transport as any });
+
+      const sent = manager.sendMessage({ type: 'test:message', payload: {} });
+
+      expect(sent).toBe(false);
     });
   });
 
