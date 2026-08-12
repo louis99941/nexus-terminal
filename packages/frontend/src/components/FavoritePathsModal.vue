@@ -64,7 +64,7 @@ const handleItemClick = async (pathItem: FavoritePathItem) => {
     // Mark path as used before navigating
     await favoritePathsStore.markPathAsUsed(pathItem.id, t);
   } catch (error: unknown) {
-    log.error('Failed to mark path as used:', error);
+    log.error('标记路径已使用失败:', error);
     // Optionally, inform the user about the failure, though navigation will still proceed.
   }
   emit('navigateToPath', pathItem.path);
@@ -89,7 +89,7 @@ const handleDelete = async (pathItem: FavoritePathItem) => {
     try {
       await favoritePathsStore.deleteFavoritePath(pathItem.id, t);
     } catch (error: unknown) {
-      log.error('Failed to delete favorite path from modal:', error);
+      log.error('删除收藏路径失败:', error);
     }
   }
 };
@@ -263,13 +263,11 @@ onBeforeUnmount(() => {
 
       <!-- Path List -->
       <div class="overflow-y-auto flex-grow p-1 text-sm">
-        <div
+        <LoadingState
           v-if="favoritePathsStore.isLoading && filteredPaths.length === 0"
-          class="p-3 text-center text-text-secondary"
-        >
-          <i class="fas fa-spinner fa-spin mr-1"></i>
-          {{ t('favoritePaths.loading', 'Loading favorites...') }}
-        </div>
+          :text="t('favoritePaths.loading')"
+          compact
+        />
         <div
           v-else-if="!favoritePathsStore.isLoading && filteredPaths.length === 0"
           class="p-3 text-center text-text-secondary"

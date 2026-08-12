@@ -101,7 +101,7 @@ const handleSubmit = async () => {
   if (success) {
     isAddEditFormVisible.value = false; // Close form on success
   } else {
-    // Error message is handled by the store and displayed via uiNotificationsStore
+    // 错误消息由 store 处理并通过 uiNotificationsStore 展示
     // Optionally set formError based on store error if needed for specific display
     formError.value = sshKeysStore.error;
   }
@@ -115,7 +115,7 @@ const handleDelete = async (key: SshKeyBasicInfo) => {
   if (confirmed) {
     const success = await sshKeysStore.deleteSshKey(key.id);
     if (!success) {
-      // Error handled by store
+      // 错误由 store 处理
     }
     // If the deleted key was being edited, close the form
     if (keyToEdit.value?.id === key.id) {
@@ -133,7 +133,12 @@ const cancelForm = () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-overlay flex justify-center items-center z-50 p-4">
+  <div
+    class="fixed inset-0 bg-overlay flex justify-center items-center z-50 p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-label="SSH 密钥管理"
+  >
     <div
       class="bg-background text-foreground p-6 rounded-lg shadow-xl border border-border w-full max-w-3xl max-h-[80vh] flex flex-col"
     >
@@ -203,6 +208,7 @@ const cancelForm = () => {
                     class="text-primary hover:text-primary-hover disabled:opacity-50"
                     :disabled="isLoading"
                     :title="t('sshKeys.modal.edit')"
+                    :aria-label="t('sshKeys.modal.edit')"
                   >
                     <i class="fas fa-pencil-alt"></i>
                   </button>
@@ -211,6 +217,7 @@ const cancelForm = () => {
                     class="text-error hover:text-error-hover disabled:opacity-50"
                     :disabled="isLoading"
                     :title="t('sshKeys.modal.delete')"
+                    :aria-label="t('sshKeys.modal.delete')"
                   >
                     <i class="fas fa-trash-alt"></i>
                   </button>

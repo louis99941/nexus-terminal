@@ -27,13 +27,7 @@
     </div>
 
     <!-- 加载状态 -->
-    <div
-      v-else-if="!currentServerStatus"
-      class="loading-status flex flex-col items-center justify-center text-center text-text-secondary mt-4 h-full"
-    >
-      <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-      <span>{{ t('statusMonitor.loading') }}</span>
-    </div>
+    <LoadingState v-else-if="!currentServerStatus" :text="t('statusMonitor.loading')" full />
 
     <!-- 状态网格 -->
     <div v-else class="status-grid grid gap-3">
@@ -451,7 +445,7 @@ const copyIpToClipboard = async (ipAddress: string | null) => {
     await navigator.clipboard.writeText(ipAddress);
     uiNotificationsStore.showSuccess(t('common.copied', '已复制!'));
   } catch (err: unknown) {
-    log.error('Failed to copy IP address: ', err);
+    log.error('复制 IP 地址失败:', err);
     uiNotificationsStore.showError(t('statusMonitor.copyIpError', '复制 IP 失败'));
   }
 };

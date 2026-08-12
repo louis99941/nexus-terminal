@@ -180,6 +180,7 @@
                     @click.stop="handleDeleteReport(report.id)"
                     class="text-text-secondary hover:text-error opacity-0 group-hover:opacity-100 transition-opacity p-1"
                     :title="t('common.delete', '删除')"
+                    :aria-label="t('common.delete', '删除')"
                   >
                     <i class="fas fa-trash-alt text-xs"></i>
                   </button>
@@ -474,12 +475,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { log } from '@/utils/log';
 import { useI18n } from 'vue-i18n';
 import { useAiAuditStore } from '../stores/ai-audit.store';
 import type { AuditReport, ReportType, ReportStatus } from '../types/ai-audit.types';
 import apiClient from '../utils/apiClient';
+import { formatDateTime } from '../utils/dateFormat';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const auditStore = useAiAuditStore();
 
 // 状态
@@ -519,9 +522,9 @@ const tabs = [
   },
 ];
 
-// 工具函数
+// 工具函数：格式化时间戳（统一走 utils/dateFormat 公共工具）
 function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleString();
+  return formatDateTime(timestamp, { locale: locale.value });
 }
 
 function getReportTypeLabel(type: ReportType): string {
@@ -619,7 +622,7 @@ async function handleDeleteReport(reportId: number) {
       selectedReport.value = null;
     }
   } catch (err) {
-    console.error('删除报告失败:', err);
+    log.error('删除报告失败:', err);
   }
 }
 

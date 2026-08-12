@@ -3,6 +3,7 @@ import type { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useWorkspaceEventEmitter } from '../workspaceEvents';
 import { log } from '@/utils/log';
+import { createDebounced } from '@/utils/debounce';
 
 export function useTerminalFit(
   terminal: Ref<Terminal | null>,
@@ -19,16 +20,9 @@ export function useTerminalFit(
   let lastResizeObserverHeight = 0;
   const RESIZE_THRESHOLD = 0.5;
 
-  const debounce = <TArgs extends unknown[]>(func: (...args: TArgs) => void, delay: number) => {
-    let timeoutId: number | null = null;
-    return (...args: TArgs) => {
-      if (timeoutId !== null) clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => {
-        func(...args);
-        timeoutId = null;
-      }, delay);
-    };
-  };
+  // 统一防抖实现（utils/debounce 公共工具）
+  const debounce = <TArgs extends unknown[]>(func: (...args: TArgs) => void, delay: number) =>
+    createDebounced(func, delay);
 
   const debouncedEmitResize = debounce((term: Terminal) => {
     if (term && isActive.value) {
@@ -71,7 +65,7 @@ export function useTerminalFit(
         });
       }
     } catch (error: unknown) {
-      log.warn('Immediate fit/resize failed:', error);
+      log.warn('终端立即适配/调整大小失败:', error);
     }
   };
 

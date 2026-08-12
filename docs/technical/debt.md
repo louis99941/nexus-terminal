@@ -1,16 +1,16 @@
 # 星枢终端 - 技术债务报告
 
-> **状态**：✅ 标记债务（TODO/any/console.log）为 0 | **测试覆盖率**：待提升 | **更新时间**：2026-08-07
+> **状态**：✅ 标记债务（TODO/any/console.log）为 0 | ✅ ja-JP 中文残留清零 | **测试覆盖率**：待提升 | **更新时间**：2026-08-08
 
 ---
 
-## ⚠️ 遗留债务（2026-08-07 发现，未在本轮修复）
+## ⚠️ 遗留债务（2026-08-07 发现，2026-08-07 处理）
 
-| ID | 问题 | 规模 | 建议 |
+| ID | 问题 | 规模 | 处理结果 |
 | --- | --- | --- | --- |
-| L10-1 | **ja-JP 语言包大量中文残留**：1415 个 key 的值为中文（预存缺陷），日文用户实际看到中文 | 1415 key | 全量翻译任务，建议分批按模块（batchOps/aiOps/suspendedSshSessions/sshSuspend 等）推进 |
-| L10-2 | 后端 1745 处日志中英混用（约 50% 中文） | 1745 处 | 全量统一风险高，建议保持模块内一致；已通过 `redactUrlForLog` 控制敏感信息泄漏 |
-| L10-3 | `settings.tabs.about` 等 ja 值已修复，但 ja-JP 仍有 `batchOps.sudoConfirm` 等零散日文夹杂中文 | 少量 | 随 L10-1 一并处理 |
+| L10-1 | **ja-JP 语言包大量中文残留**：日文用户实际看到中文 | 1413 key（含汉字口径） | ✅ 已修复：105 条简体中文残留全部翻译为日文。口径澄清：1413 个"含汉字"值中绝大多数为正常日文汉字词（接続/設定/保存 等），真实中文残留 105 条（dashboard/suspendedSshSessions/tabs/editor/settings 等模块），已全部翻译并验证清零 |
+| L10-2 | 后端 1745 处日志中英混用（约 50% 中文） | 1745 处 | ⏸️ 维持评估：全量统一风险高，保持模块内一致；已通过 `redactUrlForLog` 控制敏感信息泄漏 |
+| L10-3 | `settings.tabs.about` 等 ja 值已修复，但 ja-JP 仍有 `batchOps.sudoConfirm` 等零散日文夹杂中文 | 少量 | ✅ 随 L10-1 一并处理：零散夹杂（`VNC 密码:`、`正在连接 VNC...`、`挂起的 SSH 会话` 等）已全部修复 |
 
 ---
 
@@ -28,6 +28,223 @@
 | R8 | 轮询可见性感知 | AiAudit 报告轮询与 Dashboard 自动刷新页面隐藏时暂停，恢复后继续，卸载清理监听 |
 | R9 | 前端 i18n 大缺口修复 | 全量扫描发现 72 个带 fallback 的调用其 key 缺失（英文/日文用户看到中文）；补齐 zh/en/ja（含新增 `aiAudit`/`commandPalette`/`errors` 结构），三语言 1616 key 一致；修复 `SuspendedSshSessionsModal` 裸 `close` key |
 | R10 | 全量验证与自查 | 后端 2678 + 前端 2664 + 网关 11 测试全过；tsc/eslint 零错误；本表回填 |
+
+---
+
+## 2026-08-08 打磨迭代（10 轮）摘要
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | 统一日期格式化工具 | `utils/dateFormat.ts`（秒/毫秒时间戳自动识别 + formatDateTime/formatShortDateTime/formatTime + i18n locale），替换 9 处重复实现（AuditLog/AiAudit/ConnectionList/ProxyList/Suspended×2/TransferProgress/AIAssistant/Passkey），修复硬编码 `'zh-CN'` 不随语言切换 | 14 测试 |
+| R2 | 统一防抖工具 | `utils/debounce.ts`（createDebounced 支持 cancel），替换 Terminal.vue / useTerminalFit 2 处重复实现 | 4 测试 |
+| R3 | 通知组件清理与无障碍 | UINotificationDisplay 移除未使用的 `getContainerClass` 与全仓唯一 `!important` 内联样式，容器补 `role=status`/`aria-live`，关闭按钮补 `aria-label` |
+| R4 | 通知 store 语义修复 | 单条通知 `timeout` 生效（原类型声明支持但实现强制全局值，文档与实现不符）；warning 类型加入去重窗口防刷屏；清理误导性注释 | 10 测试 |
+| R5 | 统一错误横幅 | 新增 `common/ErrorBanner.vue`（`role=alert` + 警示图标），接入 TagsView/NotificationSettings/ProxyList/NotificationSettingForm，消除散落的 `border-l-4 border-error` 重复写法 | 4 测试 |
+| R6 | 通知渠道日志与文案 | `_sendEmail/_sendWebhook/_sendTelegram` 调试日志前缀统一为 `[通知 - 渠道]` 风格（原中英混用）；邮件主题由裸事件名改为 `[Nexus Terminal]` 前缀 |
+| R7 | 轮询可见性感知 | TransferProgressModal 页面隐藏时停止 5s 轮询，恢复可见且弹窗打开时立即刷新并恢复轮询，监听统一在生命周期清理 |
+| R8 | 英文残留注释统一 | 前端 src 约 150 处英文注释翻译为简体中文（登录/连接/快捷指令/命令历史/Docker/布局配置/设置等 18 个文件），清理陈旧重复注释行 |
+| R9 | 通知模板工具化 | 提取 `notification-template.utils.ts`（renderTemplate / normalizeEventPlaceholder / renderCustomTemplate 纯函数），邮件/Webhook `{event}`→`{eventDisplay}` 归一化去重，删除约 40 行重复分支 | 9 测试 |
+| R10 | 全量验证与自查 | 后端 2690 + 前端 2691 + 网关 11 测试全过；tsc/eslint/prettier/debt/locale 零错误；自查修复 0 值时间戳回归（ConnectionList/ProxyList/Passkey 保留 falsy 语义）；清理孤儿 i18n key `time.invalidDate`；本表回填 |
+
+---
+
+## 2026-08-08 累计 100 轮收尾记录（第 71-100 轮）
+
+### 第八批：后端核心测试补强（71-80 轮）
+
+| 轮次 | 内容 | 用例 |
+| --- | --- | --- |
+| 71 | ai.controller 测试（AI 查询/会话/健康端点的鉴权、校验、委托） | 15 |
+| 72 | anomaly-rules 测试（暴力破解/危险命令/提权/异常时段检测） | 10 |
+| 73 | ai-audit.service 测试（报告创建/查询/删除/异常统计） | 7 |
+| 74 | ip-geo.service 测试（缓存分层/私有 IP 过滤/禁用开关） | 7 |
+| 75 | event.middlewares 测试（日志/持久化中间件与批量缓冲） | 5 |
+| 76 | favorite-paths.controller 测试 | 13 |
+| 77 | quick-commands.controller 测试 | 10 |
+| 78 | terminal-theme.controller 测试 | 11 |
+| 79 | ssh-suspend.controller 测试 | 6 |
+| 80 | 全量验证：后端 2699→2783，零覆盖核心文件显著减少 |
+
+### 第九批：UI/UX 统一（81-90 轮）
+
+| 轮次 | 内容 |
+| --- | --- |
+| 81 | 前端硬编码颜色扫描（初始化页深色有意，保留） |
+| 82 | `.btn-primary` 语义类 + 设置页 15 处接入 |
+| 83 | `.form-input` 语义类 + 验证码表单 4 处接入 |
+| 84 | 弹窗尺寸/滚动一致性核查（已达标） |
+| 85 | 空态/错误态统一核查（已达标） |
+| 86 | 上下文菜单 Esc 关闭 + role/tabindex/Enter/聚焦 |
+| 87 | 移动端响应式核查（已达标） |
+| 88 | 主题变量覆盖核查（终端 HUD 深色有意） |
+| 89 | 文案/占位符统一核查（无硬编码用户文案） |
+| 90 | 全量验证 + 提交 |
+
+### 第十批：性能与代码清理（91-100 轮）
+
+| 轮次 | 内容 |
+| --- | --- |
+| 91 | computed/v-for key 检查（全部规范） |
+| 92 | 列表渲染优化核查（关键列表已虚拟滚动/分页） |
+| 93 | 事件监听泄漏扫描（add/remove 全配对） |
+| 94 | 定时器清理扫描（全部安全） |
+| 95 | 后端 N+1 查询扫描（已解决，23 处批量查询） |
+| 96 | 提取共享 `utils/sleep.ts` 延迟工具（含可取消版）+ apiClient 接入 |
+| 97 | 未使用导出清理（移除 useSleep 预留） |
+| 98 | 死代码/过时注释清理（前批已清） |
+| 99 | 内存缓存泄漏检查（rate-limiter/sftp/ssh-suspend 均有清理） |
+| 100 | 全量验证：前端 2821 + 后端 2783 测试全过，tsc/eslint/prettier/debt/locale 零错误 |
+
+---
+
+## 2026-08-08 测试覆盖补强打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | useEditorEvents 测试 | 19 用例：共享/独立模式分流、10 个事件处理器、批量关闭标签 |
+| R2 | useConfirmDialog 测试 | 5 用例：store 委托、默认标题、confirmAction、loading |
+| R3 | useContextMenuPosition 测试 | 7 用例：右/下边界修正、左上越界限制、元素缺失兜底 |
+| R4 | useQuickCommandTagEditing 测试 | 10 用例：创建/更新/取消、空名校验、展开组迁移、异常通知 |
+| R5 | useAddConnectionFormSubmit 测试 | 14 用例：必填/端口/认证校验、批量 IP、单条 CRUD、删除确认 |
+| R6 | useAddConnectionFormScriptMode 测试 | 8 用例：空输入/解析错误/缺字段/端口/密码校验、成功路径 |
+| R7 | useAddConnectionFormTags 测试 | 7 用例：标签创建自动选中、删除确认、失败警告 |
+| R8 | workspaceEvents 测试 | 6 用例：mitt 订阅/发布/退订、自动清理 |
+| R9 | useAlertDialog 测试 | 4 用例：挂载、onOk 回调、关闭路径、默认文本 |
+| R10 | 全量验证与自查 | 前端 2817（+80）+ 后端 2699 测试全过；tsc/eslint/prettier/debt/locale 零错误；回填本表 |
+
+> 本批为债务文档「测试提升行动计划」阶段三（Composables ≥60%）的实质推进：9 个零覆盖核心 composable 补齐测试。
+
+---
+
+## 2026-08-08 无障碍（a11y）补全打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | icon-only 按钮 aria-label 补全 | 33 处仅图标按钮（复制/删除/编辑/关闭/排序等）补 `:aria-label`，屏幕阅读器可识别用途 |
+| R2 | 对话框无障碍重构 | 新增 `useDialogA11y` composable：安全标题 id（非标题文本）、打开自动聚焦、Tab 焦点圈闭、关闭恢复焦点；AlertDialog/ConfirmDialog 接入 |
+| R3 | 模态框 role=dialog | 10 个模态框遮罩补 `role="dialog"` + `aria-modal="true"`（远程桌面/VNC/发送文件/传输进度/快捷指令/SSH 密钥/标签管理/文件管理等） |
+| R4 | 模态框回归测试 | 7 文件 143 测试全过，`role="dialog"` 添加不破坏既有断言 |
+| R5 | 模态框 aria-label 关联 | 10 个模态框补静态 `aria-label`（无障碍名称），替代复杂的动态 id 关联 |
+| R6 | 回归 + ESLint | aria-label 插入导致的格式问题经 `eslint --fix` 清零 |
+| R7 | 表单标签核查 | 122 处表单控件经抽查均已有 `<label for>` 关联（脚本误报排除），无需改动 |
+| R8 | 动态状态无障碍 | TransferProgressModal 进度条补 `role="progressbar"`（aria-valuenow/min/max）；ArchiveProgressPopup 补 `role="status"` + `aria-live="polite"` |
+| R9 | 进度条扫描 | FileUploadPopup 已用原生 `<progress>`（自带语义），其余 width:100% 为布局非进度条 |
+| R10 | 全量验证与自查 | 前端 2749（+7 对话框测试）+ 后端 2699 测试全过；tsc/eslint/prettier/debt/locale 零错误；回填本表 |
+
+---
+
+## 2026-08-08 图表主题化与响应式工具打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | 提取 useCssVar/hexToRgba 共享工具 | 新增 `composables/useCssVar.ts`：响应式读取 CSS 变量实际值 + 十六进制转 rgba；11 测试 |
+| R2 | 修复 3 个 Chart.js 图表颜色主题化 | SessionDurationChart/SystemResourcesHistoryChart/StatusCharts 的 `var(--color-*)`、`color-mix()` 字符串（canvas 无法解析）→ 读取实际色值，主题切换即时刷新 |
+| R3 | var() 传递问题扫描 | 确认 useAddConnectionFormTest/TerminalTabBar/FileEditorOverlay 的 var() 均在 DOM 上下文（可解析），合法 |
+| R4 | SessionDurationChart 渲染测试 | mock vue-chartjs，验证数据渲染与颜色为实际值 |
+| R5 | SystemResourcesHistoryChart 渲染测试 | 同上，验证 3 数据集颜色非 var()/color-mix()，填充色为 rgba |
+| R6 | StatusCharts 渲染测试 | mock session store，验证 CPU/网络图表渲染与刻度颜色 |
+| R7 | 主题事件派发 | `appearance-background.store` applyUiTheme 后派发 `appearance-theme-applied` 事件；补事件断言测试 |
+| R8 | 监听泄漏治理 | `useCssVar` 不再模块级注册监听（纯读取+缓存），统一由 `useCssVarWithLifecycle` 组件生命周期管理；补生命周期测试 |
+| R9 | 重绘机制核查 + 全量测试 | vue-chartjs 响应式 props 变化自动 update；图表相关 68 测试全过 |
+| R10 | 全量验证与自查 | 前端 2742 + 后端 2699 测试全过；tsc/eslint/prettier/debt/locale 零错误；回填本表 |
+
+---
+
+## 2026-08-08 日志收口与降噪打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | useWebRTCTunnel console 收口 | 3 处 `console.debug` → `log.debug`（DataChannel 关闭/信令连接/SDP Answer） |
+| R2 | 组件/视图 console 收口 | AISettingsSection `[AI Test]` 与 AiAuditView 删除报告 2 处 `console.error` → `log.error`，补齐 log import |
+| R3 | 键盘热路径日志降噪 | App.vue Alt 快捷键 19 处 `log.info` → `log.debug`（每次按键高频输出），PWA 低频事件保留 info |
+| R4 | 后端日志前缀一致性 | transfers/sftp/auth/websocket 前缀均模块化（类名主导），变量名出现属正常，无改动 |
+| R5 | 后端英文残留清零 | 全后端 `logger.*` 英文残留 0 处（L10-2 遗留项实质清零） |
+| R6 | 前端日志用法一致性 | 504 处字符串首参 + 6 处结构化对象并存，均为 log 工具支持形式 |
+| R7 | 后端日志噪音扫描 | transfers/sftp 日志已 debug/info 分层，任务创建等 info 日志低频有价值，保留 |
+| R8 | 前端英文日志清零 | 全前端 `log.*` 英文残留 0 处 |
+| R9 | 文档与 locale 同步 | 三语言 key 一致、注释无英文残留 |
+| R10 | 全量验证与自查 | 前端 2724 + 后端 2699 测试全过；tsc/eslint/prettier/debt/locale 零错误 |
+
+---
+
+## 2026-08-08 日志统一与工具去重打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R0 | **预存问题修复** | `nl2cmd.service.test.ts` 22 例失败根因：测试 mock 了 axios 但未 mock SSRF 防护的 `resolveAndValidatePublicHost`，沙箱 DNS 无法解析 OpenAI 域名。新增 `vi.mock('../utils/url')` 返回测试地址，消除真实 DNS 依赖 | 30 测试全过 |
+| R1 | 前端英文日志统一（组件类） | BatchEditConnectionForm / FileManagerActionModal / FileManagerContextMenu / NotificationSettingForm / NotificationSettings / SendFilesModal / VncModal / WorkspaceConnectionList 8 处 → 中文 |
+| R2 | 前端英文日志统一（store/view/composable） | useTerminalFit / main.ts(3) / auth.store / sshKeys.store / ConnectionsView / LoginView(2) / SetupView / auth.store `Passkeys fetched` 等 10+ 处 → 中文 |
+| R3 | 提取共享 formatBytes 工具 | 新增 `utils/formatBytes.ts`（分级精度：KB/MB 与 GB 可分别配置小数位）+ 7 测试，消除 GB 精度不一致（formatSize 1 位 vs dashboard 2 位） |
+| R4 | dashboard.store 接入共享工具 | 本地 `formatBytes` 删除，改用 `formatBytes(bytes, 1, 2)` 保留原语义；对外 API 不变 |
+| R5 | fileManagerDisplayUtils 接入共享工具 | 本地 `formatSize` 删除，改用 `formatBytes(size, 1, 1)` 保留原语义 |
+| R6 | 后端 i18n.ts console 统一为 logger | 模块导入阶段 3 处 `console.info/error/warn` → 惰性 pino logger（首次调用时 dotenv 已加载，安全）；后端模块级 console 输出清零 |
+| R7 | 重复工具扫描 | 确认 formatMode 唯一实现、2 处手写错误提取（Blob/failureCount 特殊逻辑）不适用 extractErrorMessage，保留合理 |
+| R8 | 前端硬编码扫描 | 仅 reCAPTCHA 品牌名与 API URL 占位，合法保留 |
+| R9 | 后端 logger 一致性抽查 | 130 文件统一 `utils/logger`，无旧 import、无模块级 console |
+| R10 | 全量验证与自查 | 前端 2724 + 后端 2699 测试全过；tsc/eslint/prettier/debt/locale 零错误；回填本表 |
+
+> 备注：`status-monitor.service.test.ts` 在全量并发时偶发 1 例失败（单独运行稳定通过），根因疑似 `createMockStream` 的 `process.nextTick` 在 fake timers + 高并发下的时序抖动，属低频 flaky 预存问题，本次未改动测试基建以免引入新不稳定，留待后续观察。
+
+---
+
+## 2026-08-08 组件状态与日志打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | apiClient 日志统一为中文 | `utils/apiClient.ts` 8 处英文日志（Request error/Response warning/Unauthorized/Forbidden/404/500 等）改为中文，与前端日志风格一致 |
+| R2 | 2FA 时间偏差文案本地化 | `useTwoFactorAuth.ts` 硬编码中文时间偏差提示 → i18n；三语言新增 `settings.twoFactor.error.timeSkewDetected` |
+| R3 | StatusMonitor 加载态统一 | 手写 spinner → `LoadingState`（full 模式） |
+| R4 | NotificationSettings 状态统一 | 手写加载/空态 → `LoadingState`/`EmptyState` |
+| R5 | ProxyList 状态统一 | 手写加载/空态 → `LoadingState`/`EmptyState` |
+| R6 | WorkspaceConnectionList 加载态统一 | 手写 spinner → `LoadingState`（full 模式） |
+| R7 | ManageTag/DockerManager 加载态统一 | 两处手写 spinner → `LoadingState`（compact/full） |
+| R8 | 后端 Docker 日志前缀规范化 | `docker.handler.ts` 13 处 `[fetchRemoteDockerStatus]` → `[DockerHandler]`，与同目录 `[WebSocket]` 等模块级前缀风格一致 |
+| R9 | 局部加载态补缺 | FavoritePathsModal / PathHistoryDropdown / SendFilesModal 三处手写加载态 → `LoadingState`（compact） |
+| R10 | 全量验证与自查 | 前端 2716 + 后端 2669（排除环境性 NL2CMD 网络失败）测试全过；tsc/eslint/prettier/debt/locale 零错误；回填本表 |
+
+> 说明：R10 验证时 `nl2cmd.service.test.ts` 22 例失败经 stash 复现确认与本次改动无关，根因为沙箱环境 DNS 无法解析 OpenAI 域名（`resolveAndValidatePublicHost` 拦截），属环境性预存失败。
+
+---
+
+## 2026-08-08 轮询与文案打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | Docker 管理器 15s 轮询可见性感知 | `useDockerManager.ts` 提取 start/stopRefreshInterval，页面隐藏暂停、恢复可见立即刷新并继续；cleanup 移除监听 | 3 测试 |
+| R2 | 批量执行降级轮询可见性感知 | `MultiServerExec.vue` 页面隐藏暂停 2s 轮询，恢复可见且任务未终态时继续（从 currentTask 兜底取回任务 ID） | 2 测试 |
+| R3 | 后端过时注释清理 | `docker.service.ts` 4 处 `// Use console.log` 残留注释（已改用 logger）移除 |
+| R4 | 空 else 分支清理 | `useDockerManager.ts` 2 处空 `else {}` 分支随 R1 重构消除 |
+| R5 | Docker 面板硬编码英文本地化 | `DockerManager.vue` `'Unknown SSH error'`、14 处 `'N/A'` 改为 i18n（新增 `common.na`） |
+| R6 | 组件硬编码错误文案本地化 | `BatchEditConnectionForm`/`ManageTagConnectionsModal` 的 `'Unknown error'` → `t('common.unknownError')` |
+| R7 | 远程桌面/VNC 错误文案本地化 | `RemoteDesktopModal`/`VncModal` 的 `'Unknown tunnel/client error'`、`'N/A'` 改为 i18n（新增 `remoteDesktopModal.errors.*`） | 三语言 8 key |
+| R8 | 前端英文日志统一为中文 | 26 处 `log.error('Failed to ...')` 等英文日志改为中文（组件/Composable/Store/View） |
+| R9 | Docker 命令失败 UI 反馈 | `useDockerManager` 新增 `commandError` 状态（解析 `docker:command:error` 载荷），`DockerManager.vue` watch 后通过通知反馈用户 | 3 测试 |
+| R10 | 通知默认主题规范化 + 全量验证 | `email.sender.service` 默认主题 `'Notification'` → `'[Nexus Terminal] Notification'`；前端 2716 + 后端 2699 测试全过，tsc/eslint/prettier/debt/locale 零错误 |
+
+---
+
+## 2026-08-08 三轨打磨迭代（10 轮）
+
+| 轮次 | 内容 | 产物 |
+| --- | --- | --- |
+| R1 | 锁定批量取消、Worker 生命周期和 UI/UX 行为契约 | 设计文档与实施计划；补充红灯测试 |
+| R2 | 批量取消状态闭环 | queued 子任务持久化、取消原因透传、终态计数保留、事件顺序测试 |
+| R3 | SSH 执行资源边界 | 单次输出上限、同步 exec 异常清理、迟到 stream 终止、统一 settle |
+| R4 | 批量 Store 终态校准 | 终态 WS 先本地落地，REST 失败仍可读；reset 清理 WS 守卫状态 |
+| R5 | Worker 池失效实例替换 | timeout/error 终止旧 Worker、创建替代实例、迟到响应隔离 |
+| R6 | Worker 单例资源回收 | destroy 后允许重新初始化；初始化期间销毁不会复活迟到实例 |
+| R7 | 批量 UI 无障碍语义 | 标签关联、按钮类型、progressbar、live region、dialog 和键盘路径 |
+| R8 | 交互反馈统一 | sudo/取消确认对话框、复制成功/失败通知、焦点样式与 reduced-motion |
+| R9 | 文档与多语言同步 | features、changelog、本债务记录及 zh/en/ja 文案更新 |
+| R10 | 全量验证与跨轨自查 | ✅ 已完成：全量测试、前后端/网关类型检查、全仓 lint、Prettier、技术债务、locale、diff 检查均通过；另完成独立代码审查与文档准确性复核 |
+
+### 本轮新增约束
+
+- 后端批量输出在内存、数据库和 WebSocket 单次载荷分别受 1MB 边界保护；前端单个子任务输出受 512KB 边界保护。
+- Worker 超时或运行时错误后不复用旧线程，避免旧任务继续执行时污染新请求。
+- Worker 处理 API 当前是可选异步能力；xterm 输出增强热路径仍保持同步处理，以保证终端输出块严格有序，后续接入异步时必须先增加顺序队列和取消策略。
+- 取消操作保留已完成/失败计数，并尽可能透传用户取消原因；排队子任务写入失败不得把明确的取消意图升级为父任务失败。
+- 批量 UI 的高权限执行和中断操作通过统一确认组件；复制结果必须有成功或失败反馈。
 
 ---
 
@@ -367,6 +584,8 @@ controller 属薄层委托，测试通过 service 层间接覆盖。如需直接
 
 | 日期 | 轮次 | 内容 | 提交 |
 | --- | --- | --- | --- |
+| 2026-08-08 | 打磨10轮 | 日期/防抖工具统一、通知组件无障碍与语义修复、ErrorBanner、通知渠道日志与文案、轮询可见性、英文注释统一、通知模板工具化 | `7666fe94` `bd09dd57` `3844ebb4` `c6707bb1` `e3f80b85` `ed7724a6` |
+| 2026-08-07 | 遗留债务处理 | ja-JP 语言包中文残留清零（L10-1/L10-3）：105 条简体中文残留翻译为日文，key 一致性零差异；L10-2 维持模块内一致评估 | 待提交 |
 | 2026-08-07 | 打磨10轮 | 三语言包对齐 + i18n 大缺口修复（72 key）+ 日志脱敏 + 加载/空态统一 + 轮询可见性 | `d72a9ef5` `f0a14302` `c8af5fd5` `85478f32` `f0b6ac1d` `8d08ee12` `aebbb912` |
 | 2026-07-17 | 打磨续轮 | batch/ssh-handler 纯函数拆分 + shellEscape 统一 + Guacamole 边界加固 + 自查 | 待提交 |
 | 2026-07-17 | 打磨10轮 | Guacamole 共用层、transfers/ws 纯函数拆分、主题死代码瘦身、Multiplex 可观测、测试补齐 | 待提交 |
@@ -389,4 +608,4 @@ controller 属薄层委托，测试通过 service 层间接覆盖。如需直接
 
 ---
 
-**文档维护者**：工程治理 **最后更新**：2026-07-17
+**文档维护者**：工程治理 **最后更新**：2026-08-07

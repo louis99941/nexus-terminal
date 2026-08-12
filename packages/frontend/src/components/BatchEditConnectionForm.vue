@@ -169,7 +169,7 @@ const handleSave = async () => {
     }
     emit('update:visible', false);
   } catch (error: unknown) {
-    log.error('Batch update error:', error);
+    log.error('批量更新连接失败:', error);
     const errorMessage = error instanceof Error ? error.message : 'Batch update failed';
     uiNotificationsStore.addNotification({ message: errorMessage, type: 'error' });
   } finally {
@@ -214,7 +214,7 @@ const handleDeleteTag = async (tagId: number) => {
     uiNotificationsStore.addNotification({
       message: t('tags.deleteFailedWithName', {
         name: deletedTagName,
-        error: tagsStore.error || 'Unknown error',
+        error: tagsStore.error || t('common.unknownError'),
       }),
       type: 'error',
     });

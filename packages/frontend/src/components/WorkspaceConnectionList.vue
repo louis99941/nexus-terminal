@@ -72,7 +72,7 @@ const loadInitialExpandedGroups = (): Record<string, boolean> => {
       }
     }
   } catch (error: unknown) {
-    log.error('Failed to load or parse expanded groups state from localStorage:', error);
+    log.error('读取展开分组状态失败:', error);
     localStorage.removeItem(EXPANDED_GROUPS_STORAGE_KEY); // 清除无效状态
   }
   // 默认返回空对象，让 computed 属性处理默认展开
@@ -298,7 +298,7 @@ watch(
       try {
         localStorage.setItem(EXPANDED_GROUPS_STORAGE_KEY, JSON.stringify(newState));
       } catch (error: unknown) {
-        log.error('Failed to save expanded groups state to localStorage:', error);
+        log.error('保存展开分组状态失败:', error);
       }
     }
   },
@@ -418,7 +418,7 @@ const handleMenuAction = async (action: 'add' | 'edit' | 'delete' | 'clone') => 
 
       connectionsStore.cloneConnection(conn.id, newName).catch((error) => {
         // 可以在这里处理克隆失败的特定 UI 反馈，如果需要的话
-        log.error('Cloning failed in component:', error);
+        log.error('组件内克隆失败:', error);
       });
     }
   }
@@ -658,12 +658,11 @@ const scrollToHighlighted = async () => {
 <template>
   <div class="h-full flex flex-col overflow-hidden bg-background text-foreground">
     <!-- ... Loading/Error states ... -->
-    <div
+    <LoadingState
       v-if="(connectionsLoading || tagsLoading) && connections.length === 0 && tags.length === 0"
-      class="flex items-center justify-center h-full text-text-secondary"
-    >
-      <i class="fas fa-spinner fa-spin mr-2"></i> {{ t('common.loading') }}
-    </div>
+      :text="t('common.loading')"
+      full
+    />
     <div
       v-else-if="connectionsError || (tagsError && tags.length === 0)"
       class="flex items-center justify-center h-full text-error px-4 text-center"
@@ -690,6 +689,7 @@ const scrollToHighlighted = async () => {
           class="ml-2 w-8 h-8 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-70 flex-shrink-0 flex items-center justify-center"
           @click="handleMenuAction('add')"
           :title="t('connections.addConnection')"
+          :aria-label="t('connections.addConnection')"
         >
           <i class="fas fa-plus text-white"></i>
         </button>
@@ -794,6 +794,7 @@ const scrollToHighlighted = async () => {
                   @click.stop="handleTagMenuAction('manageTag', groupData)"
                   class="ml-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-secondary hover:text-primary hover:bg-black/10 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-150 focus:outline-none"
                   :title="t('workspaceConnectionList.manageTags.menuItem')"
+                  :aria-label="t('workspaceConnectionList.manageTags.menuItem')"
                 >
                   <i class="fas fa-edit fa-xs"></i>
                 </button>

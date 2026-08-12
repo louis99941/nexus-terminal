@@ -3,13 +3,11 @@
     class="path-history-dropdown absolute z-40 w-full rounded-md bg-background shadow-lg border border-border/50 max-h-60 overflow-y-auto text-sm"
   >
     <!-- Loading State -->
-    <div
+    <LoadingState
       v-if="isLoading && filteredHistory.length === 0"
-      class="p-3 text-center text-text-secondary"
-    >
-      <i class="fas fa-spinner fa-spin mr-2"></i>
-      {{ $t('pathHistory.loading', '加载中...') }}
-    </div>
+      :text="$t('pathHistory.loading')"
+      compact
+    />
     <!-- Empty State -->
     <div v-else-if="filteredHistory.length === 0" class="p-3 text-center text-text-secondary">
       <i class="fas fa-history mr-2"></i>
@@ -51,6 +49,7 @@
             @click.stop="copyPathToClipboard(entry.path)"
             class="p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-150 text-text-secondary hover:text-primary"
             :title="$t('pathHistory.copy', '复制路径')"
+            :aria-label="$t('pathHistory.copy', '复制路径')"
           >
             <i class="fas fa-copy text-xs"></i>
           </button>
@@ -59,6 +58,7 @@
             @click.stop="deleteHistoryEntry(entry.id)"
             class="ml-1 p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-150 text-text-secondary hover:text-error"
             :title="$t('pathHistory.delete', '删除此条历史')"
+            :aria-label="$t('pathHistory.delete', '删除此条历史')"
           >
             <i class="fas fa-times text-xs"></i>
           </button>
@@ -117,7 +117,7 @@ const copyPathToClipboard = async (path: string) => {
     await navigator.clipboard.writeText(path);
     uiNotificationsStore.showSuccess(t('pathHistory.copiedSuccess', '路径已复制到剪贴板'));
   } catch (err: unknown) {
-    log.error('Failed to copy path:', err);
+    log.error('复制路径失败:', err);
     uiNotificationsStore.showError(t('pathHistory.copiedError', '复制路径失败'));
   }
 };

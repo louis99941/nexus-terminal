@@ -4,8 +4,9 @@ import { useI18n } from 'vue-i18n';
 import { useProxiesStore, ProxyInfo } from '../stores/proxies.store';
 import { useConfirmDialog } from '../composables/useConfirmDialog';
 import { useAlertDialog } from '../composables/useAlertDialog';
+import { formatDateTime } from '../utils/dateFormat';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const proxiesStore = useProxiesStore();
 const { showConfirmDialog } = useConfirmDialog();
 const { showAlertDialog } = useAlertDialog();
@@ -33,34 +34,18 @@ const handleDelete = async (proxy: ProxyInfo) => {
   }
 };
 
-// 辅助函数：格式化时间戳 (可以考虑提取到公共工具函数)
-const formatTimestamp = (timestamp: number | null): string => {
-  if (!timestamp) return '-';
-  return new Date(timestamp * 1000).toLocaleString();
-};
+// 辅助函数：格式化时间戳（统一走 utils/dateFormat 公共工具；0/空值显示占位符）
+const formatTimestamp = (timestamp: number | null): string =>
+  timestamp ? formatDateTime(timestamp, { locale: locale.value, fallback: '-' }) : '-';
 </script>
 
 <template>
   <div class="mt-4">
     <!-- Container with top margin -->
     <!-- Loading state (Only show if loading AND no proxies are displayed yet) -->
-    <div
-      v-if="isLoading && proxies.length === 0"
-      class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50 text-center italic"
-    >
-      {{ t('proxies.loading') }}
-    </div>
-    <div v-else-if="error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded">
-      <!-- Error state consistent with Notifications -->
-      {{ t('proxies.error', { error: error }) }}
-    </div>
-    <div
-      v-else-if="proxies.length === 0"
-      class="p-4 mb-4 border-l-4 border-primary/40 bg-primary/10 text-primary rounded"
-    >
-      <!-- No proxies state consistent with Notifications (using blue for now) -->
-      {{ t('proxies.noProxies') }}
-    </div>
+    <LoadingState v-if="isLoading && proxies.length === 0" :text="t('proxies.loading')" />
+    <ErrorBanner v-else-if="error" class="mb-4" :message="t('proxies.error', { error })" />
+    <EmptyState v-else-if="proxies.length === 0" :text="t('proxies.noProxies')" icon="fa-server" />
 
     <!-- Proxy List using Card Layout -->
     <div v-else class="grid gap-4 mt-4">

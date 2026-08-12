@@ -152,8 +152,9 @@ const handleConnection = async () => {
 
     tunnel.onerror = (status: unknown) => {
       const normalizedStatus = normalizeGuacamoleStatus(status);
-      const errorMessage = normalizedStatus.message || 'Unknown tunnel error';
-      const errorCode = normalizedStatus.code || 'N/A';
+      const errorMessage =
+        normalizedStatus.message || t('remoteDesktopModal.errors.unknownTunnelError');
+      const errorCode = normalizedStatus.code || t('remoteDesktopModal.errors.na');
       statusMessage.value = `${t('remoteDesktopModal.errors.tunnelError')} (${errorCode}): ${errorMessage}`;
       connectionStatus.value = 'error';
       disconnectGuacamole();
@@ -319,7 +320,7 @@ const setupInputListeners = () => {
     // displayEl.addEventListener('mouseenter', trySyncClipboardOnMouseEnter); // Changed to focus event
     displayEl.addEventListener('focus', trySyncClipboardOnDisplayFocus);
   } catch (inputError: unknown) {
-    log.error('Error setting up VNC input listeners:', inputError);
+    log.error('设置 VNC 输入监听器失败:', inputError);
     statusMessage.value = t('remoteDesktopModal.errors.inputError');
   }
 };
@@ -340,7 +341,7 @@ const removeInputListeners = () => {
           displayEl.style.cursor = 'default';
         }
       } catch (error: unknown) {
-        log.warn('Could not reset cursor on VNC display element:', error);
+        log.warn('重置 VNC 显示元素光标失败:', error);
       }
     }
   }
@@ -616,6 +617,9 @@ const stopResize = () => {
       isMinimized ? '' : 'bg-overlay',
       isMinimized ? 'pointer-events-none' : '', // 允许恢复按钮接收事件
     ]"
+    role="dialog"
+    aria-modal="true"
+    aria-label="VNC 会话"
   >
     <button
       ref="restoreButtonRef"
@@ -630,6 +634,7 @@ const stopResize = () => {
       }"
       class="fixed z-[100] flex items-center justify-center bg-primary text-white rounded-full shadow-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 pointer-events-auto cursor-grab active:cursor-grabbing"
       :title="t('common.restore')"
+      :aria-label="t('common.restore')"
     >
       <i class="fas fa-window-restore fa-lg"></i>
     </button>
@@ -664,6 +669,7 @@ const stopResize = () => {
             @click="minimizeModal"
             class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 rounded hover:bg-hover"
             :title="t('common.minimize')"
+            :aria-label="t('common.minimize')"
           >
             <i class="fas fa-window-minimize fa-sm"></i>
           </button>
@@ -671,6 +677,7 @@ const stopResize = () => {
             @click="closeModal"
             class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 rounded hover:bg-hover"
             :title="t('common.close')"
+            :aria-label="t('common.close')"
           >
             <i class="fas fa-times fa-lg"></i>
           </button>

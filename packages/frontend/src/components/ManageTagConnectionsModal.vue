@@ -168,7 +168,7 @@ const handleDeleteTag = async () => {
       uiNotificationsStore.addNotification({
         message: t('tags.deleteFailed', {
           name: tagName,
-          error: tagsStore.error || 'Unknown error',
+          error: tagsStore.error || t('common.unknownError'),
         }),
         type: 'error',
       }); // 需要新的翻译键
@@ -187,6 +187,9 @@ onMounted(() => {
   <div
     v-if="internalVisible"
     class="fixed inset-0 bg-overlay flex justify-center items-center z-50 p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-label="管理标签连接"
     @click.self="handleCancel"
   >
     <div
@@ -232,12 +235,7 @@ onMounted(() => {
           <!-- Removed space-y-2 from here -->
           <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
             <!-- New wrapper div -->
-            <div
-              v-if="connectionsLoading"
-              class="flex items-center justify-center h-full text-text-secondary"
-            >
-              <i class="fas fa-spinner fa-spin mr-2"></i> {{ t('common.loading') }}
-            </div>
+            <LoadingState v-if="connectionsLoading" :text="t('common.loading')" compact />
             <ul v-else-if="filteredConnectionsInModal.length > 0" class="space-y-1">
               <li
                 v-for="conn in filteredConnectionsInModal"

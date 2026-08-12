@@ -760,7 +760,8 @@
         "codeRequired": "Please enter the verification code.",
         "verificationFailed": "Invalid or expired verification code.",
         "passwordRequiredForDisable": "Current password is required to disable.",
-        "disableFailed": "Failed to disable two-factor authentication."
+        "disableFailed": "Failed to disable two-factor authentication.",
+        "timeSkewDetected": "Detected a time skew of about {skew} between your device and the server. Please enable automatic time sync (NTP) and try again."
       }
     },
     "ipWhitelist": {
@@ -1305,7 +1306,8 @@
     "confirmationTitle": "Please confirm",
     "navigate": "Navigate",
     "select": "Select",
-    "unexpectedError": "An unexpected error occurred, please try again later"
+    "unexpectedError": "An unexpected error occurred, please try again later",
+    "na": "N/A"
   },
   "layoutConfigurator": {
     "title": "Layout Configurator",
@@ -1454,7 +1456,10 @@
       "connectionFailed": "Connection Failed",
       "inputError": "Error setting up input listeners.",
       "noConnection": "No connection information provided.",
-      "tokenError": "Failed to retrieve token"
+      "tokenError": "Failed to retrieve token",
+      "unknownTunnelError": "Unknown tunnel error",
+      "unknownClientError": "Unknown client error",
+      "na": "N/A"
     },
     "reconnectTooltip": "Reconnect to the remote desktop",
     "resize": "Resize"
@@ -1902,8 +1907,7 @@
     "errorSourceConnectionMissing": "Source server information is missing. Cannot initiate transfer."
   },
   "time": {
-    "unknown": "Unknown time",
-    "invalidDate": "Invalid date"
+    "unknown": "Unknown time"
   },
   "sshSuspend": {
     "notifications": {
@@ -2000,7 +2004,14 @@
       "cancelled": "Cancelled"
     },
     "copyOutput": "Copy to clipboard",
-    "sudoConfirm": "Warning: Running with sudo privileges. Continue?"
+    "copied": "Copied",
+    "copySuccess": "Output copied to clipboard",
+    "copyFailed": "Failed to copy output. Select the text and copy it manually.",
+    "closeOutput": "Close output",
+    "sudoConfirmTitle": "Confirm privileged execution",
+    "sudoConfirm": "This command will run with sudo on the selected servers and may change system state. Continue?",
+    "cancelTitle": "Cancel batch execution?",
+    "cancelConfirm": "Running connections will be interrupted and queued connections will not continue."
   },
   "editor": {
     "unsavedChanges": {

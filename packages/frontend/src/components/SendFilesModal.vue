@@ -2,6 +2,9 @@
   <div
     v-if="visible"
     class="fixed inset-0 bg-overlay flex justify-center items-center z-50 p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-label="发送文件"
     @click.self="handleCancel"
   >
     <div
@@ -72,12 +75,11 @@
         <div
           class="border border-border rounded-md p-4 space-y-4 max-h-72 overflow-y-auto bg-header/30"
         >
-          <div
+          <LoadingState
             v-if="isLoadingConnections || isLoadingTags"
-            class="flex items-center justify-center h-24 text-text-secondary"
-          >
-            <i class="fas fa-spinner fa-spin mr-2"></i> {{ t('sendFilesModal.loadingConnections') }}
-          </div>
+            :text="t('sendFilesModal.loadingConnections')"
+            compact
+          />
           <div
             v-else-if="filteredGroupedConnections.length === 0 && !searchTerm"
             class="flex flex-col items-center justify-center h-24 text-text-secondary"
@@ -447,7 +449,7 @@ const handleSend = async () => {
 
   // 验证 sourceConnectionId 是否存在
   if (payload.sourceConnectionId === null || payload.sourceConnectionId === undefined) {
-    log.error('Source Connection ID is missing in SendFilesModal payload:', payload);
+    log.error('发送文件弹窗缺少源连接 ID:', payload);
     uiNotificationsStore.showError(
       t(
         'sendFilesModal.errorSourceConnectionMissing',
@@ -470,7 +472,7 @@ const handleSend = async () => {
     emitWorkspaceEvent('ui:openTransferProgressModal'); // +++ 触发打开传输进度模态框的事件 +++
     emit('update:visible', false);
   } catch (error: unknown) {
-    log.error('Failed to initiate transfer:', error);
+    log.error('发起传输失败:', error);
     const err = error as { response?: { data?: { message?: string } }; message?: string };
     const errorMessage =
       err.response?.data?.message || err.message || t('sendFilesModal.transferFailedError');
