@@ -10,6 +10,13 @@
 
 </div>
 
+## 🛑 Project Archived
+
+Thanks for your interest in Nexus Terminal. As many mature and well-maintained alternatives already exist in this space, this project is no longer worth maintaining and will **no longer receive updates**.
+
+- The repository stays as-is (read-only) and will not accept new features or bug fixes;
+- If you need a web-based SSH / RDP / VNC client, please use an actively maintained alternative.
+
 ## 📖 Overview
 
 **Nexus Terminal** is a modern, feature-rich web-based SSH / RDP / VNC client dedicated to providing a highly customizable remote connection experience.
