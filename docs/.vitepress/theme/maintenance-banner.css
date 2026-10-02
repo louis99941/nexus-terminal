@@ -1,0 +1,30 @@
+/* 停止维护横幅：固定于页面顶部，高度由 Layout.vue 实测写入 --vp-layout-top-height */
+.maintenance-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: calc(var(--vp-z-index-nav) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--vp-c-warning-1);
+  background-color: var(--vp-c-warning-soft);
+  border-bottom: 1px solid var(--vp-c-warning-2);
+}
+
+.maintenance-banner__icon {
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .maintenance-banner {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
